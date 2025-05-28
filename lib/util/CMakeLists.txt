@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(util OBJECT log.cc crypto.cc)
+add_library(util OBJECT log.cc crypto.cc sha2.cc)
 target_link_libraries(util crypto zstd)
 
 proofs_add_tests(ceildiv_test)
-

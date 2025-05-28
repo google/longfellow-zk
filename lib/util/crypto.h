@@ -26,9 +26,12 @@
 #include <cstring>
 
 #include "util/panic.h"
+
+#if !defined(WITHOUT_OPENSSL)
 #include "openssl/sha.h"
 #include "openssl/evp.h"
 #include "openssl/aes.h"
+#endif
 
 namespace proofs {
 
@@ -37,6 +40,7 @@ constexpr size_t kPRFKeySize = 32;
 constexpr size_t kPRFInputSize = 16;
 constexpr size_t kPRFOutputSize = 16;
 
+#if !defined(WITHOUT_OPENSSL)
 class SHA256 {
  public:
   SHA256() { SHA256_Init(&sha_); }
@@ -63,6 +67,89 @@ class SHA256 {
  private:
   SHA256_CTX sha_;
 };
+#else
+#include "util/sha2.h" // Replace OpenSSL includes with this
+#include <vector>   // For managing internal buffers
+#include <algorithm> // For std::min
+// SHA256 uses 64-byte blocks
+constexpr size_t kSHA256BlockSize = 64;
+class SHA256 {
+ public:
+  SHA256() : internal_ctx_buffer_(PQC_SHA256CTX_BYTES) {
+    state_.ctx = internal_ctx_buffer_.data();
+    sha256_inc_init(&state_);
+  }
+  SHA256(const SHA256&) = delete;
+  SHA256& operator=(const SHA256&) = delete;
+  ~SHA256() {
+    if (state_.ctx) {
+        if (!finalized_) {
+             sha256_inc_ctx_release(&state_);
+        }
+    }
+  }
+  void Update(const uint8_t* bytes, size_t n) {
+    if (finalized_) {
+        ReInit();
+    }
+    size_t offset = 0;
+    if (!buffer_.empty()) {
+        size_t needed = kSHA256BlockSize - buffer_.size();
+        size_t to_copy = std::min(n, needed);
+        buffer_.insert(buffer_.end(), bytes, bytes + to_copy);
+        offset += to_copy;
+        if (buffer_.size() == kSHA256BlockSize) {
+            sha256_inc_blocks(&state_, buffer_.data(), 1);
+            buffer_.clear();
+        }
+    }
+    size_t remaining_bytes = n - offset;
+    size_t num_full_blocks = remaining_bytes / kSHA256BlockSize;
+    if (num_full_blocks > 0) {
+        sha256_inc_blocks(&state_, bytes + offset, num_full_blocks);
+        offset += num_full_blocks * kSHA256BlockSize;
+    }
+    remaining_bytes = n - offset;
+    if (remaining_bytes > 0) {
+        buffer_.insert(buffer_.end(), bytes + offset, bytes + offset + remaining_bytes);
+    }
+  }
+  void DigestData(uint8_t digest[/* kSHA256DigestSize */]) {
+    if (finalized_) {
+        ReInit();
+    }
+    sha256_inc_finalize(digest, &state_, buffer_.data(), buffer_.size());
+    buffer_.clear();
+    finalized_ = true;
+  }
+  void CopyState(const SHA256& src) {
+    if (this == &src) return;
+    sha256_inc_ctx_clone(&state_, &src.state_);
+    // Copy the pending data buffer
+    buffer_ = src.buffer_;
+    finalized_ = src.finalized_;
+  }
+  void Update8(uint64_t x) {
+    uint8_t buf[8];
+    for (size_t i = 0; i < 8; ++i) {
+      buf[i] = static_cast<uint8_t>(x & 0xff); // LSB first
+      x >>= 8;
+    }
+    Update(buf, 8);
+  }
+ private:
+  void ReInit() {
+    state_.ctx = internal_ctx_buffer_.data(); // ctx points to our buffer
+    sha256_inc_init(&state_);
+    buffer_.clear();
+    finalized_ = false;
+  }
+  sha256ctx state_;
+  std::vector<uint8_t> internal_ctx_buffer_; //  memory for state_.ctx
+  std::vector<uint8_t> buffer_;              //  partial blocks (max kSHA256BlockSize - 1 bytes)
+  bool finalized_ = false;
+};
+#endif // WITHOUT_OPENSSL
 
 // A pseudo-random function interface. This implementation uses AES in ECB mode.
 // The caller must ensure that arguments are not reused.
