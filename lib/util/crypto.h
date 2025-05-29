@@ -153,6 +153,7 @@ class SHA256 {
 
 // A pseudo-random function interface. This implementation uses AES in ECB mode.
 // The caller must ensure that arguments are not reused.
+#if !defined(WITHOUT_OPENSSL)
 class PRF {
  public:
   explicit PRF(const uint8_t key[/*kPRFKeySize*/]) {
@@ -183,6 +184,48 @@ class PRF {
  private:
   EVP_CIPHER_CTX* ctx_;
 };
+#else
+#include "util/aesEcb.h" // Replace OpenSSL includes with this
+#include <cstring> 
+#undef AES128
+#define AES256 1
+
+class PRF {
+  public:
+   // Constants for PRF configuration
+   static constexpr size_t kPRFKeySize = 32;    // AES-256 key size (32 bytes)
+   static constexpr size_t kPRFInputSize = 16;   // AES block size for input (16 bytes)
+   static constexpr size_t kPRFOutputSize = 16;  // AES block size for output (16 bytes)
+ 
+   // Constructor - takes 32-byte key for AES-256
+   explicit PRF(const uint8_t key[kPRFKeySize]) {
+     AES_init_ctx(&ctx_, key);  // Initialize with key
+   }
+ 
+   // Destructor - no cleanup needed for stack-allocated ctx_
+   ~PRF() = default;
+ 
+   // Delete copy constructor and assignment operator for safety
+   PRF(const PRF&) = delete;
+   PRF& operator=(const PRF&) = delete;
+ 
+   // Evaluates the PRF (pseudorandom function) on the input
+   // This performs AES-256 encryption in ECB mode on the input block
+   
+   void Eval(uint8_t out[kPRFOutputSize], const uint8_t in[kPRFInputSize]) {
+     // Copy input to output (AES_ECB_encrypt works in-place)
+    memcpy(out, in, kPRFInputSize);
+    
+    // Perform AES-256 ECB encryption
+    AES_ECB_encrypt(&ctx_, out);
+    
+    // Result is now in out buffer
+  }
+  private:
+   AES_ctx ctx_;  // AES context that holds the expanded key schedule
+ };
+ 
+#endif
 
 // Generate n random bytes, following the openssl API convention.
 // This method will panic if the openssl library fails.
