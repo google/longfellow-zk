@@ -141,7 +141,7 @@ static const RequestedAttribute birthdate_1998_09_04 = {
     .value_len = 10};
 
 static const RequestedAttribute height_175 = {
-    {'h', 'e', 'i', 'g', 'h', 't', 'h'}, {0x18, 0xaf}, 6, 2};
+    {'h', 'e', 'i', 'g', 'h', 't'}, {0x18, 0xaf}, 6, 2};
 
 TEST_F(MdocZKTest, one_claim) {
   const Claims tests[] = {{
