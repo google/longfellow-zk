@@ -17,9 +17,25 @@ project(proofs)
 set(CMAKE_CXX_STANDARD 17)
 include(CMake/proofs.cmake)
 enable_testing()
+
+# macOS-specific configuration
 if (CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin")
   link_directories("/opt/homebrew/lib")
   include_directories("/opt/homebrew/include")
+  
+  # Option to enable Apple Secure Enclave RNG
+  option(USE_SECURE_ENCLAVE_RNG "Use Apple Secure Enclave for random number generation" OFF)
+  
+  if(USE_SECURE_ENCLAVE_RNG)
+    message(STATUS "Using Apple Secure Enclave for random number generation")
+    add_compile_definitions(SECURE_ENCLAVE_RNG)
+    find_library(SECURITY_FRAMEWORK Security REQUIRED)
+    if(NOT SECURITY_FRAMEWORK)
+      message(FATAL_ERROR "Security framework not found - required for Secure Enclave RNG")
+    endif()
+  else()
+    message(STATUS "Using OpenSSL for random number generation")
+  endif()
 endif()
 
 # add compiler flags for all known ISA's
