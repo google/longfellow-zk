@@ -35,6 +35,10 @@ add_executable(mdoc_zk_test mdoc_zk_test.cc)
 target_link_libraries(mdoc_zk_test mdoc_static)
 proofs_add_testing_libraries(mdoc_zk_test)
 target_link_libraries(mdoc_zk_test crypto zstd)
+# Link Security framework if using Secure Enclave RNG
+if(CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin" AND USE_SECURE_ENCLAVE_RNG)
+    target_link_libraries(mdoc_zk_test ${SECURITY_FRAMEWORK})
+endif()
 
 set(installable_libs mdoc_static)
 install(TARGETS ${installable_libs} DESTINATION lib)
