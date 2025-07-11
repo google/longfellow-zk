@@ -1,0 +1,7 @@
+<map id="proofs::PtrCred&lt; LogicCircuit, Field, EC, kNumAttr &gt;::Witness" name="proofs::PtrCred&lt; LogicCircuit, Field, EC, kNumAttr &gt;::Witness">
+<area shape="rect" id="Node000001" title=" " alt="" coords="345,53,559,93"/>
+<area shape="rect" id="Node000002" href="$structproofs_1_1VerifyCircuit_1_1Witness.html" title=" " alt="" coords="49,5,192,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="206,40,345,57,345,62,205,45"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,84,236,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="249,94,345,82,345,88,250,99"/>
+</map>

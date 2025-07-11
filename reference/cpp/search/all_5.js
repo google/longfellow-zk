@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['cbor_0',['Cbor',['../classproofs_1_1Cbor.html',1,'proofs']]],
+  ['cbor_3c_20logiccircuit_2c_20kmdoc1cborindexbits_20_3e_1',['Cbor&lt; LogicCircuit, kMdoc1CborIndexBits &gt;',['../classproofs_1_1Cbor.html',1,'proofs']]],
+  ['cbor_3c_20logicf_20_3e_2',['Cbor&lt; LogicF &gt;',['../classproofs_1_1Cbor.html',1,'proofs']]],
+  ['cbor_5fplucker_5fpoint_3',['cbor_plucker_point',['../structproofs_1_1cbor__plucker__point.html',1,'proofs']]],
+  ['cborconstants_4',['CborConstants',['../structproofs_1_1CborConstants.html',1,'proofs']]],
+  ['cbordoc_5',['CborDoc',['../classproofs_1_1CborDoc.html',1,'proofs']]],
+  ['cborindex_6',['CborIndex',['../structproofs_1_1CborIndex.html',1,'proofs::CborIndex'],['../structproofs_1_1mdoc__1f_1_1CborIndex.html',1,'proofs::mdoc_1f&lt; LogicCircuit, Field, EC, kNumAttr &gt;::CborIndex'],['../structproofs_1_1MdocHash_1_1CborIndex.html',1,'proofs::MdocHash&lt; LogicCircuit, Field &gt;::CborIndex']]],
+  ['cborplucker_7',['CborPlucker',['../classproofs_1_1CborPlucker.html',1,'proofs']]],
+  ['cborplucker_3c_20proofs_3a_3alogic_2c_20kncounters_20_3e_8',['CborPlucker&lt; proofs::Logic, kNCounters &gt;',['../classproofs_1_1CborPlucker.html',1,'proofs']]],
+  ['cborplucker_3c_20proofs_3a_3alogiccircuit_2c_20kncounters_20_3e_9',['CborPlucker&lt; proofs::LogicCircuit, kNCounters &gt;',['../classproofs_1_1CborPlucker.html',1,'proofs']]],
+  ['cbortesting_10',['CborTesting',['../classproofs_1_1CborTesting.html',1,'proofs']]],
+  ['cborwitness_11',['CborWitness',['../classproofs_1_1CborWitness.html',1,'proofs']]],
+  ['challenge_12',['Challenge',['../structproofs_1_1Challenge.html',1,'proofs']]],
+  ['changed_13',['changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md5',1,'If the inputs and witnesses are the same, but the gates have changed'],['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md6',1,'If the inputs/witnesses have changed']]],
+  ['circuit_14',['Circuit',['../structproofs_1_1Circuit.html',1,'proofs']]],
+  ['circuit_20files_15',['Circuit files',['../dir_526da5f91d7cbd4b4389f9db984516d8.html#autotoc_md2',1,'']]],
+  ['circuit_3c_20proofs_3a_3agf2_5f128_20_3e_16',['Circuit&lt; proofs::GF2_128 &gt;',['../structproofs_1_1Circuit.html',1,'proofs']]],
+  ['circuitrep_17',['CircuitRep',['../classproofs_1_1CircuitRep.html',1,'proofs']]],
+  ['claims_18',['claims',['../structproofs_1_1VerifierLayers_1_1claims.html',1,'proofs::VerifierLayers']]],
+  ['compilerbackend_19',['CompilerBackend',['../classproofs_1_1CompilerBackend.html',1,'proofs']]],
+  ['corner_20',['corner',['../structproofs_1_1Quad_1_1corner.html',1,'proofs::Quad&lt; Field &gt;::corner'],['../structproofs_1_1Sparse_1_1corner.html',1,'proofs::Sparse&lt; Field &gt;::corner']]],
+  ['corresponding_20to_20version_202_21',['Hashes from 2025-05-15 corresponding to version 2',['../dir_526da5f91d7cbd4b4389f9db984516d8.html#autotoc_md3',1,'']]],
+  ['cpoly_22',['CPoly',['../structproofs_1_1LayerProof.html',1,'proofs']]]
+];

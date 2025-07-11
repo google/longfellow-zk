@@ -1,0 +1,17 @@
+<map id="proofs::ZkProof&lt; Field &gt;" name="proofs::ZkProof&lt; Field &gt;">
+<area shape="rect" id="Node000001" title=" " alt="" coords="531,141,695,166"/>
+<area shape="rect" id="Node000002" href="$structproofs_1_1Circuit.html" title=" " alt="" coords="249,5,401,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="416,45,462,61,508,80,558,110,597,138,594,143,555,114,505,85,460,66,414,50"/>
+<area shape="rect" id="Node000003" href="$structproofs_1_1Proof.html" title=" " alt="" coords="253,69,398,109"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="412,103,507,123,567,138,565,143,506,128,411,108"/>
+<area shape="rect" id="Node000004" href="$structproofs_1_1LigeroParam.html" title=" " alt="" coords="254,133,397,173"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="410,151,531,151,531,156,410,156"/>
+<area shape="rect" id="Node000005" href="$structproofs_1_1LigeroCommitment.html" title=" " alt="" coords="237,197,413,237"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="426,196,506,179,565,164,567,169,507,184,427,201"/>
+<area shape="rect" id="Node000006" href="$structproofs_1_1Digest.html" title=" " alt="" coords="21,205,125,230"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="139,215,237,215,237,220,139,220"/>
+<area shape="rect" id="Node000007" href="$structproofs_1_1LigeroProof.html" title=" " alt="" coords="254,261,397,301"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="409,259,458,243,505,223,555,193,594,164,598,168,558,198,508,228,460,248,411,264"/>
+<area shape="rect" id="Node000008" href="$structproofs_1_1MerkleProof.html" title=" " alt="" coords="5,269,141,294"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="155,279,254,279,254,284,155,284"/>
+</map>

@@ -1,0 +1,7 @@
+<map id="proofs::RandomEngine" name="proofs::RandomEngine">
+<area shape="rect" id="Node000001" title=" " alt="" coords="118,5,273,31"/>
+<area shape="rect" id="Node000002" href="$classproofs_1_1SecureRandomEngine.html" title=" " alt="" coords="5,79,201,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="172,41,120,81,117,76,168,37"/>
+<area shape="rect" id="Node000003" href="$classproofs_1_1Transcript.html" title=" " alt="" coords="225,79,349,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="222,37,274,76,271,81,219,41"/>
+</map>

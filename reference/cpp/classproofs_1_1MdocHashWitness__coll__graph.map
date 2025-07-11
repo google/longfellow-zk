@@ -1,0 +1,9 @@
+<map id="proofs::MdocHashWitness&lt; EC, Field &gt;" name="proofs::MdocHashWitness&lt; EC, Field &gt;">
+<area shape="rect" id="Node000001" title=" " alt="" coords="41,432,219,472"/>
+<area shape="rect" id="Node000002" href="$structproofs_1_1FlatSHA256Witness_1_1BlockWitness.html" title=" " alt="" coords="5,321,191,361"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="110,374,127,431,122,432,105,375"/>
+<area shape="rect" id="Node000003" href="$classproofs_1_1ParsedMdoc.html" title=" " alt="" coords="215,329,354,354"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="259,364,158,434,155,430,255,360"/>
+<area shape="rect" id="Node000004" href="$structproofs_1_1CborIndex.html" title=" " alt="" coords="221,5,348,31"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="287,44,287,328,282,328,282,44"/>
+</map>

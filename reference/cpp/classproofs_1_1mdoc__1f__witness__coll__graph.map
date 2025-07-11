@@ -1,0 +1,14 @@
+<map id="proofs::mdoc_1f_witness&lt; EC, Field, ScalarField &gt;" name="proofs::mdoc_1f_witness&lt; EC, Field, ScalarField &gt;">
+<area shape="rect" id="Node000001" title=" " alt="" coords="609,171,784,211"/>
+<area shape="rect" id="Node000002" href="$structproofs_1_1GF2__128_1_1Elt.html" title=" " alt="" coords="5,97,181,137"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="195,93,205,92,314,85,399,91,482,110,586,143,651,168,649,173,584,148,481,115,398,96,314,90,206,97,195,99"/>
+<area shape="rect" id="Node000006" href="$structproofs_1_1CborWitness_1_1global__witness.html" title=" " alt="" coords="338,139,506,179"/>
+<area shape="poly" id="edge6_Node000006_Node000002" title=" " alt="" coords="153,140,206,155,273,162,338,162,338,167,273,167,205,160,151,145"/>
+<area shape="rect" id="Node000003" href="$structproofs_1_1FlatSHA256Witness_1_1BlockWitness.html" title=" " alt="" coords="329,203,515,243"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="528,219,585,213,616,208,617,213,586,219,529,224"/>
+<area shape="rect" id="Node000004" href="$classproofs_1_1ParsedMdoc.html" title=" " alt="" coords="353,343,491,369"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="454,334,661,208,664,213,457,339"/>
+<area shape="rect" id="Node000005" href="$structproofs_1_1CborIndex.html" title=" " alt="" coords="30,419,157,445"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="170,429,236,424,305,411,357,390,399,366,402,371,359,395,306,416,237,429,171,435"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="520,167,610,178,609,183,519,173"/>
+</map>

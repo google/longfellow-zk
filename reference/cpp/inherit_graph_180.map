@@ -1,0 +1,23 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" title=" " alt="" coords="5,301,83,326"/>
+<area shape="rect" id="Node000001" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="134,5,309,45"/>
+<area shape="poly" id="edge11_Node000000_Node000001" title=" " alt="" coords="44,286,50,237,64,176,89,112,107,82,129,55,144,43,148,48,133,59,111,85,94,114,69,177,55,238,49,287"/>
+<area shape="rect" id="Node000002" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="134,69,309,109"/>
+<area shape="poly" id="edge12_Node000000_Node000002" title=" " alt="" coords="47,287,57,250,73,205,96,159,129,119,146,107,149,112,132,123,101,162,78,207,62,251,53,288"/>
+<area shape="rect" id="Node000003" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="134,133,309,173"/>
+<area shape="poly" id="edge13_Node000000_Node000003" title=" " alt="" coords="54,287,83,235,104,207,129,183,148,171,151,176,132,187,108,211,88,238,59,289"/>
+<area shape="rect" id="Node000004" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="131,197,312,237"/>
+<area shape="poly" id="edge14_Node000000_Node000004" title=" " alt="" coords="68,290,97,268,129,247,155,235,158,240,132,252,100,272,71,294"/>
+<area shape="rect" id="Node000005" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="131,261,312,301"/>
+<area shape="poly" id="edge15_Node000000_Node000005" title=" " alt="" coords="96,301,130,295,131,300,96,307"/>
+<area shape="rect" id="Node000006" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="131,325,312,365"/>
+<area shape="poly" id="edge16_Node000000_Node000006" title=" " alt="" coords="96,320,131,326,130,332,96,325"/>
+<area shape="rect" id="Node000007" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="150,390,293,445"/>
+<area shape="poly" id="edge17_Node000000_Node000007" title=" " alt="" coords="72,333,132,375,156,388,153,392,129,380,69,337"/>
+<area shape="rect" id="Node000008" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="150,469,293,523"/>
+<area shape="poly" id="edge18_Node000000_Node000008" title=" " alt="" coords="57,338,86,395,107,427,132,454,151,467,148,472,129,458,103,430,81,398,53,340"/>
+<area shape="rect" id="Node000009" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="150,547,293,602"/>
+<area shape="poly" id="edge19_Node000000_Node000009" title=" " alt="" coords="51,339,60,381,75,432,99,485,133,533,151,548,148,552,129,537,94,488,70,434,55,382,46,340"/>
+<area shape="rect" id="Node000010" href="$classproofs_1_1Logic_1_1bitvec.html" title=" " alt="" coords="133,627,310,667"/>
+<area shape="poly" id="edge20_Node000000_Node000010" title=" " alt="" coords="48,340,52,395,64,468,74,506,89,544,108,580,133,611,149,624,145,629,129,615,104,583,84,546,69,508,58,469,46,396,43,340"/>
+</map>
