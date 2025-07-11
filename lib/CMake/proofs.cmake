@@ -39,6 +39,10 @@ macro(proofs_add_test PROG)
     target_link_libraries(${PROG} ec)    
     target_link_libraries(${PROG} algebra)
     target_link_libraries(${PROG} util)
+    # Link Security framework if using Secure Enclave RNG
+    if(CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin" AND USE_SECURE_ENCLAVE_RNG)
+        target_link_libraries(${PROG} ${SECURITY_FRAMEWORK})
+    endif()
     proofs_add_testing_libraries(${PROG})
 endmacro()
 
