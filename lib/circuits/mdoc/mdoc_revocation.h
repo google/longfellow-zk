@@ -48,7 +48,7 @@ class MdocRevocationList {
   const LogicCircuit& lc_;
 };
 
-// The second revocation approachs works for larger lists. In this case, the
+// The second revocation approaches works for larger lists. In this case, the
 // prover retrieves a witness that their credential is *not* on the revoked
 // list by presenting a signature of the span (l,r) and proving that their
 // revocation identifier rev_id satisfied l < rev_id < r.
