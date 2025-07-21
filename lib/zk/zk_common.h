@@ -305,7 +305,7 @@ class ZkCommon {
     //
     // The ZK verifier needs to compute linear combinations (and one
     // quadratic combination) of the X's, but it only has access to
-    // the Xhat's and to a committment to the dX's.  We also want to
+    // the Xhat's and to a commitment to the dX's.  We also want to
     // discuss the verifier algorithm as if the verifier were
     // operating on X, in order to keep the discussion simple.
     //
