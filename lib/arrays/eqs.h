@@ -61,7 +61,7 @@ class Eqs : public Dense<Field> {
   //
   // Several ways exist to compute ceil(a/b) given a primitive that
   // computes floor(a/b), such as the C++ unsigned division operator.
-  // The simplest one is floor((a+(b-1))/b), which potentally overflows.
+  // The simplest one is floor((a+(b-1))/b), which potentially overflows.
   // Another way is 1+floor((a-1)/b), which underflows for a==0 but
   // otherwise does not overflow.  More complicated ways exist that neither
   // overflow nor underflow.  Since the rest of the code assumes
