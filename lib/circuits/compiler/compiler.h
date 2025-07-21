@@ -404,7 +404,7 @@ class QuadCircuit {
       if (n.info.is_output) {
         r = std::max<size_t>(r, 1 + n.info.depth);
       } else if (n.info.is_assert0) {
-        // Assertions of the form 0*(1*OP) contibute n.info.depth and
+        // Assertions of the form 0*(1*OP) contribute n.info.depth and
         // not 1 + n.info.depth.  If the assertion is in the last
         // layer, it will be transformed in an output of OP at
         // n.info.depth.  If the assertion is not in the last layer,
