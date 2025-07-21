@@ -31,7 +31,7 @@ extern "C" {
 //   library).
 //   - circuit_hash - SHA265 hash of the output of generate_circuit() function,
 //   the circuit in compressed format. It's converted to a hex string. Every
-//   time the circuit changes, the hash must be manaully calculated and a new
+//   time the circuit changes, the hash must be manually calculated and a new
 //   ZKSpec added to this list.
 //   - num_attributes. number of attributes the circuit supports,
 //   - version. version of the ZK specification
