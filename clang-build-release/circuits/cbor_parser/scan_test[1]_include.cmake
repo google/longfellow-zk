@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/circuits/cbor_parser/scan_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/circuits/cbor_parser/scan_test[1]_tests.cmake")
+else()
+  add_test(scan_test_NOT_BUILT scan_test_NOT_BUILT)
+endif()

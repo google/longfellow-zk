@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/arrays/eqs_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/arrays/eqs_test[1]_tests.cmake")
+else()
+  add_test(eqs_test_NOT_BUILT eqs_test_NOT_BUILT)
+endif()

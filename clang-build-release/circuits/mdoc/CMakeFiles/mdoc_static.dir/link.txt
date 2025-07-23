@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmdoc_static.a CMakeFiles/mdoc_static.dir/mdoc_zk.cc.o CMakeFiles/mdoc_static.dir/zk_spec.cc.o
+/usr/bin/ranlib libmdoc_static.a

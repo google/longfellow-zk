@@ -127,7 +127,7 @@ static const StaticString kIssuerPKY[] = {
 };
 
 static const char *kIDPass = "com.google.wallet.idcard.1";
-static const char *kMDL = "org.iso.18013.5.1.mDL";
+static const char *kMDL = "eu.europa.ec.eudi.pid.1";
 
 struct MdocTests {
   StaticString pkx, pky; /* public key of the issuer */

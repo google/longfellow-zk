@@ -1,0 +1,5 @@
+add_test([=[SHA3_Circuit.Keccak_F_1600]=]  /workspaces/longfellow-zk/clang-build-release/circuits/sha3/sha3_circuit_test [==[--gtest_filter=SHA3_Circuit.Keccak_F_1600]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[SHA3_Circuit.Keccak_F_1600]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/sha3 SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[SHA3_Circuit.Keccak_F_1600_Copies]=]  /workspaces/longfellow-zk/clang-build-release/circuits/sha3/sha3_circuit_test [==[--gtest_filter=SHA3_Circuit.Keccak_F_1600_Copies]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[SHA3_Circuit.Keccak_F_1600_Copies]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/sha3 SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  sha3_circuit_test_TESTS SHA3_Circuit.Keccak_F_1600 SHA3_Circuit.Keccak_F_1600_Copies)

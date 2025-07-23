@@ -1,0 +1,5 @@
+add_test([=[BitPlucker.Pluck]=]  /workspaces/longfellow-zk/clang-build-release/circuits/logic/bit_plucker_test [==[--gtest_filter=BitPlucker.Pluck]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[BitPlucker.Pluck]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/logic SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[BitPlucker.PluckSize]=]  /workspaces/longfellow-zk/clang-build-release/circuits/logic/bit_plucker_test [==[--gtest_filter=BitPlucker.PluckSize]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[BitPlucker.PluckSize]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/logic SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  bit_plucker_test_TESTS BitPlucker.Pluck BitPlucker.PluckSize)

@@ -1,0 +1,7 @@
+add_test([=[Memcmp.Simple]=]  /workspaces/longfellow-zk/clang-build-release/circuits/logic/memcmp_test [==[--gtest_filter=Memcmp.Simple]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Memcmp.Simple]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/logic SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Memcmp.Date]=]  /workspaces/longfellow-zk/clang-build-release/circuits/logic/memcmp_test [==[--gtest_filter=Memcmp.Date]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Memcmp.Date]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/logic SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Memcmp.size]=]  /workspaces/longfellow-zk/clang-build-release/circuits/logic/memcmp_test [==[--gtest_filter=Memcmp.size]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Memcmp.size]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/logic SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  memcmp_test_TESTS Memcmp.Simple Memcmp.Date Memcmp.size)

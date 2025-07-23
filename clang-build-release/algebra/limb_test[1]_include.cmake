@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/algebra/limb_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/algebra/limb_test[1]_tests.cmake")
+else()
+  add_test(limb_test_NOT_BUILT limb_test_NOT_BUILT)
+endif()

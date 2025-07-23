@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/circuits/mdoc/mdoc_signature_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/circuits/mdoc/mdoc_signature_test[1]_tests.cmake")
+else()
+  add_test(mdoc_signature_test_NOT_BUILT mdoc_signature_test_NOT_BUILT)
+endif()

@@ -147,7 +147,7 @@ struct ProverState {
 // Fills the hash witness with the attributes and the time input.
 void fill_attributes(DenseFiller<f_128> &hash_filler,
                      const RequestedAttribute *attrs, size_t attrs_len,
-                     const uint8_t *now, const f_128 &Fs, size_t version = 2) {
+                     const uint8_t *now, const f_128 &Fs, size_t version = 4) {
   hash_filler.push_back(Fs.one());
   for (size_t ai = 0; ai < attrs_len; ++ai) {
     fill_attribute(hash_filler, attrs[ai], Fs, version);
@@ -172,7 +172,7 @@ void fill_public_inputs(DenseFiller<Fp256Base> &sig_filler,
                         const RequestedAttribute *attrs, size_t attrs_len,
                         const uint8_t *now, const uint8_t *docType,
                         size_t dt_len, const gf2k macs[], gf2k av,
-                        const f_128 &Fs, size_t version = 2) {
+                        const f_128 &Fs, size_t version = 4) {
   fill_attributes(hash_filler, attrs, attrs_len, now, Fs, version);
 
   for (size_t i = 0; i < 6; ++i) { /* 6 mac + 1 av */
@@ -199,7 +199,7 @@ bool fill_witness(DenseFiller<Fp256Base> &fill_b, DenseFiller<f_128> &fill_s,
                   const RequestedAttribute *attrs, size_t attrs_len,
                   const uint8_t *now, ProverState &state,
                   SecureRandomEngine &rng, const f_128 &Fs,
-                  size_t version = 2) {
+                  size_t version = 4) {
   using MdocHW = MdocHashWitness<P256, f_128>;
   using MdocSW = MdocSignatureWitness<P256, Fp256Scalar>;
 

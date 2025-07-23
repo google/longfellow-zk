@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/gf2k/lch14_reed_solomon_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/gf2k/lch14_reed_solomon_test[1]_tests.cmake")
+else()
+  add_test(lch14_reed_solomon_test_NOT_BUILT lch14_reed_solomon_test_NOT_BUILT)
+endif()

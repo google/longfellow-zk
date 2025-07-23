@@ -96,7 +96,7 @@ typedef struct {
   size_t version;
 } ZkSpecStruct;
 
-static const char kDefaultDocType[] = "org.iso.18013.5.1.mDL";
+static const char kDefaultDocType[] = "eu.europa.ec.eudi.pid.1";
 
 // The run_mdoc2_prover method takes byte-oriented inputs that describe a
 // circuit, mdoc, the public key of the issuer for the mdoc, a transcript

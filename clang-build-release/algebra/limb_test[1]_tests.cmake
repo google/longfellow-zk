@@ -1,0 +1,5 @@
+add_test([=[Limb.Scalar]=]  /workspaces/longfellow-zk/clang-build-release/algebra/limb_test [==[--gtest_filter=Limb.Scalar]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Limb.Scalar]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/algebra SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Limb.Array]=]  /workspaces/longfellow-zk/clang-build-release/algebra/limb_test [==[--gtest_filter=Limb.Array]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Limb.Array]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/algebra SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  limb_test_TESTS Limb.Scalar Limb.Array)

@@ -1,0 +1,5 @@
+add_test([=[Scan.Add]=]  /workspaces/longfellow-zk/clang-build-release/circuits/cbor_parser/scan_test [==[--gtest_filter=Scan.Add]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Scan.Add]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/cbor_parser SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Scan.UnsegmentedAdd]=]  /workspaces/longfellow-zk/clang-build-release/circuits/cbor_parser/scan_test [==[--gtest_filter=Scan.UnsegmentedAdd]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Scan.UnsegmentedAdd]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/cbor_parser SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  scan_test_TESTS Scan.Add Scan.UnsegmentedAdd)

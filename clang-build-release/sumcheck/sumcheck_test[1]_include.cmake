@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/sumcheck/sumcheck_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/sumcheck/sumcheck_test[1]_tests.cmake")
+else()
+  add_test(sumcheck_test_NOT_BUILT sumcheck_test_NOT_BUILT)
+endif()

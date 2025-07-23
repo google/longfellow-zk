@@ -157,7 +157,7 @@ class ParsedMdoc {
 
     // Find the attribute witness we need from here.
     // For now, we only support 1 namespace.
-    auto mldns = ns[1].lookup(resp, 17, (uint8_t*)"org.iso.18013.5.1", di);
+    auto mldns = ns[1].lookup(resp, 17, (uint8_t*)"eu.europa.ec.eudi.pid.1", di);
     if (mldns == nullptr) return false;
     size_t ai = 0;
     auto tattr = mldns[1].index(ai++);

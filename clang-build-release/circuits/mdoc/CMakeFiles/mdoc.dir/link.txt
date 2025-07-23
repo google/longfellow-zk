@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmdoc.a CMakeFiles/mdoc.dir/mdoc_zk.cc.o CMakeFiles/mdoc.dir/zk_spec.cc.o ../sha/CMakeFiles/flatsha.dir/flatsha256_witness.cc.o ../sha/CMakeFiles/flatsha.dir/sha256_constants.cc.o ../../ec/CMakeFiles/ec.dir/p256.cc.o ../../algebra/CMakeFiles/algebra.dir/nat.cc.o ../../util/CMakeFiles/util.dir/log.cc.o ../../util/CMakeFiles/util.dir/crypto.cc.o
+/usr/bin/ranlib libmdoc.a

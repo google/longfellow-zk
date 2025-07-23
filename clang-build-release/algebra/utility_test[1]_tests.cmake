@@ -1,0 +1,5 @@
+add_test([=[Utility.BatchInverse]=]  /workspaces/longfellow-zk/clang-build-release/algebra/utility_test [==[--gtest_filter=Utility.BatchInverse]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Utility.BatchInverse]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/algebra SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Utility.Factorial]=]  /workspaces/longfellow-zk/clang-build-release/algebra/utility_test [==[--gtest_filter=Utility.Factorial]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Utility.Factorial]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/algebra SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  utility_test_TESTS Utility.BatchInverse Utility.Factorial)

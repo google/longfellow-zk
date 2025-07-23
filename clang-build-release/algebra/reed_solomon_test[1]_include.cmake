@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/algebra/reed_solomon_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/algebra/reed_solomon_test[1]_tests.cmake")
+else()
+  add_test(reed_solomon_test_NOT_BUILT reed_solomon_test_NOT_BUILT)
+endif()

@@ -1,0 +1,5 @@
+add_test([=[FFTInterpolation.Simple]=]  /workspaces/longfellow-zk/clang-build-release/algebra/fft_interpolation_test [==[--gtest_filter=FFTInterpolation.Simple]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[FFTInterpolation.Simple]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/algebra SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[FFTInterpolation.Product]=]  /workspaces/longfellow-zk/clang-build-release/algebra/fft_interpolation_test [==[--gtest_filter=FFTInterpolation.Product]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[FFTInterpolation.Product]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/algebra SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  fft_interpolation_test_TESTS FFTInterpolation.Simple FFTInterpolation.Product)

@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/algebra/interpolation_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/algebra/interpolation_test[1]_tests.cmake")
+else()
+  add_test(interpolation_test_NOT_BUILT interpolation_test_NOT_BUILT)
+endif()

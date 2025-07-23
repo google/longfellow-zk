@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/arrays/affine_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/arrays/affine_test[1]_tests.cmake")
+else()
+  add_test(affine_test_NOT_BUILT affine_test_NOT_BUILT)
+endif()

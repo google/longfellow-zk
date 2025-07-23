@@ -40,3 +40,6 @@ set(installable_libs mdoc_static)
 install(TARGETS ${installable_libs} DESTINATION lib)
 install(FILES mdoc_zk.h DESTINATION include)
 
+# to create a new circuit
+add_executable(circuit_maker circuit_maker.cc)
+target_link_libraries(circuit_maker PRIVATE mdoc util)

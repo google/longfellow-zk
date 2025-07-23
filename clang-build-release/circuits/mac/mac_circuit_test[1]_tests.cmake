@@ -1,0 +1,5 @@
+add_test([=[MAC.full_circuit_test_128]=]  /workspaces/longfellow-zk/clang-build-release/circuits/mac/mac_circuit_test [==[--gtest_filter=MAC.full_circuit_test_128]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[MAC.full_circuit_test_128]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/mac SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[MAC.full_circuit_GF2_128]=]  /workspaces/longfellow-zk/clang-build-release/circuits/mac/mac_circuit_test [==[--gtest_filter=MAC.full_circuit_GF2_128]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[MAC.full_circuit_GF2_128]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/mac SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  mac_circuit_test_TESTS MAC.full_circuit_test_128 MAC.full_circuit_GF2_128)

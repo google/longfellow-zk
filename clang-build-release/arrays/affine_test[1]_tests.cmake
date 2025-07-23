@@ -1,0 +1,7 @@
+add_test([=[Affine.Bind]=]  /workspaces/longfellow-zk/clang-build-release/arrays/affine_test [==[--gtest_filter=Affine.Bind]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Affine.Bind]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/arrays SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Affine.SparseBind]=]  /workspaces/longfellow-zk/clang-build-release/arrays/affine_test [==[--gtest_filter=Affine.SparseBind]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Affine.SparseBind]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/arrays SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Affine.Canonicalize]=]  /workspaces/longfellow-zk/clang-build-release/arrays/affine_test [==[--gtest_filter=Affine.Canonicalize]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Affine.Canonicalize]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/arrays SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  affine_test_TESTS Affine.Bind Affine.SparseBind Affine.Canonicalize)

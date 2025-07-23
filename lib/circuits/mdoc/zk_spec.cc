@@ -38,6 +38,15 @@ extern "C" {
 // }
 
 const ZkSpecStruct kZkSpecs[kNumZkSpecs] = {
+    // Circuits for eu.europa.ec.eudi.pid.1
+    {"longfellow-libzk-v1",
+     "e34d209944bed3d59aa2215010ab0ce7fdcc1aa67e0349db94e7f6ae1076ac83", 1, 4},
+    {"longfellow-libzk-v1",
+     "00631984cf09c254166995c73ffaa01a20b2640988699b69a7835afbc8091ca0", 2, 4},
+    {"longfellow-libzk-v1",
+     "af1b27c82781abcd1e271edfba46c7788b648dc092c81574601f60bfdd6e0f78", 3, 4},
+    {"longfellow-libzk-v1",
+     "7f8a814d9675063d12cc8532b9c53a417fb9590c40d1ad9acf0ce8128e7ee5a8", 4, 4},
     // Circuits produced on 2025-06-13
     {"longfellow-libzk-v1",
      "bd3168ea0a9096b4f7b9b61d1c210dac1b7126a9ec40b8bc770d4d485efce4e9", 1, 3},
@@ -57,14 +66,14 @@ const ZkSpecStruct kZkSpecs[kNumZkSpecs] = {
     {"longfellow-libzk-v1",
      "fd7e7cfd5fd8ab02ad839f0c198c68822659fa269c0cd66a8d01f98086ede60e", 4, 2},
     // Legacy circuits produced on 2025-04-18
-    {"longfellow-libzk-v1",
+    /*{"longfellow-libzk-v1",
      "2836f0df5b7c2c431be21411831f8b3d2b7694b025a9d56a25086276161f7a93", 1, 1},
     {"longfellow-libzk-v1",
      "40a24808f53f516b3e653ec898342c46acf3b4a98433013548e780d2ffb1b4d0", 2, 1},
     {"longfellow-libzk-v1",
      "0f5a3bfa24a1252544fda4602fea98fc69b6296b64d4c7e48f2420de2910bf55", 3, 1},
     {"longfellow-libzk-v1",
-     "96b71d7173c0341860d7b1b8fbcceca3d55347ecca1c9617e7d6efbb6b5cf344", 4, 1},
+     "96b71d7173c0341860d7b1b8fbcceca3d55347ecca1c9617e7d6efbb6b5cf344", 4, 1},*/
 };
 
 const ZkSpecStruct *find_zk_spec(const char *system_name,

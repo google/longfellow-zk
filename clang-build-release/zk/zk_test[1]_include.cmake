@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/zk/zk_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/zk/zk_test[1]_tests.cmake")
+else()
+  add_test(zk_test_NOT_BUILT zk_test_NOT_BUILT)
+endif()

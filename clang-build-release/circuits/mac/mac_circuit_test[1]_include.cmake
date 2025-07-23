@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/circuits/mac/mac_circuit_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/circuits/mac/mac_circuit_test[1]_tests.cmake")
+else()
+  add_test(mac_circuit_test_NOT_BUILT mac_circuit_test_NOT_BUILT)
+endif()

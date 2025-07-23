@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/circuits/logic/logic_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/circuits/logic/logic_test[1]_tests.cmake")
+else()
+  add_test(logic_test_NOT_BUILT logic_test_NOT_BUILT)
+endif()

@@ -1,0 +1,1 @@
+/usr/bin/clang++ -O3 -DNDEBUG CMakeFiles/circuit_maker.dir/circuit_maker.cc.o ../../util/CMakeFiles/util.dir/log.cc.o ../../util/CMakeFiles/util.dir/crypto.cc.o -o circuit_maker  libmdoc.a -lcrypto -lzstd 

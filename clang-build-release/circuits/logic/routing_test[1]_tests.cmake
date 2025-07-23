@@ -1,0 +1,7 @@
+add_test([=[Routing.Simple]=]  /workspaces/longfellow-zk/clang-build-release/circuits/logic/routing_test [==[--gtest_filter=Routing.Simple]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Routing.Simple]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/logic SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Routing.EltCircuitSize]=]  /workspaces/longfellow-zk/clang-build-release/circuits/logic/routing_test [==[--gtest_filter=Routing.EltCircuitSize]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Routing.EltCircuitSize]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/logic SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Routing.BitCircuitSize]=]  /workspaces/longfellow-zk/clang-build-release/circuits/logic/routing_test [==[--gtest_filter=Routing.BitCircuitSize]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Routing.BitCircuitSize]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/logic SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  routing_test_TESTS Routing.Simple Routing.EltCircuitSize Routing.BitCircuitSize)

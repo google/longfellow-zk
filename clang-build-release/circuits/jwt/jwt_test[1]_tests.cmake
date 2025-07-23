@@ -1,0 +1,7 @@
+add_test([=[jwt.EvalJWT]=]  /workspaces/longfellow-zk/clang-build-release/circuits/jwt/jwt_test [==[--gtest_filter=jwt.EvalJWT]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[jwt.EvalJWT]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/jwt SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[jwt.EvalFailureJWT]=]  /workspaces/longfellow-zk/clang-build-release/circuits/jwt/jwt_test [==[--gtest_filter=jwt.EvalFailureJWT]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[jwt.EvalFailureJWT]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/jwt SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[jwt.JwtZk]=]  /workspaces/longfellow-zk/clang-build-release/circuits/jwt/jwt_test [==[--gtest_filter=jwt.JwtZk]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[jwt.JwtZk]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/jwt SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  jwt_test_TESTS jwt.EvalJWT jwt.EvalFailureJWT jwt.JwtZk)

@@ -1,0 +1,5 @@
+add_test([=[Base64.DecodeSymbol]=]  /workspaces/longfellow-zk/clang-build-release/circuits/base64/decode_test [==[--gtest_filter=Base64.DecodeSymbol]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Base64.DecodeSymbol]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/base64 SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Base64.DecodeBase64]=]  /workspaces/longfellow-zk/clang-build-release/circuits/base64/decode_test [==[--gtest_filter=Base64.DecodeBase64]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Base64.DecodeBase64]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/base64 SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  decode_test_TESTS Base64.DecodeSymbol Base64.DecodeBase64)

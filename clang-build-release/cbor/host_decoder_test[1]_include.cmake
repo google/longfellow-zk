@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/cbor/host_decoder_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/cbor/host_decoder_test[1]_tests.cmake")
+else()
+  add_test(host_decoder_test_NOT_BUILT host_decoder_test_NOT_BUILT)
+endif()

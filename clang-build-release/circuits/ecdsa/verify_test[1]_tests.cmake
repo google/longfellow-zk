@@ -1,0 +1,7 @@
+add_test([=[ecdsa.verify3_p256]=]  /workspaces/longfellow-zk/clang-build-release/circuits/ecdsa/verify_test [==[--gtest_filter=ecdsa.verify3_p256]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[ecdsa.verify3_p256]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/ecdsa SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[ecdsa.p256_failure]=]  /workspaces/longfellow-zk/clang-build-release/circuits/ecdsa/verify_test [==[--gtest_filter=ecdsa.p256_failure]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[ecdsa.p256_failure]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/ecdsa SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[ECDSA.prover_verifier3_p256]=]  /workspaces/longfellow-zk/clang-build-release/circuits/ecdsa/verify_test [==[--gtest_filter=ECDSA.prover_verifier3_p256]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[ECDSA.prover_verifier3_p256]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/circuits/ecdsa SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  verify_test_TESTS ecdsa.verify3_p256 ecdsa.p256_failure ECDSA.prover_verifier3_p256)

@@ -1,0 +1,5 @@
+if(EXISTS "/workspaces/longfellow-zk/clang-build-release/circuits/compiler/canonicalization_test[1]_tests.cmake")
+  include("/workspaces/longfellow-zk/clang-build-release/circuits/compiler/canonicalization_test[1]_tests.cmake")
+else()
+  add_test(canonicalization_test_NOT_BUILT canonicalization_test_NOT_BUILT)
+endif()

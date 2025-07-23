@@ -1,0 +1,5 @@
+add_test([=[Eqs.All]=]  /workspaces/longfellow-zk/clang-build-release/arrays/eqs_test [==[--gtest_filter=Eqs.All]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Eqs.All]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/arrays SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+add_test([=[Eqs.RFC]=]  /workspaces/longfellow-zk/clang-build-release/arrays/eqs_test [==[--gtest_filter=Eqs.RFC]==] --gtest_also_run_disabled_tests)
+set_tests_properties([=[Eqs.RFC]=]  PROPERTIES WORKING_DIRECTORY /workspaces/longfellow-zk/clang-build-release/arrays SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
+set(  eqs_test_TESTS Eqs.All Eqs.RFC)
