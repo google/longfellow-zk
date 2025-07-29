@@ -18,13 +18,36 @@
 #include <cstdint>
 
 #include "util/panic.h"
+
+#ifdef SECURE_ENCLAVE_RNG
+#include <Security/Security.h>
+#else
 #include "openssl/rand.h"
+#endif
 
 namespace proofs {
 
+bool is_secure_enclave_active() {
+#ifdef SECURE_ENCLAVE_RNG
+  // Test Secure Enclave availability with a single byte
+  uint8_t test_byte;
+  OSStatus status = SecRandomCopyBytes(kSecRandomDefault, 1, &test_byte);
+  return (status == errSecSuccess);
+#else
+  return false;
+#endif
+}
+
 void rand_bytes(uint8_t out[/*n*/], size_t n) {
+#ifdef SECURE_ENCLAVE_RNG
+  // Use Apple's Secure Enclave for random number generation
+  OSStatus status = SecRandomCopyBytes(kSecRandomDefault, n, out);
+  check(status == errSecSuccess, "Apple Secure Enclave SecRandomCopyBytes failed");
+#else
+  // Fall back to OpenSSL's RAND_bytes
   int ret = RAND_bytes(out, n);
   check(ret == 1, "openssl RAND_bytes failed");
+#endif
 }
 
 void hex_to_str(char out[/* 2*n + 1*/], const uint8_t in[/*n*/], size_t n) {
