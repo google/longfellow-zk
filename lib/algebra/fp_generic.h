@@ -288,7 +288,7 @@ class FpGeneric {
   }
 
   // return (X[k] - X[k - i])^{-1}, were X[i] is the
-  // i-th poly evalaluation point.
+  // i-th poly evaluation point.
   Elt newton_denominator(size_t k, size_t i) const {
     check(k < kNPolyEvaluationPoints, "k < kNPolyEvaluationPoints");
     check(i <= k, "i <= k");

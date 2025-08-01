@@ -23,7 +23,7 @@
 // circuit. The test works by generating a random key, message, and signature
 // using openssl, and then verifying the signature using our circuit. Next, we
 // maul the signature by twiddling a single hex digit in the original 5-tuple,
-// and ensure that the resulting signature fails.  Allthough this only checks
+// and ensure that the resulting signature fails.  Although this only checks
 // that single edit distance changes cause failures, it is a basic test.
 //
 // $ blaze-bin/ecdsa/verify_external_test \
