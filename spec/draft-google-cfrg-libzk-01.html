@@ -1,0 +1,3540 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>The Longfellow Zero-knowledge Scheme</title>
+<meta content="Matteo Frigo" name="author">
+<meta content="abhi shelat" name="author">
+<meta content="
+       This document defines an algorithm for generating and verifying a succinct non-interactive zero-knowledge argument that for a given input  x  and a circuit  C , there exists a witness  w , such that  C(x,w)  evaluates to 0. The technique here combines the MPC-in-the-head approach for constructing ZK arguments described in Ligero   with a verifiable computation protocol based on sumcheck for proving that  C(x,w)=0 . 
+    " name="description">
+<meta content="xml2rfc 3.25.0" name="generator">
+<meta content="draft-google-cfrg-libzk-01" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.25.0
+    Python 3.13.4
+    ConfigArgParse 1.7
+    google-i18n-address 3.1.1
+    intervaltree 3.1.0
+    Jinja2 3.1.5
+    lxml 5.3.0
+    platformdirs 4.3.6
+    pycountry 24.6.1
+    PyYAML 6.0.2
+    requests 2.32.3
+    setuptools 75.7.0
+    wcwidth 0.2.13
+-->
+<link href="libzk.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">/*
+
+  NOTE: Changes at the bottom of this file overrides some earlier settings.
+
+  Once the style has stabilized and has been adopted as an official RFC style,
+  this can be consolidated so that style settings occur only in one place, but
+  for now the contents of this file consists first of the initial CSS work as
+  provided to the RFC Formatter (xml2rfc) work, followed by itemized and
+  commented changes found necessary during the development of the v3
+  formatters.
+
+*/
+
+/* fonts */
+@import url('https://fonts.googleapis.com/css?family=Noto+Sans'); /* Sans-serif */
+@import url('https://fonts.googleapis.com/css?family=Noto+Serif'); /* Serif (print) */
+@import url('https://fonts.googleapis.com/css?family=Roboto+Mono'); /* Monospace */
+
+:root {
+  --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
+  --font-serif: 'Noto Serif', 'Times', 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', Courier, 'Courier New', monospace;
+}
+
+@viewport {
+  zoom: 1.0;
+}
+@-ms-viewport {
+  width: extend-to-zoom;
+  zoom: 1.0;
+}
+/* general and mobile first */
+html {
+}
+body {
+  max-width: 90%;
+  margin: 1.5em auto;
+  color: #222;
+  background-color: #fff;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  overflow-wrap: break-word;
+}
+.ears {
+  display: none;
+}
+
+/* headings */
+#title, h1, h2, h3, h4, h5, h6 {
+  margin: 1em 0 0.5em;
+  font-weight: bold;
+  line-height: 1.3;
+}
+#title {
+  clear: both;
+  border-bottom: 1px solid #ddd;
+  margin: 0 0 0.5em 0;
+  padding: 1em 0 0.5em;
+}
+.author {
+  padding-bottom: 4px;
+}
+h1 {
+  font-size: 26px;
+  margin: 1em 0;
+}
+h2 {
+  font-size: 22px;
+  margin-top: -20px;  /* provide offset for in-page anchors */
+  padding-top: 33px;
+}
+h3 {
+  font-size: 18px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h4 {
+  font-size: 16px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h5, h6 {
+  font-size: 14px;
+}
+#n-copyright-notice {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1em;
+  margin-bottom: 1em;
+}
+/* general structure */
+p {
+  padding: 0;
+  margin: 0 0 1em 0;
+  text-align: left;
+}
+div, span {
+  position: relative;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+svg[font-family~="serif" i], svg [font-family~="serif" i] {
+  font-family: var(--font-serif);
+}
+svg[font-family~="sans-serif" i], svg [font-family~="sans-serif" i] {
+  font-family: var(--font-sans);
+}
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  display: table;
+  border: none;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 1em 2em;
+}
+ol ol, ul ul, ol ul, ul ol {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+ul.ulBare, li.ulBare {
+  margin-left: 0em !important;
+}
+ul.compact, .ulCompact,
+ol.compact, .olCompact {
+  line-height: 100%;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+/* 
+dl.nohang > dt {
+  float: none;
+}
+*/
+dl > dd {
+  margin-bottom: .8em;
+  min-height: 1.3em;
+}
+dl.compact > dd, .dlCompact > dd {
+  margin-bottom: 0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0em;
+}
+
+/* links */
+a {
+  text-decoration: none;
+}
+a[href] {
+  color: #22e; /* Arlen: WCAG 2019 */
+}
+a[href]:hover {
+  background-color: #f2f2f2;
+}
+figcaption a[href],
+a[href].selfRef {
+  color: #222;
+}
+/* XXX probably not this:
+a.selfRef:hover {
+  background-color: transparent;
+  cursor: default;
+} */
+
+/* Figures */
+tt, code, pre {
+  background-color: #f9f9f9;
+  font-family: var(--font-mono);
+}
+pre {
+  border: 1px solid #eee;
+  margin: 0;
+  padding: 1em;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption {
+  font-style: italic;
+  margin: 0 0 1em 0;
+}
+@media screen {
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+    max-width: calc(100% - 22px);
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 1.2em 2em;
+}
+blockquote {
+  background-color: #f9f9f9;
+  color: #111; /* Arlen: WCAG 2019 */
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin: 1em 0;
+}
+blockquote > *:last-child {
+  margin-bottom: 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+.xref {
+  overflow-wrap: normal;
+}
+
+/* tables */
+table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  border: 1px solid #eee;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5em 0.75em;
+}
+th {
+  text-align: left;
+  background-color: #e9e9e9;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f5f5f5;
+}
+table caption {
+  font-style: italic;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+table p {
+  /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
+     be allowed within tables more generally, it would be far better to select on a class. */
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  color: #666; /* Arlen: AHDJ 2019 */
+  text-decoration: none;
+  visibility: hidden;
+  user-select: none;
+  -ms-user-select: none;
+  -o-user-select:none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media screen {
+  aside:hover > a.pilcrow,
+  p:hover > a.pilcrow,
+  blockquote:hover > a.pilcrow,
+  div:hover > a.pilcrow,
+  li:hover > a.pilcrow,
+  pre:hover > a.pilcrow {
+    visibility: visible;
+  }
+  a.pilcrow:hover {
+    background-color: transparent;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid #eee;
+}
+.bcp14 {
+  font-variant: small-caps;
+}
+
+.role {
+  font-variant: all-small-caps;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: 0.9em;
+}
+#identifiers dt {
+  width: 3em;
+  clear: left;
+}
+#identifiers dd {
+  float: left;
+  margin-bottom: 0;
+}
+/* Fix PDF info block run off issue */
+@media print {
+  #identifiers dd {
+    float: none;
+  }
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #666; /* Arlen: WCAG 2019 */
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc  {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+nav.toc ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+nav.toc li {
+  line-height: 1.3em;
+  margin: 0.75em 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 7em;
+}
+.references dd {
+  margin-left: 8em;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.refSubseries {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+.index ul {
+  margin: 0 0 0 1em;
+  padding: 0;
+  list-style: none;
+}
+.index ul ul {
+  margin: 0;
+}
+.index li {
+  margin: 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  padding-bottom: 5px;
+}
+.indexIndex {
+  margin: 0.5em 0 1em;
+}
+.index a {
+  font-weight: 700;
+}
+/* make the index two-column on all but the smallest screens */
+@media (min-width: 600px) {
+  .index ul {
+    -moz-column-count: 2;
+    -moz-column-gap: 20px;
+  }
+  .index ul ul {
+    -moz-column-count: 1;
+    -moz-column-gap: 0;
+  }
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  font-family: var(--font-sans);
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+
+/* temporary notes */
+.rfcEditorRemove::before {
+  position: absolute;
+  top: 0.2em;
+  right: 0.2em;
+  padding: 0.2em;
+  content: "The RFC Editor will remove this note";
+  color: #9e2a00; /* Arlen: WCAG 2019 */
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+}
+.rfcEditorRemove {
+  position: relative;
+  padding-top: 1.8em;
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  border-radius: 3px;
+}
+.cref {
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 1023px) {
+  body {
+    padding-top: 2em;
+  }
+  #title {
+    padding: 1em 0;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: -18px;  /* provide offset for in-page anchors */
+    padding-top: 38px;
+  }
+  #identifiers dd {
+    max-width: 60%;
+  }
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    background-color: inherit;
+    border-bottom: 1px solid #ccc;
+  }
+  #toc h2 {
+    margin: -1px 0 0 0;
+    padding: 4px 0 4px 6px;
+    padding-right: 1em;
+    min-width: 190px;
+    font-size: 1.1em;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 6px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 1024px) {
+  body {
+    max-width: 724px;
+    margin: 42px auto;
+    padding-left: 1.5em;
+    padding-right: 29em;
+  }
+  #toc {
+    position: fixed;
+    top: 42px;
+    right: 42px;
+    width: 25%;
+    margin: 0;
+    padding: 0 1em;
+    z-index: 1;
+  }
+  #toc h2 {
+    border-top: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 1em;
+    font-weight: normal;
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 0;
+    overflow: auto;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre {
+    page-break-inside: avoid;
+  }
+  figure {
+    overflow: scroll;
+  }
+  .breakable pre {
+    break-inside: auto;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  h2+*, h3+*, h4+*, h5+*, h6+* {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+/* This is commented out here, as the string-set: doesn't
+   pass W3C validation currently */
+/*
+.ears thead .left {
+  string-set: ears-top-left content();
+}
+
+.ears thead .center {
+  string-set: ears-top-center content();
+}
+
+.ears thead .right {
+  string-set: ears-top-right content();
+}
+
+.ears tfoot .left {
+  string-set: ears-bottom-left content();
+}
+
+.ears tfoot .center {
+  string-set: ears-bottom-center content();
+}
+
+.ears tfoot .right {
+  string-set: ears-bottom-right content();
+}
+*/
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+  /* The following is commented out here, but set appropriately by in code, as
+     the content depends on the document */
+  /*
+  @top-left {
+    content: 'Internet-Draft';
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-left {
+    content: string(ears-top-left);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-center {
+    content: string(ears-top-center);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-right {
+    content: string(ears-top-right);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @bottom-left {
+    content: string(ears-bottom-left);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-center {
+    content: string(ears-bottom-center);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-right {
+      content: '[Page ' counter(page) ']';
+      vertical-align: top;
+      border-top: solid 1px #ccc;
+  }
+  */
+
+}
+
+/* Changes introduced to fix issues found during implementation */
+/* Make sure links are clickable even if overlapped by following H* */
+a {
+  z-index: 2;
+}
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Leave room in document info to show Internet-Draft on one line */
+#identifiers dt {
+  width: 8em;
+}
+
+/* Don't waste quite as much whitespace between label and value in doc info */
+#identifiers dd {
+  margin-left: 1em;
+}
+
+/* Give floating toc a background color (needed when it's a div inside section */
+#toc {
+  background-color: white;
+}
+
+/* Make the collapsed ToC header render white on gray also when it's a link */
+@media screen and (max-width: 1023px) {
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+}
+
+/* Give the bottom of the ToC some whitespace */
+@media screen and (min-width: 1024px) {
+  #toc {
+    padding: 0 0 1em 1em;
+  }
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* prevent monospace from becoming overly large */
+tt, code, pre {
+  font-size: 95%;
+}
+
+/* Fix the height/width aspect for ascii art*/
+.sourcecode pre,
+.art-text pre {
+  line-height: 1.12;
+}
+
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin-right: 0.5em;
+}
+
+/* Fix the dl styling to match the RFC 7992 attributes */
+dl > dt,
+dl.dlParallel > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+
+/* Provide styling for table cell text alignment */
+table td.text-left,
+table th.text-left {
+  text-align: left;
+}
+table td.text-center,
+table th.text-center {
+  text-align: center;
+}
+table td.text-right,
+table th.text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 30em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Provide table alignment support.  We can't use the alignX classes above
+   since they do unwanted things with caption and other styling. */
+table.right {
+ margin-left: auto;
+ margin-right: 0;
+}
+table.center {
+ margin-left: auto;
+ margin-right: auto;
+}
+table.left {
+ margin-left: 0;
+ margin-right: auto;
+}
+
+/* Give the table caption label the same styling as the figcaption */
+caption a[href] {
+  color: #222;
+}
+
+@media print {
+  .toplink {
+    display: none;
+  }
+
+  /* avoid overwriting the top border line with the ToC header */
+  #toc {
+    padding-top: 1px;
+  }
+
+  /* Avoid page breaks inside dl and author address entries */
+  .vcard {
+    page-break-inside: avoid;
+  }
+
+}
+/* Tweak the bcp14 keyword presentation */
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+/* Tweak the invisible space above H* in order not to overlay links in text above */
+ h2 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 31px;
+ }
+ h3 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+ h4 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+/* Float artwork pilcrow to the right */
+@media screen {
+  .artwork a.pilcrow {
+    display: block;
+    line-height: 0.7;
+    margin-top: 0.15em;
+  }
+}
+/* Make pilcrows on dd visible */
+@media screen {
+  dd:hover > a.pilcrow {
+    visibility: visible;
+  }
+}
+/* Make the placement of figcaption match that of a table's caption
+   by removing the figure's added bottom margin */
+.alignLeft.art-text,
+.alignCenter.art-text,
+.alignRight.art-text {
+   margin-bottom: 0;
+}
+.alignLeft,
+.alignCenter,
+.alignRight {
+  margin: 1em 0 0 0;
+}
+/* In print, the pilcrow won't show on hover, so prevent it from taking up space,
+   possibly even requiring a new line */
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+/* Styling for the external metadata */
+div#external-metadata {
+  background-color: #eee;
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  display: none;
+}
+div#internal-metadata {
+  padding: 0.5em;                       /* to match the external-metadata padding */
+}
+/* Styling for title RFC Number */
+h1#rfcnum {
+  clear: both;
+  margin: 0 0 -1em;
+  padding: 1em 0 0 0;
+}
+/* Make .olPercent look the same as <ol><li> */
+dl.olPercent > dd {
+  margin-bottom: 0.25em;
+  min-height: initial;
+}
+/* Give aside some styling to set it apart */
+aside {
+  border-left: 1px solid #ddd;
+  margin: 1em 0 1em 2em;
+  padding: 0.2em 2em;
+}
+aside > dl,
+aside > ol,
+aside > ul,
+aside > table,
+aside > p {
+  margin-bottom: 0.5em;
+}
+/* Additional page break settings */
+@media print {
+  figcaption, table caption {
+    page-break-before: avoid;
+  }
+}
+/* Font size adjustments for print */
+@media print {
+  body  { font-size: 10pt;      line-height: normal; max-width: 96%; }
+  h1    { font-size: 1.72em;    padding-top: 1.5em; } /* 1*1.2*1.2*1.2 */
+  h2    { font-size: 1.44em;    padding-top: 1.5em; } /* 1*1.2*1.2 */
+  h3    { font-size: 1.2em;     padding-top: 1.5em; } /* 1*1.2 */
+  h4    { font-size: 1em;       padding-top: 1.5em; }
+  h5, h6 { font-size: 1em;      margin: initial; padding: 0.5em 0 0.3em; }
+}
+/* Sourcecode margin in print, when there's no pilcrow */
+@media print {
+  .artwork,
+  .artwork > pre,
+  .sourcecode {
+    margin-bottom: 1em;
+  }
+}
+/* Avoid narrow tables forcing too narrow table captions, which may render badly */
+table {
+  min-width: 20em;
+}
+/* ol type a */
+ol.type-a { list-style-type: lower-alpha; }
+ol.type-A { list-style-type: upper-alpha; }
+ol.type-i { list-style-type: lower-roman; }
+ol.type-I { list-style-type: upper-roman; }
+/* Apply the print table and row borders in general, on request from the RPC,
+and increase the contrast between border and odd row background slightly */
+table {
+  border: 1px solid #ddd;
+}
+td {
+  border-top: 1px solid #ddd;
+}
+tr {
+  break-inside: avoid;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f8f8f8;
+}
+/* Use style rules to govern display of the TOC. */
+@media screen and (max-width: 1023px) {
+  #toc nav { display: none; }
+  #toc.active nav { display: block; }
+}
+/* Add support for keepWithNext */
+.keepWithNext {
+  break-after: avoid-page;
+  break-after: avoid-page;
+}
+/* Add support for keepWithPrevious */
+.keepWithPrevious {
+  break-before: avoid-page;
+}
+/* Change the approach to avoiding breaks inside artwork etc. */
+figure, pre, table, .artwork, .sourcecode  {
+  break-before: auto;
+  break-after: auto;
+}
+/* Avoid breaks between <dt> and <dd> */
+dl {
+  break-before: auto;
+  break-inside: auto;
+}
+dt {
+  break-before: auto;
+  break-after: avoid-page;
+}
+dd {
+  break-before: avoid-page;
+  break-after: auto;
+  orphans: 3;
+  widows: 3
+}
+span.break, dd.break {
+  margin-bottom: 0;
+  min-height: 0;
+  break-before: auto;
+  break-inside: auto;
+  break-after: auto;
+}
+/* Undo break-before ToC */
+@media print {
+  #toc {
+    break-before: auto;
+  }
+}
+/* Text in compact lists should not get extra bottom margin space,
+   since that would makes the list not compact */
+ul.compact p, .ulCompact p,
+ol.compact p, .olCompact p {
+ margin: 0;
+}
+/* But the list as a whole needs the extra space at the end */
+section ul.compact,
+section .ulCompact,
+section ol.compact,
+section .olCompact {
+  margin-bottom: 1em;                    /* same as p not within ul.compact etc. */
+}
+/* The tt and code background above interferes with for instance table cell
+   backgrounds.  Changed to something a bit more selective. */
+tt, code {
+  background-color: transparent;
+}
+p tt, p code, li tt, li code, dt tt, dt code {
+  background-color: #f8f8f8;
+}
+/* Tweak the pre margin -- 0px doesn't come out well */
+pre {
+   margin-top: 0.5px;
+}
+/* Tweak the compact list text */
+ul.compact, .ulCompact,
+ol.compact, .olCompact,
+dl.compact, .dlCompact {
+  line-height: normal;
+}
+/* Don't add top margin for nested lists */
+li > ul, li > ol, li > dl,
+dd > ul, dd > ol, dd > dl,
+dl > dd > dl {
+  margin-top: initial;
+}
+/* Elements that should not be rendered on the same line as a <dt> */
+/* This should match the element list in writer.text.TextWriter.render_dl() */
+dd > div.artwork:first-child,
+dd > aside:first-child,
+dd > figure:first-child,
+dd > ol:first-child,
+dd > div.sourcecode:first-child,
+dd > table:first-child,
+dd > ul:first-child {
+  clear: left;
+}
+/* fix for weird browser behaviour when <dd/> is empty */
+dt+dd:empty::before{
+  content: "\00a0";
+}
+/* Make paragraph spacing inside <li> smaller than in body text, to fit better within the list */
+li > p {
+  margin-bottom: 0.5em
+}
+/* Don't let p margin spill out from inside list items */
+li > p:last-of-type:only-child {
+  margin-bottom: 0;
+}
+</style>
+<link href="rfc-local.css" rel="stylesheet" type="text/css">
+<script type="application/javascript">async function addMetadata(){try{const e=document.styleSheets[0].cssRules;for(let t=0;t<e.length;t++)if(/#identifiers/.exec(e[t].selectorText)){const a=e[t].cssText.replace("#identifiers","#external-updates");document.styleSheets[0].insertRule(a,document.styleSheets[0].cssRules.length)}}catch(e){console.log(e)}const e=document.getElementById("external-metadata");if(e)try{var t,a="",o=function(e){const t=document.getElementsByTagName("meta");for(let a=0;a<t.length;a++)if(t[a].getAttribute("name")===e)return t[a].getAttribute("content");return""}("rfc.number");if(o){t="https://www.rfc-editor.org/rfc/rfc"+o+".json";try{const e=await fetch(t);a=await e.json()}catch(e){t=document.URL.indexOf("html")>=0?document.URL.replace(/html$/,"json"):document.URL+".json";const o=await fetch(t);a=await o.json()}}if(!a)return;e.style.display="block";const s="",d="https://datatracker.ietf.org/doc",n="https://datatracker.ietf.org/ipr/search",c="https://www.rfc-editor.org/info",l=a.doc_id.toLowerCase(),i=a.doc_id.slice(0,3).toLowerCase(),f=a.doc_id.slice(3).replace(/^0+/,""),u={status:"Status",obsoletes:"Obsoletes",obsoleted_by:"Obsoleted By",updates:"Updates",updated_by:"Updated By",see_also:"See Also",errata_url:"Errata"};let h="<dl style='overflow:hidden' id='external-updates'>";["status","obsoletes","obsoleted_by","updates","updated_by","see_also","errata_url"].forEach(e=>{if("status"==e){a[e]=a[e].toLowerCase();var t=a[e].split(" "),o=t.length,w="",p=1;for(let e=0;e<o;e++)p<o?w=w+r(t[e])+" ":w+=r(t[e]),p++;a[e]=w}else if("obsoletes"==e||"obsoleted_by"==e||"updates"==e||"updated_by"==e){var g,m="",b=1;g=a[e].length;for(let t=0;t<g;t++)a[e][t]&&(a[e][t]=String(a[e][t]).toLowerCase(),m=b<g?m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>, ":m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>",b++);a[e]=m}else if("see_also"==e){var y,L="",C=1;y=a[e].length;for(let t=0;t<y;t++)if(a[e][t]){a[e][t]=String(a[e][t]);var _=a[e][t].slice(0,3),v=a[e][t].slice(3).replace(/^0+/,"");L=C<y?"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>, ":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>, ":"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>",C++}a[e]=L}else if("errata_url"==e){var R="";R=a[e]?R+"<a href='"+a[e]+"'>Errata exist</a> | <a href='"+d+"/"+l+"'>Datatracker</a>| <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>":"<a href='"+d+"/"+l+"'>Datatracker</a> | <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>",a[e]=R}""!=a[e]?"Errata"==u[e]?h+=`<dt>More info:</dt><dd>${a[e]}</dd>`:h+=`<dt>${u[e]}:</dt><dd>${a[e]}</dd>`:"Errata"==u[e]&&(h+=`<dt>More info:</dt><dd>${a[e]}</dd>`)}),h+="</dl>",e.innerHTML=h}catch(e){console.log(e)}else console.log("Could not locate metadata <div> element");function r(e){return e.charAt(0).toUpperCase()+e.slice(1)}}window.removeEventListener("load",addMetadata),window.addEventListener("load",addMetadata);</script>
+</head>
+<body class="xml2rfc">
+<script src="metadata.min.js"></script>
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">The Longfellow Zero-knowledge Scheme</td>
+<td class="right">August 2025</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Frigo &amp; shelat</td>
+<td class="center">Expires 12 February 2026</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Network Working Group</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-google-cfrg-libzk-01</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2025-08-11" class="published">11 August 2025</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Informational</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2026-02-12">12 February 2026</time></dd>
+<dt class="label-authors">Authors:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">M. Frigo</div>
+<div class="org">Google</div>
+</div>
+<div class="author">
+      <div class="author-name">a. shelat</div>
+<div class="org">Google</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">The Longfellow Zero-knowledge Scheme</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">This document defines an algorithm for generating and verifying a succinct non-interactive zero-knowledge argument that for a given input <code>x</code> and a circuit <code>C</code>, there exists a witness <code>w</code>, such that <code>C(x,w)</code> evaluates to 0. The technique here combines the MPC-in-the-head approach for constructing ZK arguments described in Ligero <span>[<a href="#ligero" class="cite xref">ligero</a>]</span> with a verifiable computation protocol based on sumcheck for proving that <code>C(x,w)=0</code>.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 12 February 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2025 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document. Code Components extracted from this
+            document must include Revised BSD License text as described in
+            Section 4.e of the Trust Legal Provisions and are provided without
+            warranty as described in the Revised BSD License.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1" class="keepWithNext"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction" class="internal xref">Introduction</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.1">
+                <p id="section-toc.1-1.1.2.1.1" class="keepWithNext"><a href="#section-1.1" class="auto internal xref">1.1</a>.  <a href="#name-the-longfellow-system" class="internal xref">The Longfellow system</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-basic-operations-and-notati" class="internal xref">Basic Operations and Notation</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1">
+                <p id="section-toc.1-1.2.2.1.1" class="keepWithNext"><a href="#section-2.1" class="auto internal xref">2.1</a>.  <a href="#name-array-primitives" class="internal xref">Array primitives</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2">
+                <p id="section-toc.1-1.2.2.2.1"><a href="#section-2.2" class="auto internal xref">2.2</a>.  <a href="#name-polynomial-operations" class="internal xref">Polynomial operations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2.2.1">
+                    <p id="section-toc.1-1.2.2.2.2.1.1"><a href="#section-2.2.1" class="auto internal xref">2.2.1</a>.  <a href="#name-extend-method-in-field-f_p" class="internal xref">Extend method in Field F_p</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2.2.2">
+                    <p id="section-toc.1-1.2.2.2.2.2.1"><a href="#section-2.2.2" class="auto internal xref">2.2.2</a>.  <a href="#name-extend-method-in-field-gf-2" class="internal xref">Extend method in Field GF 2<sup>k</sup></a></p>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-fiat-shamir-primitives" class="internal xref">Fiat-Shamir primitives</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1">
+                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="auto internal xref">3.1</a>.  <a href="#name-implementation" class="internal xref">Implementation</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1.2.1">
+                    <p id="section-toc.1-1.3.2.1.2.1.1"><a href="#section-3.1.1" class="auto internal xref">3.1.1</a>.  <a href="#name-initialization" class="internal xref">Initialization</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1.2.2">
+                    <p id="section-toc.1-1.3.2.1.2.2.1"><a href="#section-3.1.2" class="auto internal xref">3.1.2</a>.  <a href="#name-writing-to-the-transcript" class="internal xref">Writing to the transcript</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1.2.3">
+                    <p id="section-toc.1-1.3.2.1.2.3.1"><a href="#section-3.1.3" class="auto internal xref">3.1.3</a>.  <a href="#name-special-rules-for-the-first" class="internal xref">Special rules for the first message</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2">
+                <p id="section-toc.1-1.3.2.2.1"><a href="#section-3.2" class="auto internal xref">3.2</a>.  <a href="#name-the-fsprf-object" class="internal xref">The FSPRF object</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3">
+                <p id="section-toc.1-1.3.2.3.1"><a href="#section-3.3" class="auto internal xref">3.3</a>.  <a href="#name-generating-challenges" class="internal xref">Generating challenges</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-ligero-zk-proof" class="internal xref">Ligero ZK Proof</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-merkle-trees" class="internal xref">Merkle trees</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1.2.1">
+                    <p id="section-toc.1-1.4.2.1.2.1.1"><a href="#section-4.1.1" class="auto internal xref">4.1.1</a>.  <a href="#name-constructing-a-merkle-tree-" class="internal xref">Constructing a Merkle tree from <code>n</code> digests</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1.2.2">
+                    <p id="section-toc.1-1.4.2.1.2.2.1"><a href="#section-4.1.2" class="auto internal xref">4.1.2</a>.  <a href="#name-constructing-a-proof-of-inc" class="internal xref">Constructing a proof of inclusion</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1.2.3">
+                    <p id="section-toc.1-1.4.2.1.2.3.1"><a href="#section-4.1.3" class="auto internal xref">4.1.3</a>.  <a href="#name-verifying-a-proof-of-inclus" class="internal xref">Verifying a proof of inclusion</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-common-parameters" class="internal xref">Common parameters</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.1">
+                    <p id="section-toc.1-1.4.2.2.2.1.1"><a href="#section-4.2.1" class="auto internal xref">4.2.1</a>.  <a href="#name-constraints-on-parameters" class="internal xref">Constraints on parameters</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.3">
+                <p id="section-toc.1-1.4.2.3.1"><a href="#section-4.3" class="auto internal xref">4.3</a>.  <a href="#name-ligero-commitment" class="internal xref">Ligero commitment</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4">
+                <p id="section-toc.1-1.4.2.4.1"><a href="#section-4.4" class="auto internal xref">4.4</a>.  <a href="#name-ligero-prove" class="internal xref">Ligero Prove</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4.2.1">
+                    <p id="section-toc.1-1.4.2.4.2.1.1"><a href="#section-4.4.1" class="auto internal xref">4.4.1</a>.  <a href="#name-low-degree-test" class="internal xref">Low-degree test</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4.2.2">
+                    <p id="section-toc.1-1.4.2.4.2.2.1"><a href="#section-4.4.2" class="auto internal xref">4.4.2</a>.  <a href="#name-linear-and-quadratic-constr" class="internal xref">Linear and Quadratic constraints</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4.2.3">
+                    <p id="section-toc.1-1.4.2.4.2.3.1"><a href="#section-4.4.3" class="auto internal xref">4.4.3</a>.  <a href="#name-selection-of-challenge-indi" class="internal xref">Selection of challenge indicies</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4.2.4">
+                    <p id="section-toc.1-1.4.2.4.2.4.1"><a href="#section-4.4.4" class="auto internal xref">4.4.4</a>.  <a href="#name-ligero-prover-procedure" class="internal xref">Ligero Prover procedure</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.5">
+                <p id="section-toc.1-1.4.2.5.1"><a href="#section-4.5" class="auto internal xref">4.5</a>.  <a href="#name-ligero-verification-procedu" class="internal xref">Ligero verification procedure</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-overview-of-the-longfellow-" class="internal xref">Overview of the Longfellow protocol</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-sumcheck" class="internal xref">Sumcheck</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
+                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-special-conventions-for-sum" class="internal xref">Special conventions for sumcheck arrays</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
+                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-the-eq-array" class="internal xref">The <code>EQ[]</code> array</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2.2.1">
+                    <p id="section-toc.1-1.6.2.2.2.1.1"><a href="#section-6.2.1" class="auto internal xref">6.2.1</a>.  <a href="#name-remark" class="internal xref">Remark</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3">
+                <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-circuits" class="internal xref">Circuits</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3.2.1">
+                    <p id="section-toc.1-1.6.2.3.2.1.1"><a href="#section-6.3.1" class="auto internal xref">6.3.1</a>.  <a href="#name-layered-circuits" class="internal xref">Layered circuits</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3.2.2">
+                    <p id="section-toc.1-1.6.2.3.2.2.1"><a href="#section-6.3.2" class="auto internal xref">6.3.2</a>.  <a href="#name-quad-representation" class="internal xref">Quad representation</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3.2.3">
+                    <p id="section-toc.1-1.6.2.3.2.3.1"><a href="#section-6.3.3" class="auto internal xref">6.3.3</a>.  <a href="#name-in-circuit-assertions" class="internal xref">In-circuit assertions</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.4">
+                <p id="section-toc.1-1.6.2.4.1"><a href="#section-6.4" class="auto internal xref">6.4</a>.  <a href="#name-representation-of-polynomia" class="internal xref">Representation of polynomials</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.5">
+                <p id="section-toc.1-1.6.2.5.1"><a href="#section-6.5" class="auto internal xref">6.5</a>.  <a href="#name-transform-circuit-and-wires" class="internal xref">Transform circuit and wires into a padded proof</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.6">
+                <p id="section-toc.1-1.6.2.6.1"><a href="#section-6.6" class="auto internal xref">6.6</a>.  <a href="#name-generate-constraints-from-t" class="internal xref">Generate constraints from the public inputs and the padded proof</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-serializing-objects" class="internal xref">Serializing objects</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-serializing-structs" class="internal xref">Serializing structs</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2">
+                <p id="section-toc.1-1.7.2.2.1"><a href="#section-7.2" class="auto internal xref">7.2</a>.  <a href="#name-serializing-field-elements" class="internal xref">Serializing Field elements</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2.2.1">
+                    <p id="section-toc.1-1.7.2.2.2.1.1"><a href="#section-7.2.1" class="auto internal xref">7.2.1</a>.  <a href="#name-serializing-a-single-field-" class="internal xref">Serializing a single field element</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2.2.2">
+                    <p id="section-toc.1-1.7.2.2.2.2.1"><a href="#section-7.2.2" class="auto internal xref">7.2.2</a>.  <a href="#name-serializing-an-element-of-a" class="internal xref">Serializing an element of a subfield</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3">
+                <p id="section-toc.1-1.7.2.3.1"><a href="#section-7.3" class="auto internal xref">7.3</a>.  <a href="#name-serializing-a-sumcheck-tran" class="internal xref">Serializing a Sumcheck Transcript</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.4">
+                <p id="section-toc.1-1.7.2.4.1"><a href="#section-7.4" class="auto internal xref">7.4</a>.  <a href="#name-serializing-a-ligero-proof" class="internal xref">Serializing a Ligero Proof</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.5">
+                <p id="section-toc.1-1.7.2.5.1"><a href="#section-7.5" class="auto internal xref">7.5</a>.  <a href="#name-serializing-a-sequence-of-p" class="internal xref">Serializing a Sequence of proofs</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.6">
+                <p id="section-toc.1-1.7.2.6.1"><a href="#section-7.6" class="auto internal xref">7.6</a>.  <a href="#name-serializing-a-circuit" class="internal xref">Serializing a Circuit</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.1">
+                <p id="section-toc.1-1.10.2.1.1"><a href="#section-10.1" class="auto internal xref">10.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.2">
+                <p id="section-toc.1-1.10.2.2.1"><a href="#section-10.2" class="auto internal xref">10.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-acknowledgements" class="internal xref">Acknowledgements</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
+            <p id="section-toc.1-1.12.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-test-vectors" class="internal xref">Test Vectors</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.1">
+                <p id="section-toc.1-1.12.2.1.1"><a href="#appendix-B.1" class="auto internal xref">B.1</a>.  <a href="#name-test-vectors-for-merkle-tre" class="internal xref">Test Vectors for Merkle Tree</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.1.2.1">
+                    <p id="section-toc.1-1.12.2.1.2.1.1"><a href="#appendix-B.1.1" class="auto internal xref">B.1.1</a>.  <a href="#name-vector-1" class="internal xref">Vector 1</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.2">
+                <p id="section-toc.1-1.12.2.2.1"><a href="#appendix-B.2" class="auto internal xref">B.2</a>.  <a href="#name-test-vectors-for-circuit" class="internal xref">Test Vectors for Circuit</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.2.2.1">
+                    <p id="section-toc.1-1.12.2.2.2.1.1"><a href="#appendix-B.2.1" class="auto internal xref">B.2.1</a>.  <a href="#name-vector-1-2" class="internal xref">Vector 1</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.3">
+                <p id="section-toc.1-1.12.2.3.1"><a href="#appendix-B.3" class="auto internal xref">B.3</a>.  <a href="#name-test-vectors-for-sumcheck" class="internal xref">Test Vectors for Sumcheck</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.3.2.1">
+                    <p id="section-toc.1-1.12.2.3.2.1.1"><a href="#appendix-B.3.1" class="auto internal xref">B.3.1</a>.  <a href="#name-vector-1-3" class="internal xref">Vector 1</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.4">
+                <p id="section-toc.1-1.12.2.4.1"><a href="#appendix-B.4" class="auto internal xref">B.4</a>.  <a href="#name-test-vectors-for-ligero" class="internal xref">Test Vectors for Ligero</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.4.2.1">
+                    <p id="section-toc.1-1.12.2.4.2.1.1"><a href="#appendix-B.4.1" class="auto internal xref">B.4.1</a>.  <a href="#name-vector-1-4" class="internal xref">Vector 1</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.5">
+                <p id="section-toc.1-1.12.2.5.1"><a href="#appendix-B.5" class="auto internal xref">B.5</a>.  <a href="#name-test-vectors-for-libzk" class="internal xref">Test Vectors for libzk</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
+            <p id="section-toc.1-1.13.1"><a href="#appendix-C" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="introduction">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<p id="section-1-1">A zero-knowledge (ZK) scheme allows a Prover who holds an arithmetic circuit <code>C</code> defined over a finite field <code>F</code> and two inputs <code>(x,w)</code> to convince a Verifier who holds only <code>(C,x)</code> that the Prover knows <code>w</code> such that <code>C(x,w) = 0</code> without revealing any extra information to the Verifier.<a href="#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">The concept of a zero-knowledge scheme was introduced by Goldwasser, Micali, and Rackoff <span>[<a href="#GMR" class="cite xref">GMR</a>]</span>, and has since been rigourously explored and optimized in the academic literature.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-3">There are several models and efficiency goals that different ZK schemes aim to achieve, such as reducing prover time, reducing verifier time, or reducing proof size.  Some ZK schemes also impose other requirements to achieve their efficienc goals.  This document considers the scenario in which there are no common reference strings, or trusted parameter setups that are available to the parties.  This immediately rules out several succinct ZK scheme from the literature.  In addition, this document also focuses on schemes that can be instantiated from a collision-resistant hash function and require no other complexity theoretic assumption.  Again, this rules out several schemes in the literature.   All of the ZK schemes from the literature that remain can be defined in the Interactive Oracle Proof (IOP) model, and this document specifies a family of them that enjoys both efficiency and simplicity.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<div id="the-longfellow-system">
+<section id="section-1.1">
+        <h3 id="name-the-longfellow-system">
+<a href="#section-1.1" class="section-number selfRef">1.1. </a><a href="#name-the-longfellow-system" class="section-name selfRef">The Longfellow system</a>
+        </h3>
+<p id="section-1.1-1">This document specifies the Longfellow ZK scheme described in the paper <span>[<a href="#longfellow" class="cite xref">longfellow</a>]</span>.  The scheme is constructed from two components: the first is the Ligero scheme, which provides a cryptographic commitment scheme that supports an efficient ZK argument system that enables proving linear and quadratic constraints on the committed witness, and the second is a public-coin interactive protocol (IP) for producing an argument that <code>C(x,w)=0</code> where <code>C</code> is such a circuit, <code>x</code> is a public input, and <code>w</code> is a private witness. The overall scheme works by having the Prover commit to the witness <code>w</code> as well as a <code>pad</code> used to commit the transcript of the IP, then to run the IP with the verifier in a way that produces a commitment to the transcript of the IP, and finally, by running the Ligero proof system to prove that the transcript in the commitment induces the IP verifier to accept.<a href="#section-1.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="basic-operations-and-notation">
+<section id="section-2">
+      <h2 id="name-basic-operations-and-notati">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-basic-operations-and-notati" class="section-name selfRef">Basic Operations and Notation</a>
+      </h2>
+<p id="section-2-1">The key words "<span class="bcp14">MUST</span>", "<span class="bcp14">MUST NOT</span>", "<span class="bcp14">REQUIRED</span>", "<span class="bcp14">SHALL</span>", "<span class="bcp14">SHALL NOT</span>", "<span class="bcp14">SHOULD</span>", "<span class="bcp14">SHOULD NOT</span>", "<span class="bcp14">RECOMMENDED</span>", "<span class="bcp14">MAY</span>", and "<span class="bcp14">OPTIONAL</span>" in this document are to be interpreted as described in RFC 2119 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span>.<a href="#section-2-1" class="pilcrow">¶</a></p>
+<p id="section-2-2">Additionally, the key words "<strong>MIGHT</strong>", "<strong>COULD</strong>", "<strong>MAY WISH TO</strong>", "<strong>WOULD
+PROBABLY</strong>", "<strong>SHOULD CONSIDER</strong>", and "<strong>MUST (BUT WE KNOW YOU WON'T)</strong>" in
+this document are to interpreted as described in RFC 6919 <span>[<a href="#RFC6919" class="cite xref">RFC6919</a>]</span>.<a href="#section-2-2" class="pilcrow">¶</a></p>
+<p id="section-2-3">Except if said otherwise, random choices in this specification refer to drawing with uniform distribution from a given set (i.e., "random" is short for "uniformly random").  Random choices can be replaced with fresh outputs from a cryptographically strong pseudorandom generator, according to the requirements in <span>[<a href="#RFC4086" class="cite xref">RFC4086</a>]</span>, or pseudorandom function.<a href="#section-2-3" class="pilcrow">¶</a></p>
+<div id="array-primitives">
+<section id="section-2.1">
+        <h3 id="name-array-primitives">
+<a href="#section-2.1" class="section-number selfRef">2.1. </a><a href="#name-array-primitives" class="section-name selfRef">Array primitives</a>
+        </h3>
+<p id="section-2.1-1">The notation <code>A[0..N]</code> refers to the array of size <code>N</code> that contains <code>A[0],A[1],...,A[N-1]</code>, i.e., the right-boundary in the notation <code>X..Y</code> is an exclusive index bound.
+The following functions are used throughout the document:<a href="#section-2.1-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-2.1-2.1">copy(n, Dst, Src): copies n elements from Src to Dst with different strides<a href="#section-2.1-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.2">axpy(n, Y, A, X): sets Y[i] += A*X[i] for 0 &lt;= i &lt; n.<a href="#section-2.1-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.3">sum(n, A): computes the sum of the first n elements in array A<a href="#section-2.1-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.4">dot(n, A, Y): computes the dot product of length n between arrays A and Y.<a href="#section-2.1-2.4" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.5">add(n, A, Y): returns the array <code>[A[0]+Y[0], A[1]+Y[1], ..., A[n-1]+Y[n-1]]</code>.<a href="#section-2.1-2.5" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.6">prod(n, A, Y): returns the array <code>[A[0]*Y[0], A[1]*Y[1], ..., A[n-1]*Y[n-1]]</code>.<a href="#section-2.1-2.6" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.7">equal(n, A, Y): true if <code>A[i]==Y[i]</code> for 0 &lt;= i &lt; n and false otherwise.<a href="#section-2.1-2.7" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.8">gather(n, A, I): returns the array <code>[A[I[0]], A[I[1]], ..., A[I[n-1]]</code>.<a href="#section-2.1-2.8" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.9">
+            <code>A[n][m] = [0]</code>: initializes the 2-dimensional n x m array A to all zeroes.<a href="#section-2.1-2.9" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.1-2.10">
+            <code>A[0..NREQ] = X</code> : array assignment, this operation copies the first NREQ elements of X into the corresponding indicies of the A array.<a href="#section-2.1-2.10" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="polynomial-operations">
+<section id="section-2.2">
+        <h3 id="name-polynomial-operations">
+<a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-polynomial-operations" class="section-name selfRef">Polynomial operations</a>
+        </h3>
+<p id="section-2.2-1">This section describes operations on and associated with polynomials
+that are used in the main protocol.<a href="#section-2.2-1" class="pilcrow">¶</a></p>
+<div id="extend-method-in-field-f-p">
+<section id="section-2.2.1">
+          <h4 id="name-extend-method-in-field-f_p">
+<a href="#section-2.2.1" class="section-number selfRef">2.2.1. </a><a href="#name-extend-method-in-field-f_p" class="section-name selfRef">Extend method in Field F_p</a>
+          </h4>
+<p id="section-2.2.1-1">The <code>extend(f, n, m)</code> method interprets the array <code>f[0..n]</code> as the evaluations of a polynomial <code>P</code> of degree less than <code>n</code> at the points <code>0,...,n-1</code>, and returns the evaluations of the same <code>P</code> at the points <code>0,...,m-1</code>.  For sufficiently large fields <code>|F_p| = p &gt;= m</code>, polynomial <code>P</code> is uniquely determined by the input, and thus <code>extend</code> is well defined.<a href="#section-2.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1-2">As there are several algorithms for efficiently performing the extend operation, the implementor can choose a suitable one.  In some cases, the brute force method of using Lagrange interpolation formulas to compute each output point independently may suffice.  One can employ a convolution to implement the <code>extend</code> operation, and in some cases, either the Number Theoretic Transform or Nussbaumer's algorithm can be used to efficiently compute a convolution.<a href="#section-2.2.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="extend-method-in-field-gf-2-k">
+<section id="section-2.2.2">
+          <h4 id="name-extend-method-in-field-gf-2">
+<a href="#section-2.2.2" class="section-number selfRef">2.2.2. </a><a href="#name-extend-method-in-field-gf-2" class="section-name selfRef">Extend method in Field GF 2<sup>k</sup></a>
+          </h4>
+<p id="section-2.2.2-1">The previous section described an extend method that applies to odd prime-order finite fields which contain the elements 0,1,2...,m.  In the special case of GF(2^k), the extend operator is defined in an opinionated way inspired by the Additive FFT algorithm by Lin et al <span>[<a href="#additivefft" class="cite xref">additivefft</a>]</span>.
+Lin et al. define a novel polynomial basis for polynomials as an alternative to the usual monomial
+basis x<sup>i</sup>, and give an algorithm for evaluating a degree-(d-1) polynomial at all d points in a subspace, for d=2<sup>ell</sup>, and for polynomials expressed in the novel basis.<a href="#section-2.2.2-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.2-2">Specifically, this document implements GF(2<sup>128</sup>) as GF{2}[x] / (Q(x)) where<a href="#section-2.2.2-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-2.2.2-3">
+<pre>    Q(x) = x^{128} + x^{7} + x^{2} + x + 1
+</pre><a href="#section-2.2.2-3" class="pilcrow">¶</a>
+</div>
+<p id="section-2.2.2-4">With this choice of Q(x), <code>x</code> is a generator of the multiplicative group of the field.
+Next, choose GF(2<sup>16</sup>) as the subfield of GF(2<sup>128</sup>) with <code>g=x^{(2^{128}-1) / (2^{16}-1)}</code> as its generator, and <code>beta_i=g^i^</code> for 0 &lt;= i &lt; 16 as the basis of the subfield.  For relevant problem sizes, this allows encoding elements in a commitment scheme with 16-bits instead of 128.<a href="#section-2.2.2-4" class="pilcrow">¶</a></p>
+<p id="section-2.2.2-5">Writing <code>j_i</code> for the <code>i</code>-th bit of the binary representation of <code>j</code>, that is,<a href="#section-2.2.2-5" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-2.2.2-6">
+<pre>    j = sum_{0 &lt;= i &lt; k} j_i 2^i     j_i \in {0,1}
+</pre><a href="#section-2.2.2-6" class="pilcrow">¶</a>
+</div>
+<p id="section-2.2.2-7">inject integer <code>j</code> into a field element <code>inj(j)</code> by interpreting the bits of <code>j</code>  as coordinates in terms of the basis:<a href="#section-2.2.2-7" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-2.2.2-8">
+<pre>    inj(j) = sum_{0 &lt;= i &lt; k} j_i beta_i
+</pre><a href="#section-2.2.2-8" class="pilcrow">¶</a>
+</div>
+<p id="section-2.2.2-9">In this setting, define the extend operator to interpret the array <code>f[0..n]</code> to consist of the evaluations of a polynomial <code>p(x)</code> of degree at most <code>n-1</code> at the <code>n</code> points <code>x \in { inj(i) : 0 &lt;= i &lt; n }</code> and to return the set <code>{ p(inj(i)) : 0 &lt;= i &lt; m}</code> which consist of the evaluations of the same polynomial <code>p(x)</code> at the injected points <code>0,...,m-1</code>.<a href="#section-2.2.2-9" class="pilcrow">¶</a></p>
+<p id="section-2.2.2-10">This convention allows this operation to be completed efficiently using various forms of the additive FFT as described in <span>[<a href="#longfellow" class="cite xref">longfellow</a>]</span> <span>[<a href="#additivefft" class="cite xref">additivefft</a>]</span>.<a href="#section-2.2.2-10" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="fiat-shamir-primitives">
+<section id="section-3">
+      <h2 id="name-fiat-shamir-primitives">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-fiat-shamir-primitives" class="section-name selfRef">Fiat-Shamir primitives</a>
+      </h2>
+<p id="section-3-1">A ZK protocol must in general be interactive whereby the Prover and Verifier engage in multiple rounds of communication.  However, in practice, it is often more convenient to deploy so-called ``non-interactive" protocols that only require a single message from Prover to Verifier.  It is possible to apply the Fiat-Shamir heuristic to transform a special class of interactive protocols into single-message protocols from Prover to Verifier.<a href="#section-3-1" class="pilcrow">¶</a></p>
+<p id="section-3-2">The Fiat-Shamir transform is a method for generating a verifier's public coin challenges by processing the concatenation of all of the Prover's messages.   The transform can be proven to be sound when applied to an interactive protocol that is round-by-round sound and when the oracle is implemented with a hash function that satisfies a correlation-intractability property with respect to the state function implied by the round-by-round soundness.  See Theorem 5.8 of <span>[<a href="#rbr" class="cite xref">rbr</a>]</span> for details.<a href="#section-3-2" class="pilcrow">¶</a></p>
+<p id="section-3-3">In practice, whether an implementation of the random oracle satisfies this correlation-intractability property becomes an implicit assumption.  Towards that, this document adapts best practices in selecting the oracle implementation. First, the random oracle should have higher circuit depth and require more gates to compute than the circuit C that the protocol is applied to.  Furthermore, the size of the messages which are used as input to the oracle to generate the Verifier's challenges should be larger than C.  These choices are easy to implement and add very little processing time to the protocol. On the other hand, they seemingly avoid attacks against correlation-intractability in which the random oracle is computed within the ZK protocol thereby allowing the output of the circuit to be related to the verifier's challenge.<a href="#section-3-3" class="pilcrow">¶</a></p>
+<p id="section-3-4">As an additional property, each query to the random oracle should be able to be uniquely mapped into a protocol transcript. To facilitate this property, the type and length of each message is incorporated into the query string.<a href="#section-3-4" class="pilcrow">¶</a></p>
+<div id="implementation">
+<section id="section-3.1">
+        <h3 id="name-implementation">
+<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-implementation" class="section-name selfRef">Implementation</a>
+        </h3>
+<p id="section-3.1-1">Let <code>H</code> be a collision-resistant hash function.
+A protocol consists of multiple rounds in which a Prover sends a message, and a verifier responds with a public-coin or random challenge. The Fiat-Shamir transform for such a protocol is implemented by maintaining a <code>transcript</code> object.<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<div id="initialization">
+<section id="section-3.1.1">
+          <h4 id="name-initialization">
+<a href="#section-3.1.1" class="section-number selfRef">3.1.1. </a><a href="#name-initialization" class="section-name selfRef">Initialization</a>
+          </h4>
+<p id="section-3.1.1-1">At the beginning of the protocol, the transcript object must be initialized.<a href="#section-3.1.1-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-3.1.1-2.1">
+              <code>transcript.init(session_id)</code>: The initialization begins by
+selecting an oracle, which concretely consists of selecting a fresh
+session identifier. This process is handled by the encapsulating
+protocol---for example, the transcript that is used for key
+exchange for a session can be used as the session identifier as it
+is guaranteed to be unique.<a href="#section-3.1.1-2.1" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+<div id="writing-to-the-transcript">
+<section id="section-3.1.2">
+          <h4 id="name-writing-to-the-transcript">
+<a href="#section-3.1.2" class="section-number selfRef">3.1.2. </a><a href="#name-writing-to-the-transcript" class="section-name selfRef">Writing to the transcript</a>
+          </h4>
+<p id="section-3.1.2-1">The transcript object supports a <code>write</code> method that is used to record
+the Prover's messages.  To produce the verifier's challenge message, the transcript object internally maintains a Fiat-Shamir Pseudo-random Function (FSPRF) object that
+generates a stream of pseudo-random bytes.  Each invocation of
+<code>write</code> creates a new FSPRF object, which we denote by <code>fs</code>.<a href="#section-3.1.2-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-3.1.2-2.1">
+              <code>transcript.write(msg)</code>: appends the Prover's next message to
+the transcript.<a href="#section-3.1.2-2.1" class="pilcrow">¶</a>
+</li>
+          </ul>
+<p id="section-3.1.2-3">There are three types of messages that can be appended to the transcript: a field element, an array of bytes, or an array of field elements.<a href="#section-3.1.2-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.1.2-4.1">
+              <p id="section-3.1.2-4.1.1">To append a field element, first the byte designator <code>0x1</code> is appended, and then the canonical byte serialization of the field element is appended.<a href="#section-3.1.2-4.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-3.1.2-4.2">
+              <p id="section-3.1.2-4.2.1">To append an array of bytes, first the byte designator <code>0x2</code> is
+appended, an 8-byte little-endian encoding of the number of bytes in
+the array is appended, and then the bytes of the array are appended.<a href="#section-3.1.2-4.2.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-3.1.2-4.3">
+              <p id="section-3.1.2-4.3.1">To append an array of field elements, the byte designator <code>0x3</code> is
+added, an 8-byte little-endian encoding of the number of field
+elements is appended, and finally, all of the field elements in array
+order are serialized and appended.<a href="#section-3.1.2-4.3.1" class="pilcrow">¶</a></p>
+</li>
+          </ul>
+</section>
+</div>
+<div id="special-rules-for-the-first-message">
+<section id="section-3.1.3">
+          <h4 id="name-special-rules-for-the-first">
+<a href="#section-3.1.3" class="section-number selfRef">3.1.3. </a><a href="#name-special-rules-for-the-first" class="section-name selfRef">Special rules for the first message</a>
+          </h4>
+<p id="section-3.1.3-1">The <code>write</code> method for the first prover message incorporates
+additional steps that enhance the correlation-intractability property
+of the oracle.  To process the Prover's first message (which is usually a
+commitment):<a href="#section-3.1.3-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="compact type-1" id="section-3.1.3-2">
+<li id="section-3.1.3-2.1">The Prover message is appended to the transcript. Specifically, the length of the message, as per the above convention, is appended, and then the bytes of the message are appended.<a href="#section-3.1.3-2.1" class="pilcrow">¶</a>
+</li>
+            <li id="section-3.1.3-2.2">Next, an encoding of the statement to be proven, which consists of
+the circuit identifier, and a serialization of the input and
+output of the statement is appended. Each of these three message are added as
+byte sequences, with their length appended as per convention.<a href="#section-3.1.3-2.2" class="pilcrow">¶</a>
+</li>
+            <li id="section-3.1.3-2.3">Finally, the transcript is augmented by the byte-array 0<sup>|C|</sup>,
+which consists of |C| bytes of zeroes.<a href="#section-3.1.3-2.3" class="pilcrow">¶</a>
+</li>
+          </ol>
+<p id="section-3.1.3-3">One might at first think of performing steps 2 and 3 first so as to
+simplify the description of the protocol, and moreover step 3 may
+appear to be unnecessary.  Performing the steps in the indicated order
+protects against the attack described in <span>[<a href="#krs" class="cite xref">krs</a>]</span>, under the assumption
+that it is infeasible for a circuit C that contains |C| arithmetic
+gates to compute the hash of a string of length |C|.<a href="#section-3.1.3-3" class="pilcrow">¶</a></p>
+<p id="section-3.1.3-4">Subsequent calls to the <code>write</code> method are used to record the Prover's
+response messages <code>msg</code>. In this case, the message is appended
+following the conventions described above.<a href="#section-3.1.3-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="the-fsprf-object">
+<section id="section-3.2">
+        <h3 id="name-the-fsprf-object">
+<a href="#section-3.2" class="section-number selfRef">3.2. </a><a href="#name-the-fsprf-object" class="section-name selfRef">The FSPRF object</a>
+        </h3>
+<p id="section-3.2-1">Each <code>write</code> internally creates an FSPRF object <code>fs</code> that is seeded
+with the hash digest of the transcript at the end of the write
+operation.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
+<p id="section-3.2-2">The FSPRF object is defined to produce an infinite stream of bytes that can be used to sample all of the verifier's challenges in this round. The stream is organized in blocks of 16 bytes each,
+numbered consecutively starting at 0.  Block <code>i</code> contains<a href="#section-3.2-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-3.2-3">
+<pre>    AES256(KEY, ID(i))
+</pre><a href="#section-3.2-3" class="pilcrow">¶</a>
+</div>
+<p id="section-3.2-4">where <code>KEY</code> is the seed of the FSPRF object, and <code>ID(i)</code> is the
+16-byte little-endian representation of integer <code>i</code>.<a href="#section-3.2-4" class="pilcrow">¶</a></p>
+<p id="section-3.2-5">The FSPRF object supports a <code>bytes</code> method:<a href="#section-3.2-5" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-3.2-6.1">
+            <code>b = fs.bytes(n)</code> returns the next <code>n</code> bytes in the stream.<a href="#section-3.2-6.1" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-3.2-7">Thus, <code>fs</code> implicitly maintains an index into the next position in
+the stream.  Calls to <code>bytes</code> without an intervening <code>write</code> read
+pseudo-random bytes from the same stream.<a href="#section-3.2-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="generating-challenges">
+<section id="section-3.3">
+        <h3 id="name-generating-challenges">
+<a href="#section-3.3" class="section-number selfRef">3.3. </a><a href="#name-generating-challenges" class="section-name selfRef">Generating challenges</a>
+        </h3>
+<p id="section-3.3-1">When the prover has finished sending messages for a round in the interactive
+protocol, it can make a sequence of calls to <code>transcript.generate_{nat,field_element,challenge}</code> to obtain the Verifier's random challenges.<a href="#section-3.3-1" class="pilcrow">¶</a></p>
+<p id="section-3.3-2">The <code>bytes</code> method of the FSPRF is used by the transcript object to sample pseudo-random field elements and
+pseudo-random integers via rejection sampling as follows:<a href="#section-3.3-2" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-3.3-3.1">
+            <code>transcript.generate_nat(m)</code> generates a random natural between <code>0</code> and
+<code>m-1</code> inclusive, as follows.<a href="#section-3.3-3.1" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-3.3-4">Let <code>l</code> be minimal such that <code>2^l &gt;= m</code>.  Let <code>nbytes = ceil(l / 8)</code>.
+  Let <code>b = fs.bytes(nbytes)</code>.  Interpret bytes <code>b</code> as a little-endian
+  integer <code>k</code>.  Let <code>r = k mod 2^l</code>, i.e., mask off the high <code>8 * nbytes - l</code>
+  bits of <code>k</code>.  If <code>r &lt; m</code> return <code>r</code>, otherwise start over.<a href="#section-3.3-4" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-3.3-5.1">
+            <code>transcript.generate_field_element(F)</code> generates a field element.<a href="#section-3.3-5.1" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-3.3-6">If the field <code>F</code> is <code>Z / (p)</code>, return <code>generate_nat(fs, p)</code> interpreted
+  as a field element.<a href="#section-3.3-6" class="pilcrow">¶</a></p>
+<p id="section-3.3-7">If the field is <code>GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)</code> obtain
+  <code>b = fs.bytes(16)</code> and interpret the 128 bits of <code>b</code> as a little-endian
+  polynomial.  This document does not specify the generation of
+  a field element for other binary fields, but extensions SHOULD follow
+  a similar pattern.<a href="#section-3.3-7" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-3.3-8.1">
+            <code>a = transcript.generate_challenge(F, n)</code> generates an array of <code>n</code>
+field elements in the straightforward way: for <code>0 &lt;= i &lt; n</code>
+in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>.<a href="#section-3.3-8.1" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="ligero-zk-proof">
+<section id="section-4">
+      <h2 id="name-ligero-zk-proof">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-ligero-zk-proof" class="section-name selfRef">Ligero ZK Proof</a>
+      </h2>
+<p id="section-4-1">This section specifies the construction and verification method for a Ligero commitment and zero-knowledge argument. The Ligero system as described by Ames, Hazay, Ishai, and Venkitasubramaniam <span>[<a href="#ligero" class="cite xref">ligero</a>]</span>, consists of a commitment scheme, and a method for proving linear and quadratic constraints on the committed values in zero-knowledge. The later interface is sufficient to prove arbitrary circuits, but in the Longfellow scheme, it suffices to describe how to use such constraints to directly verify an IP transcript.<a href="#section-4-1" class="pilcrow">¶</a></p>
+<div id="merkle-trees">
+<section id="section-4.1">
+        <h3 id="name-merkle-trees">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-merkle-trees" class="section-name selfRef">Merkle trees</a>
+        </h3>
+<p id="section-4.1-1">This section describes how to construct a Merkle tree from a sequence of <code>n</code> strings, and how to verify that a given string <code>x</code> was placed at leaf <code>i</code> in a Merkle tree. These methods do not assume that <code>n</code> is a power of two. This construction is parameterized by a cryptographic hash function such as SHA-256 <span>[<a href="#RFC6234" class="cite xref">RFC6234</a>]</span>.  In this application, a leaf in a tree is a message digest instead of an arbitrary string; for example, if the hash function is SHA-256, then the leaf is a 32-byte string.<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.1-2">A tree that contains <code>n</code> leaves is represented by an array of <code>2 * n</code> message digests in which the input digests are written at indicies <code>n..(2*n - 1)</code>.  The tree is constructed by iteratively hashing the concatenation of the values at indicies <code>2*j</code> and <code>2*j+1</code>, starting at <code>j=n-1</code>, and continuing until <code>j=1</code>. The root is at index 1. In this specification, the prover and verifier will already know the value of <code>n</code> when they produce or verify a Merkle tree.<a href="#section-4.1-2" class="pilcrow">¶</a></p>
+<div id="constructing-a-merkle-tree-from-n-digests">
+<section id="section-4.1.1">
+          <h4 id="name-constructing-a-merkle-tree-">
+<a href="#section-4.1.1" class="section-number selfRef">4.1.1. </a><a href="#name-constructing-a-merkle-tree-" class="section-name selfRef">Constructing a Merkle tree from <code>n</code> digests</a>
+          </h4>
+<div class="alignLeft art-text artwork" id="section-4.1.1-1">
+<pre>struct {
+   Digest a[2 * n]
+} MerkleTree
+
+def set_leaf(M, pos, leaf) {
+  assert(pos &lt; M.n)
+  M.a[pos + n] = leaf
+}
+
+def build_tree(M) {
+  FOR M.n &lt; i &lt;= 1 DO
+    M.a[i] = hash(M.a[2 * i] || M.a[2 * i + 1])
+  return M.a[1]
+}
+</pre><a href="#section-4.1.1-1" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="constructing-a-proof-of-inclusion">
+<section id="section-4.1.2">
+          <h4 id="name-constructing-a-proof-of-inc">
+<a href="#section-4.1.2" class="section-number selfRef">4.1.2. </a><a href="#name-constructing-a-proof-of-inc" class="section-name selfRef">Constructing a proof of inclusion</a>
+          </h4>
+<p id="section-4.1.2-1">This section describes how to construct a Merkle proof that <code>k</code> input digests at indicies <code>i[0],...,i[k-1]</code> belong to the tree.  The simplest way to generate such a proof is to produce independent proofs for each of the <code>k</code> leaves. However, this turns out to be wasteful in that internal nodes may be included multiple times along different paths, and some nodes may not need to be included at all because they are implied by nodes that have already been included.<a href="#section-4.1.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.1.2-2">To address these inefficiencies, this section explains how to produce a batch proof of inclusion for <code>k</code> leaves. The main idea is to start from the requested set of leaves and build all of the implied internal nodes given the leaves. For example, if sibling leaves are included, then their parent is implied, and the parent need not be included in the compressed proof.  Then it suffices to revisit the same tree and include the necessary siblings along all of the Merkle paths.  It is assumed that the verifier already has the leaf digests that are at the indicies, and thus the proof only contains the necessary internal nodes of the Merkle tree that are used to verify the claim.<a href="#section-4.1.2-2" class="pilcrow">¶</a></p>
+<p id="section-4.1.2-3">It is important in this formulation to treat the input digests as a sequence, i.e. with a given order. Both the prover and verifier of this batch proof must use the same order of the <code>requested_leaves</code> array.<a href="#section-4.1.2-3" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.1.2-4">
+<pre>def compressed_proof(M, requested_leaves[], n) {
+  marked = mark_tree(requested_leaves, n)
+  FOR n &lt; i &lt;= 1 DO
+    IF (marked[i]) {
+      child = 2 * i
+      IF (marked[child]) {
+        child += 1
+      }
+      IF (!marked[child]) {
+        proof.append(M.a[child])
+      }
+    }
+  return proof
+}
+
+def mark_tree(requested_leaves[], n) {
+  bool marked[2 * n]   // initialized to false
+
+  for(index i : requested_leaves)
+    marked[i + n] = true
+
+  FOR n &lt; i &lt;= 1 DO
+    // mark parent if child is marked
+    marked[i] = marked[2 * i] || marked[2 * i + 1];
+
+  return marked
+}
+</pre><a href="#section-4.1.2-4" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="verifying-a-proof-of-inclusion">
+<section id="section-4.1.3">
+          <h4 id="name-verifying-a-proof-of-inclus">
+<a href="#section-4.1.3" class="section-number selfRef">4.1.3. </a><a href="#name-verifying-a-proof-of-inclus" class="section-name selfRef">Verifying a proof of inclusion</a>
+          </h4>
+<p id="section-4.1.3-1">This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment <code>root</code> defines an <code>n</code>-leaf Merkle tree that contains <code>k</code> digests s[0],..s[k-1] at corresponding indicies i[0],...i[k-1]."  The strategy of this verification procedure is to deduce which nodes are needed along the <code>k</code> verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the <code>root</code> digest. As an optimization, the <code>defined[]</code> array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of <code>k=0</code> digests is defined to fail. It is assumed that the <code>indicies[]</code> array does not contain duplicates.<a href="#section-4.1.3-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.1.3-2">
+<pre>def verify_merkle(root, n, k,  s[], indicies[], proof[]) {
+  tmp = []
+  defined = []
+
+  proof_index = 0
+  marked = mark_tree(indicies, n)
+  FOR n &lt; i &lt;= 1 DO
+    if (marked[i]) {
+      child = 2 * i
+      if (marked[child]) {
+        child += 1
+      }
+      if (!marked[child]) {
+        if proof_index &gt; |proof| {
+          return false
+        }
+        tmp[child] = proof[proof_index++]
+        defined[child] = true
+      }
+    }
+
+  FOR 0 &lt;= i &lt; k DO
+    tmp[indicies[i] + n] = s[i]
+    defined[indicies[i] + n] = true
+
+  FOR n &lt; j &lt;= 1 DO
+    if defined[2 * i] &amp;&amp; defined[2 * i + 1] {
+      tmp[i] = hash(tmp[2 * i] || tmp[2 * i + 1])
+      defined[i] = true
+    }
+
+  return defined[1] &amp;&amp; tmp[1] = root
+}
+</pre><a href="#section-4.1.3-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="common-parameters">
+<section id="section-4.2">
+        <h3 id="name-common-parameters">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-common-parameters" class="section-name selfRef">Common parameters</a>
+        </h3>
+<p id="section-4.2-1">The Prover and Verifier in Ligero must agree on the following parameters. These parameters can be agreed upon out of band.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-4.2-2.1">
+            <code>F</code>: The finite field over which the commit is produced.<a href="#section-4.2-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.2">
+            <code>NREQ</code>: The number of columns of the commitment matrix that the Verifier requests to be revealed by the Prover.<a href="#section-4.2-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.3">
+            <code>rate</code>: The inverse rate of the error correcting code. This parameter, along with <code>NREQ</code> and Field size, determines the soundness of the scheme.<a href="#section-4.2-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.4">
+            <code>BLOCK</code>: the size of each row, in terms of number of field elements<a href="#section-4.2-2.4" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.5">
+            <code>DBLOCK</code>: 2 * <code>BLOCK</code> - 1<a href="#section-4.2-2.5" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.6">
+            <code>WR</code>: the number of witness values included in each row.<a href="#section-4.2-2.6" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.7">
+            <code>QR</code>: the number of quadratic constraints written in each row<a href="#section-4.2-2.7" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.8">
+            <code>IW</code>: Row index at which the witness values start, usually IW = 2.<a href="#section-4.2-2.8" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.9">
+            <code>IQ</code>: Row index at which the quadratic constraints begin, it is the first row after all of the witnesses have been encoded.<a href="#section-4.2-2.9" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.10">
+            <code>NL</code>: Number of linear constraints.<a href="#section-4.2-2.10" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.11">
+            <code>NQ</code>: Number of quadratic constraints.<a href="#section-4.2-2.11" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.12">
+            <code>NWROW</code>: Number of rows used to encode witnesses.<a href="#section-4.2-2.12" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.13">
+            <code>NQT</code>: Number of row triples needed to encode the quadratic constraints.<a href="#section-4.2-2.13" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.14">
+            <code>NQW</code>: <code>NWROW + NQT</code>, rows needed to encode witnesses and quadratic constraints.<a href="#section-4.2-2.14" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.15">
+            <code>NROW</code>: Total number of rows in the witness matrix, <code>NQW + 2</code><a href="#section-4.2-2.15" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.2-2.16">
+            <code>NCOL</code>: Total number of columns in the tableau matrix.<a href="#section-4.2-2.16" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-4.2-3">A row of the tableau consists of<a href="#section-4.2-3" class="pilcrow">¶</a></p>
+<p id="section-4.2-4">|     NREQ     |        WR          | ... DBLOCK | ... NCOL  |
+|  random pad  |   witness values   | polynomial evaluations |<a href="#section-4.2-4" class="pilcrow">¶</a></p>
+<div id="constraints-on-parameters">
+<section id="section-4.2.1">
+          <h4 id="name-constraints-on-parameters">
+<a href="#section-4.2.1" class="section-number selfRef">4.2.1. </a><a href="#name-constraints-on-parameters" class="section-name selfRef">Constraints on parameters</a>
+          </h4>
+<ul class="normal">
+<li class="normal" id="section-4.2.1-1.1">
+              <code>BLOCK &lt; |F|</code> The block size must be smaller than the field size.<a href="#section-4.2.1-1.1" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-4.2.1-1.2">
+              <code>BLOCK &gt; NREQ</code> The block size must be larger than the number of columns requested.<a href="#section-4.2.1-1.2" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-4.2.1-1.3">
+              <p id="section-4.2.1-1.3.1"><code>BLOCK = NREQ + WR</code><a href="#section-4.2.1-1.3.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-4.2.1-1.4">
+              <p id="section-4.2.1-1.4.1"><code>BLOCK &gt;= 2 * (NREQ + QR) + (NREQ + WR) - 2</code><a href="#section-4.2.1-1.4.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-4.2.1-1.5">
+              <p id="section-4.2.1-1.5.1"><code>WR &gt;= QR</code>.<a href="#section-4.2.1-1.5.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-4.2.1-1.6">
+              <p id="section-4.2.1-1.6.1"><code>BLOCK &gt;= 2 * (NREQ + WR) - 1</code>.<a href="#section-4.2.1-1.6.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-4.2.1-1.7">
+              <p id="section-4.2.1-1.7.1"><code>QR &gt;= NREQ</code> (and thus <code>WR &gt;= NREQ</code>) to avoid wasting too much space.<a href="#section-4.2.1-1.7.1" class="pilcrow">¶</a></p>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="ligero-commitment">
+<section id="section-4.3">
+        <h3 id="name-ligero-commitment">
+<a href="#section-4.3" class="section-number selfRef">4.3. </a><a href="#name-ligero-commitment" class="section-name selfRef">Ligero commitment</a>
+        </h3>
+<p id="section-4.3-1">The first step of the proof procedure requires the Prover to commit to a witness vector <code>W</code>.  The witness vector is assumed to be padded with zeros at the end so that its length is an even multiple of <code>WR</code>. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix <code>T[][]</code>.<a href="#section-4.3-1" class="pilcrow">¶</a></p>
+<p id="section-4.3-2">This tableau matrix is constructed row-by-row by applying the extend procedure to arrays that are formed from random field elements and elements copied from the witness vector. Matrix T[][] has size NROW x NCOL and has the following structure:<a href="#section-4.3-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.3-3">
+<pre>row ILDT = 0                         : RANDOM row for low-degree test
+row IDOT = 1                         : RANDOM row for linear test
+row IQD  = 2                         : RANDOM row for quadratic test
+row i for IW = IDOT + 1 &lt;= i &lt; IQ    : witness rows
+row i for IQ &lt;= i &lt; NROW             : quadratic rows
+</pre><a href="#section-4.3-3" class="pilcrow">¶</a>
+</div>
+<span class="break"></span><dl class="olPercent" id="section-4.3-4">
+<dt>1)</dt>
+<dd id="section-4.3-4.1">
+            <p id="section-4.3-4.1.1">The first ILDT row is defined as<a href="#section-4.3-4.1.1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.3-4.1.2">
+<pre>extend(RANDOM[BLOCK], BLOCK, NCOL)
+</pre><a href="#section-4.3-4.1.2" class="pilcrow">¶</a>
+</div>
+<p id="section-4.3-4.1.3">by selecting BLOCK random field elements and applying extend.<a href="#section-4.3-4.1.3" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt>2)</dt>
+<dd id="section-4.3-4.2">
+            <p id="section-4.3-4.2.1">The second IDOT row is defined as<a href="#section-4.3-4.2.1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.3-4.2.2">
+<pre>Z = RANDOM[DBLOCK] such that sum_{i = NREQ ... NREQ + WR - 1} Z_i = 0
+extend(Z, DBLOCK, NCOL)
+</pre><a href="#section-4.3-4.2.2" class="pilcrow">¶</a>
+</div>
+<p id="section-4.3-4.2.3">by first selecting DBLOCK random field elements such that the subarray
+from index NREQ to NREQ + WR sums to 0 and then applying extend.
+The first step can be performed by selecting DBLOCK-1 random
+field elements, and then setting element of the specified range to be the additive inverse of the sum of elements from NREQ...NREQ + WR - 1.<a href="#section-4.3-4.2.3" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt>3)</dt>
+<dd id="section-4.3-4.3">
+            <p id="section-4.3-4.3.1">The third IQD row is defined as
+    ZQ = RANDOM[DBLOCK]
+    ZQ[NREQ ... NREQ + WR - 1] = 0
+    extend(ZQ, DBLOCK, NCOL)
+by first selecting DBLOCK random field elements, and then setting the
+portion coresponding to the witness values to 0 and then applying extend.<a href="#section-4.3-4.3.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt>4)</dt>
+<dd id="section-4.3-4.4">
+            <p id="section-4.3-4.4.1">The next rows from IW=3,...,IQ are <em>padded witness</em> rows that contain
+random elements and portions of the witness vector.
+Specifically, row i is formed by applying <code>extend</code> to an array that
+consists of <code>NREQ</code> random elements and then <code>WR</code> elements from the vector <code>W</code>:<a href="#section-4.3-4.4.1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.3-4.4.2">
+<pre>extend([RANDOM[NREQ], W[(i-2) * WR .. (i-1) * WR]], BLOCK, NCOL)
+</pre><a href="#section-4.3-4.4.2" class="pilcrow">¶</a>
+</div>
+<p id="section-4.3-4.4.3">When the finite field contains a subfield, and if all of the witness elements in a given row are elements from this subfield, then the randomness for that row can also be chosen from the subfield.
+Consequently, the <code>extend</code> method for that row produces polynomial evaluations that are elements of the subfield. When these elements are serialized, they will require less space.
+The simplest way to apply this optimization is for the commiting process to maintain an index <code>SF</code> such that witnesses at indices <code>0..SF</code> belong to the subfield, and the rest do not. This value <code>SF</code> can be conveyed to the verifier as part of the proof, or part of the circuit.<a href="#section-4.3-4.4.3" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt>5)</dt>
+<dd id="section-4.3-4.5">
+            <p id="section-4.3-4.5.1">The final portion of the witness matrix consists of <em>padded quadratic</em> rows
+that consists of NREQ random elements and WR quadratic constraint elements:<a href="#section-4.3-4.5.1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.3-4.5.2">
+<pre>extend([RANDOM[NREQ], QX[WR]], BLOCK, NCOL)
+extend([RANDOM[NREQ], QY[WR]], BLOCK, NCOL)
+extend([RANDOM[NREQ], QZ[WR]], BLOCK, NCOL)
+</pre><a href="#section-4.3-4.5.2" class="pilcrow">¶</a>
+</div>
+<p id="section-4.3-4.5.3">The specific elements in the QX, QY, QZ array are determined by the quadratic
+constraints on the witness values that are verified by the proof.<a href="#section-4.3-4.5.3" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<p id="section-4.3-5">The second step of the procedure is to compute a Merkle tree on columns
+of the tableau matrix. Specifically, the i-th leaf of the tree is defined
+to be columns DBLOCK...NCOL of the i-th row of the tableau T.<a href="#section-4.3-5" class="pilcrow">¶</a></p>
+<p id="section-4.3-6">Input:<a href="#section-4.3-6" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-4.3-7.1">The witness vector <code>W</code>.<a href="#section-4.3-7.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-4.3-7.2">Array of quadratic constraints <code>lqc[]</code>, which consists of triples <code>(x,y,z)</code> that represent the constraint that <code>W[x] * W[y] = W[z]</code>.<a href="#section-4.3-7.2" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-4.3-8">Output:<a href="#section-4.3-8" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-4.3-9.1">A digest; root of a Merkle tree formed from columns of the tableau.<a href="#section-4.3-9.1" class="pilcrow">¶</a>
+</li>
+        </ul>
+<div class="alignLeft art-text artwork" id="section-4.3-10">
+<pre>def commit(W[], lqc[]) {
+    T[NROW][NCOL] = [0];   // 2d array initialized with 0
+
+    layout_zk_rows(T);
+    layout_witness_rows(T, W);
+    layout_quadratic_rows(T, W, lqc);
+
+    MerkleTree M;
+    FOR DBLOCK &lt;= j &lt; NCOL DO
+      M.set_leaf(j - BLOCK,
+          hash( T[0][j] || T[1][j] || .. || T[NROW][j]) );
+
+    return M.build_tree();
+}
+
+def layout_zk_rows(T) {
+    T[0][0..NCOL] = extend(random_row(BLOCK), BLOCK, NCOL);
+
+    Z = random_row(DBLOCK)
+    s = SUM_{i = NREQ ... NREQ + WR - 2} Z_i
+    Z[NREQ + WR - 1] = -s
+    T[1][0..NCOL] = extend(Z, DBLOCK, NCOL)
+
+    ZQ = random_row[DBLOCK]
+    ZQ[NREQ ... NREQ + WR - 1] = 0
+    T[2][0..NCOL] = extend(ZQ, DBLOCK, NCOL)
+}
+</pre><a href="#section-4.3-10" class="pilcrow">¶</a>
+</div>
+<div class="alignLeft art-text artwork" id="section-4.3-11">
+<pre>def layout_witness_rows(T, w) {
+
+  FOR IW &lt;= i &lt;= IQ DO
+    bool subfield = false;
+
+    IF W[i * WR .. (i+1) * WR] are all in the subfield {
+      subfield = true;
+    }
+
+    row[0...NREQ-1] = random_row(NREQ, subfield)
+    row[NREQ..BLOCK] = W[i * WR .. (i+1) * WR]
+
+    T[i + IW][0..NCOL] = extend(row, BLOCK, NCOL)
+}
+</pre><a href="#section-4.3-11" class="pilcrow">¶</a>
+</div>
+<div class="alignLeft art-text artwork" id="section-4.3-12">
+<pre>def layout_quadratic_rows(T, w, lqc[]) {
+    FOR 0 &lt;= i &lt; NQT DO
+      qx[0..NREQ] = random_row(NREQ)
+      qy[0..NREQ] = random_row(NREQ)
+      qz[0..NREQ] = random_row(NREQ)
+
+      FOR 0 &lt;= j &lt; BLOCK  DO
+        IF (j + i * Q &lt; NQ)
+          assert( W[ lqc[j].x ] * W[ lqc[j].x ] == W[ lqc[j].z ] )
+          qx[NREQ + j] = W[ lqc[j].x ]
+          qy[NREQ + j] = W[ lqc[j].y ]
+          qz[NREQ + j] = W[ lqc[j].z ]
+
+      T[IQ + i * NQT    ][0..NCOL] = extend(qx, BLOCK, NCOL)
+      T[IQ + i * NQT + 1][0..NCOL] = extend(qy, BLOCK, NCOL)
+      T[IQ + i * NQT + 2][0..NCOL] = extend(qz, BLOCK, NCOL)
+}
+</pre><a href="#section-4.3-12" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="ligero-prove">
+<section id="section-4.4">
+        <h3 id="name-ligero-prove">
+<a href="#section-4.4" class="section-number selfRef">4.4. </a><a href="#name-ligero-prove" class="section-name selfRef">Ligero Prove</a>
+        </h3>
+<p id="section-4.4-1">This section specifies how a Ligero proof for a given sequence of linear constraints and quadratic constraints on the committed witness vector <code>W</code> is constructed. The proof consists of a low-degree test on the tableau, a linearity test, and a quadratic constraint test.<a href="#section-4.4-1" class="pilcrow">¶</a></p>
+<div id="low-degree-test">
+<section id="section-4.4.1">
+          <h4 id="name-low-degree-test">
+<a href="#section-4.4.1" class="section-number selfRef">4.4.1. </a><a href="#name-low-degree-test" class="section-name selfRef">Low-degree test</a>
+          </h4>
+<p id="section-4.4.1-1">In the low-degree test, the verifier sends a challenge vector consisting of <code>NROW</code> field elements, <code>u[0..NROW]</code>.  This challenge is generated via the Fiat-Shamir transform. The prover computes the sum of <code>u[i]*T[i]</code> where <code>T[i]</code> is the i-th row of the tableau, and returns the first BLOCK elements of the result. The verifier applies the <code>extend</code> method to this response, and then verifies that the extended row is consistent with the positions of the Merkle tree that the verifier will later request from the Prover.<a href="#section-4.4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.4.1-2">The Prover's task is therefore to compute a summation. For efficiency, set <code>u[0]=1</code> because this first row corresponds to a random row meant to ``pad" the witnesses for zero-knowledge.<a href="#section-4.4.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="linear-and-quadratic-constraints">
+<section id="section-4.4.2">
+          <h4 id="name-linear-and-quadratic-constr">
+<a href="#section-4.4.2" class="section-number selfRef">4.4.2. </a><a href="#name-linear-and-quadratic-constr" class="section-name selfRef">Linear and Quadratic constraints</a>
+          </h4>
+<p id="section-4.4.2-1">The linear test is represented by a matrix <code>A</code>, and a vector <code>b</code>, and aims to verify that <code>A*W = b</code>.  The constraint matrix <code>A</code> is given as input in a sparse form: it is an array of triples <code>(c,j,k)</code> in which <code>c</code> indicates the constraint number or row of A, <code>j</code> represents the index of the witness or column of A, and <code>k</code> represents the constant factor.  For example, if the first constraint (at index 0) is <code>W[2] + 2W[3] = 3</code>, then the linear constraints array contains the triples <code>(0,2,1), (0,3,2)</code> and the <code>b</code> vector has <code>b[0]=3</code>.<a href="#section-4.4.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.4.2-2">The quadratic constraints are given as input in an array <code>lqc[]</code> that contains triples <code>(x,y,z)</code>; one such triple represents the constraint that <code>W[x] * W[y] = W[z]</code>. To process quadratic constraints, tableau <code>T</code> is augmented with 3 extra rows, called <code>Qx</code>, <code>Qy</code>, and <code>Qz</code> which hold <em>copied</em> witnesses and their products. If the <code>i</code>-th quadratic constraint is <code>(x,y,z)</code>, then the prover sets <code>Qx[i] = W[x]</code>, <code>Qy[i] = W[y]</code> and <code>Qz[i] = W[x] * W[y]</code>. Next, the prover adds a linear constraint that <code>Qx[i] - W[x] = 0</code>, <code>Qy[i] - W[y] = 0</code> and <code>Qz[i] - W[z] = 0</code> to ensure that the copied witness is consistent.<a href="#section-4.4.2-2" class="pilcrow">¶</a></p>
+<p id="section-4.4.2-3">In this sense, the quadratic constraints are reduced to linear constraints, and the additional requirement for the verifier to check that each index of the <code>Qz</code> row is the product of its counterpart in the <code>Qx</code> and <code>Qy</code> row.<a href="#section-4.4.2-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="selection-of-challenge-indicies">
+<section id="section-4.4.3">
+          <h4 id="name-selection-of-challenge-indi">
+<a href="#section-4.4.3" class="section-number selfRef">4.4.3. </a><a href="#name-selection-of-challenge-indi" class="section-name selfRef">Selection of challenge indicies</a>
+          </h4>
+<p id="section-4.4.3-1">The last step of the prove method is for the verifier to select a subset of unique indicies (i.e., they are sampled without replacement) from the range <code>DBLOCK...NCOL</code> and request that the prover open these columns of tableau <code>T</code>. These opened columns are then used to verify consistency with the previous messages sent by the prover.<a href="#section-4.4.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="ligero-prover-procedure">
+<section id="section-4.4.4">
+          <h4 id="name-ligero-prover-procedure">
+<a href="#section-4.4.4" class="section-number selfRef">4.4.4. </a><a href="#name-ligero-prover-procedure" class="section-name selfRef">Ligero Prover procedure</a>
+          </h4>
+<div class="alignLeft art-text artwork" id="section-4.4.4-1">
+<pre>def prove(transcript, digest, linear[], lqc[])  {
+
+    u = transcript.generate_challenge([BLOCK]);
+    transcript.write(digest)
+
+    ldt[0..BLOCK] = T[ILDT][0..BLOCK]
+
+    for(i=3; i &lt; NROW; ++i) {
+      ldt[0..BLOCK] += u[i] * T[i][0..BLOCK]
+    }
+
+    alpha_l = transcript.generate_challenge([NL]);
+    alpha_q = transcript.generate_challenge([NQ,3]);
+
+    A = inner_product_vector(linear, alpha_l, lqc, alpha_q);
+
+    dot = dot_proof(A);
+    uquad = transcript.generate_quad()
+
+    qpr = quadratic_proof(lqc, uquad)
+
+    transcript.write(ldt);
+    transcript.write(dot);
+    transcript.write(qpr);
+
+    challenge_indicies = transcript.generate_challenge([NREQ]);
+
+    columns = requested_columns(challenge_indicies);
+
+    mt_proof = M.compressed_proof(challenge_indicies);
+
+    return (ldt, dot, qpr, columns, mt_proof)
+  }
+</pre><a href="#section-4.4.4-1" class="pilcrow">¶</a>
+</div>
+<div class="alignLeft art-text artwork" id="section-4.4.4-2">
+<pre>Input:
+- linear: array of (w,c,k) triples specifying the linear constraints
+- alpha_l: array of challenges for the linear constraints
+- lqc: array of (x,y,z) triples specifying the quadratic constraints
+- alpha_q: array of challenges for the quadratic constraints
+
+Output:
+- A: a vector of size WR x NROW that contains the combined
+     witness constraints.
+     The first NW * W positions correspond to coefficients
+     for the linear constraints on witnesses.
+     The next 3*NQ positions correspond to coefficients
+     for the quadratic constraints.
+
+def inner_product_vector(A, linear, alpha_l, lqc, alpha_q) {
+  A = [0]
+
+  // random linear combinations of the linear constraints
+  FOR 0 &lt;= i &lt; NL DO
+    assert(linear[i].w &lt; NW)
+    assert(linear[i].c &lt; NL)
+    A[ linear[i].w ] += alpha_l[ linear[i].c ] * linear[i].k
+
+  // pointers to terms for quadratic constraints
+  a_x = NW * W
+  a_y = NW * W + (NQ * W)
+  a_z = NW * W + 2 * (NQ * W)
+
+  FOR 0 &lt;= i &lt; NQT DO
+    FOR 0 &lt;= j &lt; QR DO
+      IF (j + i * QR &lt; NQ)
+        ilqc = j + i * QR  // index into lqc
+        ia   = j + i * WR  // index into Ax,Ay,Az sub-arrays
+        (x,y,z) = lqc[ilqc]
+
+        // add constraints that the copies are correct
+        A[a_x + ia] += alpha_q[ilqc][0]
+        A[x]        -= alpha_q[ilqc][0]
+
+        A[a_y + ia] += alpha_q[ilqc][1]
+        A[y]        -= alpha_q[ilqc][1]
+
+        A[a_z + ia] += alphaq[ilqc][2]
+        A[z]        -= alphaq[ilqc][2]
+
+  return A
+}
+
+def dot_proof(A) {
+  y = T[IDOT][0..BLOCK]
+
+  Aext[0..BLOCK] = [0]
+  FOR 0 &lt;= i &lt; NQW DO
+    Aext[0..NREQ]  = [0]
+    Aext[NREQ..NREQ + WR] = A[i * WR..(i+1) * WR]
+    Af = extend(Aext, BLOCK, DBLOCK)
+
+    axpy(DBLOCK, y[0..DBLOCK], Af[0..DBLOCK], T[i + IW][0...DBLOCK])
+
+  return y
+}
+
+def quadratic_proof(lqc, uquad) {
+
+    y[0..DBLOCK] = T[IQD][0..DBLOCK]
+
+    iqx = IQ;
+    iqy = iqx + NQT
+    iqz = iqy + NQT
+
+    FOR 0 &lt;= i &lt; NQT
+      // y += u_quad[i] * (z[i] - x[i] * y[i])
+
+      tmp = T[iqz + i][0..DBLOCK]
+
+      // tmp -= x[i] \otimes y[i]
+      sub(DBLOCK, tmp[0...DBLOCK],
+                  mul(DBLOCK, T[iqx][0..DBLOCK],
+                              T[iqy][0..DBLOCK]))
+
+      // y += u_quad[i] * tmp
+      axpy(DBLOCK, y[0..DBLOCK], u_quad[0..DBLOCK], tmp[0..DBLOCK])
+    }
+
+    // sanity check: the Witness part of Y is zero
+    assert(y[NREQ...BLOCK] == 0)
+
+    // extract the non-zero parts of y
+    return y[0..NREQ], y[BLOCK..DBLOCK]
+}
+
+def requested_columns(challenge_indicies) {
+  cols = []   // array of columns of T
+  FOR (index i : challenge_indicies) {
+    cols.append( [ T[0..NROW][i] ] )
+  }
+  return cols
+}
+
+
+</pre><a href="#section-4.4.4-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="ligero-verification-procedure">
+<section id="section-4.5">
+        <h3 id="name-ligero-verification-procedu">
+<a href="#section-4.5" class="section-number selfRef">4.5. </a><a href="#name-ligero-verification-procedu" class="section-name selfRef">Ligero verification procedure</a>
+        </h3>
+<p id="section-4.5-1">This section specifies how to verify a Ligero proof with respect to a common set of linear and quadratic constraints.<a href="#section-4.5-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.5-2">
+<pre>Input:
+- commitment: the first Prover message that commits to the witness
+- proof: Prover's proof
+- transcript: Fiat-Shamir
+- linear: array of (w,c,k) triples specifying the linear constraints
+- b: the vector b in the constraint equation A*w = b.
+- lqc: array of (x,y,z) triples specifying the quadratic constraints
+
+Output:
+- a boolean
+
+def verify(commitment, proof, transcript,
+           linear[], digest, b[], lqc[]) {
+
+  u = transcript.generate_challenge([BLOCK]);
+  transcript.write(digest)
+  alpha_l = transcript.generate_challenge([NL]);
+  alpha_q = transcript.generate_challenge([NQ,3]);
+  transcript.write(proof.ldt);
+  transcript.write(proof.dot);
+  challenge_indicies = transcript.generate_challenge([NREQ]);
+
+  A = inner_product_vector(linear, alpha_l, lqc, alpha_q);
+
+  // check the putative value of the inner product
+  want_dot  = dot(NL, b, alpha_l);
+  proof_dot = sum(proof.dot);
+
+  return
+    verify_merkle(commitment.root, BLOCK*RATE, NREQ,
+          proof.columns, challenge_indicies, mt_proof.mt)
+    AND quadratic_check(proof)
+    AND low_degree_check(proof, challenge_indicies, u)
+    AND dot_check(proof, challenge_indicies, A)
+    AND want_dot == proof_dot
+}
+</pre><a href="#section-4.5-2" class="pilcrow">¶</a>
+</div>
+<div class="alignLeft art-text artwork" id="section-4.5-3">
+<pre>def quadratic_check(proof, challenge_indices) {
+
+  iqx = IQ;
+  iqy = iqx + NQT
+  iqz = iqy + NQT
+  yc = proof.iquad
+
+  FOR 0 &lt;= i &lt; NQT {
+    // yc += u_quad[i] * (z[i] - x[i] * y[i])
+    tmp = proof.z[iqz + i][0..DBLOCK]
+
+      // tmp -= x[i] \otimes y[i]
+    sub(DBLOCK, tmp[0...DBLOCK],
+                mul(DBLOCK, T[iqx][0..DBLOCK],
+                            T[iqy][0..DBLOCK]))
+
+    // y += u_quad[i] * tmp
+    axpy(DBLOCK, yc[0..DBLOCK], u_quad[0..DBLOCK], tmp[0..DBLOCK])
+  }
+
+  yquad = proof.qpr[0..NREQ] || 0 || proof.qpr[BLOCK...DBLOCK]
+  yp = extend(yquad, DBLOCK, NCOL)
+
+  // Verify that yp and yc agree at the challenge indices.
+  want = gather(NREQ, yp, challenge_indices)
+  return equal(NREQ, want, yc[{idx}])
+}
+
+def low_degree_check(proof, u, challenge_indicies) {
+
+  got = proof.columns[ILDT][0..NREQ]
+
+  FOR 1 &lt;= i &lt; NROW DO {
+    axpy(NREQ, got, u[i], proof.columns[i][...])
+  }
+
+  row = extend(proof.ldt, BLOCK, NCOL)
+  want = gather(NREQ, row, challenge_indicies)
+
+  return equal(NREQ, got, want)
+}
+
+def dot_check(proof, challenge_indicies, A) {
+  yc = proof.columns[IDOT][0..NREQ]
+
+  Aext[0..BLOCK] = [0]
+  FOR 0 &lt;= i &lt; NQW DO
+    Aext[0..R]  = [0]
+    Aext[R..R + WR] = A[i * WR..(i+1) * WR]
+    Af = extend(Aext, R + WR, BLOCK)
+
+    Areq = gather(NREQ, Af, challenge_indicies);
+
+    // Accumulate z += A[j] \otimes W[j].
+    sum( yc, prod(NCOL, Areq[0..NREQ],
+                        proof.columns[i][0..NREQ]))
+
+  row = extend(proof.dot, BLOCK, NCOL)
+  yp  = gather(NREQ, row, challenge_indicies)
+
+  return equal(NREQ, yp, yc)
+}
+</pre><a href="#section-4.5-3" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="overview-of-the-longfellow-protocol">
+<section id="section-5">
+      <h2 id="name-overview-of-the-longfellow-">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-overview-of-the-longfellow-" class="section-name selfRef">Overview of the Longfellow protocol</a>
+      </h2>
+<p id="section-5-1">The Longfellow ZK protocol utilizes two primitive operations. The first is a variant of the sumcheck protocol, modified to support zero knowledge. Informally, the non-padded sumcheck prover takes the description of a circuit and the concrete values of all the wires in the circuit, and produces a proof that all wires have been computed correctly.  The proof itself is a sequence of field elements.  The padded-variant of the sumcheck prover used in this document also takes as input a random and secret one-time pad and it outputs a "padded" proof such that each element in the padded proof is the difference of the element in the non-padded proof and of the element in the pad.  (The choice of "difference" instead of "sum" is a matter of convention.)<a href="#section-5-1" class="pilcrow">¶</a></p>
+<p id="section-5-2">In this padded sumcheck variant, the verifier cannot check the proof
+directly, because it cannot access the pad.  Instead of running the
+sumcheck verifier directly, a commitment scheme is used to hide the
+pad, and the sumcheck verifier is translated into a sequence of linear and
+quadratic constraints on the inputs and the pad.  The commitment
+scheme then produces a proof that the constraints are satisfied.<a href="#section-5-2" class="pilcrow">¶</a></p>
+<p id="section-5-3">Some of the wires of the circuit are <em>inputs</em>, i.e., set outside the
+circuit and not computed by the circuit itself.  Some of the inputs
+are <em>public</em>, i.e., known to both parties, and some are <em>private</em>,
+i.e., known only to the prover.  Sumcheck does not use the distinction
+between public and private inputs, but this document distinguishes inputs
+from the pad.  On the contrary, the commitment scheme does not use
+public inputs at all, but it does treat private inputs and the pad
+equally.  These constraints motivate the following terminology.<a href="#section-5-3" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-5-4.1">
+          <em>public inputs</em>: inputs to the circuit known to both
+parties.<a href="#section-5-4.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-5-4.2">
+          <em>private inputs</em>: inputs to the circuit known to the
+prover but not to the verifier.<a href="#section-5-4.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-5-4.3">
+          <em>inputs</em>: both public and private inputs.  When forming
+an array of all inputs, the public inputs come first, followed
+by the private inputs.<a href="#section-5-4.3" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-5-4.4">
+          <em>witnesses</em>: the private inputs and the pad.  When forming
+an array of all witnesses, the private inputs come first, followed
+by the pad.<a href="#section-5-4.4" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="section-5-5">Thus, at a high level, the sequence of operations in the ZK
+protocol is the following:<a href="#section-5-5" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5-6">
+<li id="section-5-6.1">
+          <p id="section-5-6.1.1">The prover commits to all witness values.<a href="#section-5-6.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-5-6.2">
+          <p id="section-5-6.2.1">The prover runs the padded sumcheck prover on the witness values to producing a padded proof, and sends the padded proof to the verifier.<a href="#section-5-6.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-5-6.3">
+          <p id="section-5-6.3.1">Both the prover and the verifier take the public inputs and the
+padded proof and produce a sequence of constraints.<a href="#section-5-6.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-5-6.4">
+          <p id="section-5-6.4.1">Using the commitment scheme and the witnesses, the prover generates
+a proof that the constraints from step 3 are satisfied.<a href="#section-5-6.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-5-6.5">
+          <p id="section-5-6.5.1">The verifier uses the proof from step 4 and the constraints from
+step 3 to check the constraints.<a href="#section-5-6.5.1" class="pilcrow">¶</a></p>
+</li>
+      </ol>
+<p id="section-5-7">Steps 2 and 3 are referred to as "sumcheck", and the rest as "commitment scheme".  While the classification of step 3 as "sumcheck" is  arbitrary, there are situations where one might want to use a commitment scheme other than the Ligero protocol specified in this document.  In this case, the "commitment scheme" can change while the "sumcheck" remains unaffected.<a href="#section-5-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sumcheck">
+<section id="section-6">
+      <h2 id="name-sumcheck">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-sumcheck" class="section-name selfRef">Sumcheck</a>
+      </h2>
+<div id="special-conventions-for-sumcheck-arrays">
+<section id="section-6.1">
+        <h3 id="name-special-conventions-for-sum">
+<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-special-conventions-for-sum" class="section-name selfRef">Special conventions for sumcheck arrays</a>
+        </h3>
+<p id="section-6.1-1">The square brackets <code>A[j]</code> denote generic array indexing.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+<p id="section-6.1-2">For the arrays of field elements used in the sumcheck protocol,
+however, it is convenient to use the conventions that follow.<a href="#section-6.1-2" class="pilcrow">¶</a></p>
+<p id="section-6.1-3">The sumcheck array <code>A[i]</code> is implicitly assumed to be defined for all
+nonnegative integers <code>i</code>, padding with zeroes as necessary.  Here,
+"zero" is well defined because <code>A[]</code> is an array of field elements.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
+<p id="section-6.1-4">Arrays can be multi-dimensional, as in the three-dimensional array
+<code>Q[g, l, r]</code>.  It is understood that the array is padded with
+infinitely many zeroes in each dimension.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
+<p id="section-6.1-5">Given array <code>A[]</code> and field element <code>x</code>, the function
+<code>bind(A, x)</code> returns the array <code>B</code> such that<a href="#section-6.1-5" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-6">
+<pre>  B[i] = (1 - x) * A[2 * i] + x * A[2 * i + 1]
+</pre><a href="#section-6.1-6" class="pilcrow">¶</a>
+</div>
+<p id="section-6.1-7">In case of multiple dimensions such as <code>Q[g, l, r]</code>,
+always bind across the first dimension.  For example,<a href="#section-6.1-7" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-8">
+<pre>  bind(Q, x)[g, l, r] =
+     (1 - x) * Q[2 * g, l, r] + x * Q[2 * g + 1, l, r]
+</pre><a href="#section-6.1-8" class="pilcrow">¶</a>
+</div>
+<p id="section-6.1-9">This <code>bind</code> can be generalized to an array of field elements as follows:<a href="#section-6.1-9" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-10">
+<pre>  bindv(A, X) =
+       A                                  if X is empty
+       bindv(bind(A, X[0]), X[1..])       otherwise
+</pre><a href="#section-6.1-10" class="pilcrow">¶</a>
+</div>
+<p id="section-6.1-11">Two-dimentional arrays can be transposed in the usual way:<a href="#section-6.1-11" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-12">
+<pre>  transpose(Q)[l, r] = Q[r, l] .
+</pre><a href="#section-6.1-12" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="the-eq-array">
+<section id="section-6.2">
+        <h3 id="name-the-eq-array">
+<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-the-eq-array" class="section-name selfRef">The <code>EQ[]</code> array</a>
+        </h3>
+<p id="section-6.2-1"><code>EQ_{n}[i, j]</code> is a special 2D array defined as<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.2-2">
+<pre>   EQ_{n}[i, j] = 1   if i = j and i &lt; n
+                  0   otherwise
+</pre><a href="#section-6.2-2" class="pilcrow">¶</a>
+</div>
+<p id="section-6.2-3">The sumcheck literature usually assumes that <code>n</code> is a power of 2,
+but this document allows <code>n</code> to be an arbitrary integer.  When <code>n</code> is clear from
+context or unimportant, the subscript is omitted like
+<code>EQ[i, j]</code>.<a href="#section-6.2-3" class="pilcrow">¶</a></p>
+<p id="section-6.2-4"><code>EQ[]</code> is important because the general expansion<a href="#section-6.2-4" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.2-5">
+<pre>   V[i] = SUM_{j} EQ[i, j] V[j]
+</pre><a href="#section-6.2-5" class="pilcrow">¶</a>
+</div>
+<p id="section-6.2-6">commutes with binding, yielding<a href="#section-6.2-6" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.2-7">
+<pre>   bindv(V, X) = SUM_{j} bindv(EQ, X)[j] V[j] .
+</pre><a href="#section-6.2-7" class="pilcrow">¶</a>
+</div>
+<p id="section-6.2-8">That is, one way to compute <code>bindv(V, X)</code> is via
+dot product of <code>V</code> with <code>bindv(EQ, X)</code>.  This strategy
+may or may not be advantageous in practice, but it
+becomes mandatory when <code>bindv(V, X)</code> must be computed
+via a commitment scheme that supports linear
+constraints but not binding.<a href="#section-6.2-8" class="pilcrow">¶</a></p>
+<p id="section-6.2-9">This document only uses bindings of <code>EQ</code> and never <code>EQ</code> itself,
+and therefore the whole array never needs to be stored explicitly.
+For <code>n = 2^l</code> and <code>X</code> of size <code>l</code>, <code>bindv(EQ_{n}, X)</code> can be computed
+recursively in linear time as <code>bindv(EQ_{n}, X) = bindeq(l, X)</code> where<a href="#section-6.2-9" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.2-10">
+<pre>   bindeq(l, X) =
+      LET n = 2^l
+      allocate B[n]
+      IF l = 0 THEN
+         B[0] = 1
+      ELSE
+         LET A = bindeq(l - 1, X[1..])
+         FOR 0 &lt;= 2 * i &lt; n DO
+            B[2 * i]     = (1 - X[0]) * A[i]
+            B[2 * i + 1] = X[0] * A[i]
+         ENDFOR
+      ENDIF
+      return B
+</pre><a href="#section-6.2-10" class="pilcrow">¶</a>
+</div>
+<p id="section-6.2-11">For <code>m &lt;= n</code>, <code>bindv(EQ_{n}, X)[i]</code> and <code>bindv(EQ_{m}, X)[i]</code>
+agree for <code>0 &lt;= i &lt; m</code>, and thus
+<code>bindv(EQ_{m}, X)[i]</code> can be computed by padding <code>m</code> to the next power of 2
+and ignoring the extra elements.
+With some care, it is possible to compute <code>bindeq()</code>
+in-place on a single array of arbitrary size <code>m</code> and eliminate
+the recursion completely.<a href="#section-6.2-11" class="pilcrow">¶</a></p>
+<div id="remark">
+<section id="section-6.2.1">
+          <h4 id="name-remark">
+<a href="#section-6.2.1" class="section-number selfRef">6.2.1. </a><a href="#name-remark" class="section-name selfRef">Remark</a>
+          </h4>
+<p id="section-6.2.1-1">Let <code>m &lt;= n</code>, <code>A = bindv(EQ_{m}, X)</code> and <code>B = bindv(EQ_{n}, X)</code>.  It
+is true that <code>A[i] = B[i]</code> for <code>i &lt; m</code>.  However, it is also true that <code>A[i] =
+0</code> for <code>i &gt;= m</code>, whereas <code>B[i]</code> is in general nonzero.  Thus, care
+must be taken when computing a further binding <code>bindv(A, Y)</code>,
+which is in general not the same as <code>bindv(B, Y)</code>.  A second binding is
+not needed in this document,  but certain closed-form expressions for
+the binding found in the literature agree with these definitions only
+when <code>m</code> is a power of 2.<a href="#section-6.2.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="circuits">
+<section id="section-6.3">
+        <h3 id="name-circuits">
+<a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-circuits" class="section-name selfRef">Circuits</a>
+        </h3>
+<div id="layered-circuits">
+<section id="section-6.3.1">
+          <h4 id="name-layered-circuits">
+<a href="#section-6.3.1" class="section-number selfRef">6.3.1. </a><a href="#name-layered-circuits" class="section-name selfRef">Layered circuits</a>
+          </h4>
+<p id="section-6.3.1-1">A circuit consists of <code>NL</code> <em>layers</em>.  By convention, layer <code>j</code>
+computes wires <code>V[j]</code> given wires <code>V[j + 1]</code>, where each <code>V[j]</code> is an
+array of field elements.  A <em>wire</em> is an element <code>V[j][w]</code> for some <code>j</code>
+and <code>w</code>.  Thus, <code>V[0]</code> denotes the output wires of the entire circuit,
+and <code>V[NL]</code> denotes the input wires.<a href="#section-6.3.1-1" class="pilcrow">¶</a></p>
+<p id="section-6.3.1-2">A circuit is intended to check that some property of the input holds,
+and by convention, the check is considered successful if all output
+wires are 0, that is, if <code>V[0][w] = 0</code> for all <code>w</code>.<a href="#section-6.3.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="quad-representation">
+<section id="section-6.3.2">
+          <h4 id="name-quad-representation">
+<a href="#section-6.3.2" class="section-number selfRef">6.3.2. </a><a href="#name-quad-representation" class="section-name selfRef">Quad representation</a>
+          </h4>
+<p id="section-6.3.2-1">The computation of circuit is defined by a set of <em>quads</em> <code>Q[j]</code>, one
+per layer.  Given the output of layer <code>j + 1</code>, the output of of layer
+<code>j</code> is given by the following equation:<a href="#section-6.3.2-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.3.2-2">
+<pre>  V[j][g] = SUM_{l, r} Q[j][g, l, r] V[j + 1][l] V[j + 1][r] .
+</pre><a href="#section-6.3.2-2" class="pilcrow">¶</a>
+</div>
+<p id="section-6.3.2-3">The quad <code>Q[j][]</code> is thus a three-dimensional array in the indices <code>g</code>,
+<code>l</code>, and <code>r</code> where <code>0 &lt;= g &lt; NW[j]</code> and <code>0 &lt;= l, r &lt; NW[j + 1]</code>.  In
+practice, <code>Q[j][]</code> is sparse.<a href="#section-6.3.2-3" class="pilcrow">¶</a></p>
+<p id="section-6.3.2-4">The specification of the circuit contains an auxiliary
+vector of quantities <code>LV[j]</code> with the property that <code>V[j][w] = 0</code>
+for all <code>w &gt;= 2^{LV[j]}</code>.  Informally, <code>LV[j]</code> is the number
+of bits needed to name a wire at layer <code>j</code>, but <code>LV[j]</code> may
+be larger than the minimum required value.<a href="#section-6.3.2-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="in-circuit-assertions">
+<section id="section-6.3.3">
+          <h4 id="name-in-circuit-assertions">
+<a href="#section-6.3.3" class="section-number selfRef">6.3.3. </a><a href="#name-in-circuit-assertions" class="section-name selfRef">In-circuit assertions</a>
+          </h4>
+<p id="section-6.3.3-1">In the libzk system, a theorem is represented by a circuit such that
+the theorem is true if and only if all outputs of the circuit are
+zero.  It happens in practice that many output wires are computed early
+in the circuit (i.e., in a layer closer to the input), but because of
+layering, they need to be copied all the way to output layer in order
+to be compared against zero.  This copy seems to introduce large
+overheads in practice.<a href="#section-6.3.3-1" class="pilcrow">¶</a></p>
+<p id="section-6.3.3-2">A special convention can mitigate this problem.  Abstractly,
+a layer is represented by <em>two</em> quads <code>Q</code> and <code>Z</code>, and the
+operation of the layer is described by the two equations<a href="#section-6.3.3-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.3.3-3">
+<pre>  V[j][g] = SUM_{l, r} Q[j][g, l, r] V[j + 1][l] V[j + 1][r]
+       0  = SUM_{l, r} Z[j][g, l, r] V[j + 1][l] V[j + 1][r]
+</pre><a href="#section-6.3.3-3" class="pilcrow">¶</a>
+</div>
+<p id="section-6.3.3-4">Thus, the <code>Z</code> quad asserts that, for given layer <code>j</code>
+and output wire <code>g</code>, a certain quadratic combination of
+the input wires is zero.<a href="#section-6.3.3-4" class="pilcrow">¶</a></p>
+<p id="section-6.3.3-5">The actual protocol verifies a random linear combination
+of those two equations, effectively operating on a combined
+quad <code>QZ = Q + beta * Z</code> for some random <code>beta</code>.<a href="#section-6.3.3-5" class="pilcrow">¶</a></p>
+<p id="section-6.3.3-6">To allow for a compact representation of the two quads without
+losing any real generality, the following conditions are imposed:<a href="#section-6.3.3-6" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.3.3-7.1">The two quads <code>Q</code> and <code>Z</code> are disjoint: for all layers <code>j</code> and output
+wire <code>g</code>, if any <code>Q[j][g, ., .]</code> are nonzero, then all <code>Z[j][g, ., .]</code>
+are zero, and vice versa.<a href="#section-6.3.3-7.1" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="section-6.3.3-7.2">
+              <code>Z</code> is binary: <code>Z[j][g, l, r] \in {0, 1}</code><a href="#section-6.3.3-7.2" class="pilcrow">¶</a>
+</li>
+          </ul>
+<p id="section-6.3.3-8">With these choices, the two quads allow a compact sparse
+representation as a single list of 4-tuples <code>(g, l, r, v)</code>
+with the following conventions:<a href="#section-6.3.3-8" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.3.3-9.1">If <code>v = 0</code>, the 4-tuple represents an element of <code>Z</code>,
+and <code>Z[j][g, l, r] = 1</code>.<a href="#section-6.3.3-9.1" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="section-6.3.3-9.2">If <code>v != 0</code>, the 4-tuple represents an element of <code>Q</code>,
+and <code>Q[j][g, l, r] = v</code>.<a href="#section-6.3.3-9.2" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="section-6.3.3-9.3">All other elements of <code>Q</code> and <code>Z</code> not specified by the list are
+zero.<a href="#section-6.3.3-9.3" class="pilcrow">¶</a>
+</li>
+          </ul>
+<p id="section-6.3.3-10">Moreover, this compact representation can be transformed into
+a representation of <code>QZ = Q + beta * Z</code> by replacing all <code>v = 0</code>
+with <code>v = beta</code>.<a href="#section-6.3.3-10" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="representation-of-polynomials">
+<section id="section-6.4">
+        <h3 id="name-representation-of-polynomia">
+<a href="#section-6.4" class="section-number selfRef">6.4. </a><a href="#name-representation-of-polynomia" class="section-name selfRef">Representation of polynomials</a>
+        </h3>
+<p id="section-6.4-1">In a generic sumcheck protocol, the prover sends to the verifier
+polynomials of a degree specified in advance.  In the present document,
+the polynomials are always of degree 2, and are represented by their
+evaluations at three points <code>P0 = 0</code>, <code>P1 = 1</code>, and <code>P2</code>, where <code>0</code>
+and <code>1</code> are the additive and multiplicative identities in the field.
+The choice of <code>P2</code> depends upon the field.  For fields of characteristic
+greater than 2, set <code>P2 = 2</code> (= <code>1 + 1</code> in the field).  For <code>GF(2^128)</code>
+expressed as <code>GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)</code>, and set <code>P2
+= X</code>.  This document does not prescribe a choice of P2 for binary
+fields other than <code>GF(2^128)</code>, but other binary fields
+represented as <code>GF(2)[X] / (Q(X))</code> SHOULD choose <code>P2 = X</code> for
+consistency.<a href="#section-6.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="transform-circuit-and-wires-into-a-padded-proof">
+<section id="section-6.5">
+        <h3 id="name-transform-circuit-and-wires">
+<a href="#section-6.5" class="section-number selfRef">6.5. </a><a href="#name-transform-circuit-and-wires" class="section-name selfRef">Transform circuit and wires into a padded proof</a>
+        </h3>
+<div class="alignLeft art-text artwork" id="section-6.5-1">
+<pre>sumcheck_circuit(circuit, wires, pad, transcript) {
+  G[0] = G[1] = transcript.gen_challenge(circuit.lv)
+  FOR 0 &lt;= j &lt; circuit.nl DO
+     // Let V[j] be the output wires of layer j.
+     // The body of the loop reduces the verification of the
+     // two "claims" bind(V[j], G[0]) and bind(V[j], G[1])
+     // to the verification of the two claims
+     // bind(V[j + 1], G'[0]) and bind(V[j + 1], G'[1]),
+     // where the new bindings G' are chosen in sumcheck_layer()
+
+     alpha = transcript.gen_challenge(1)
+
+     // Form the combined quad QZ = Q + beta Z
+     // to handle in-circuit assertions
+     beta = transcript.gen_challenge(1)
+     QZ = circuit.layer[j].quad + beta * circuit.layer[j].Z;
+
+     // QZ is three-dimensional QZ[g, l, r]
+     QUAD = bindv(QZ, G[0]) + alpha * bindv(QZ, G[1])
+     // having bound g, QUAD is two-dimensional QUAD[l, r]
+
+     (proof[j], G) =
+         sumcheck_layer(QUAD, wires[j], circuit.layer[j].lv,
+                        pad[j], transcript)
+  ENDFOR
+  return proof
+}
+</pre><a href="#section-6.5-1" class="pilcrow">¶</a>
+</div>
+<div class="alignLeft art-text artwork" id="section-6.5-2">
+<pre>sumcheck_layer(QUAD, wires, lv, layer_pad, transcript) {
+   (VL, VR) = wires
+   FOR 0 &lt;= round &lt; lv DO
+      FOR 0 &lt;= hand &lt; 2 DO
+        Let p(x) =
+           SUM_{l, r} bind(QUAD, x)[l, r] * bind(VL, x)[l] * VR[r]
+        evals.p0 = p(P0) - layer_pad.evals[round][hand].p0
+        // p(P1) is implied and not needed
+        evals.p2 = p(P2) - layer_pad.evals[round][hand].p2
+        layer_proof.evals[round][hand] = evals
+        transcript.write(evals);
+        challenge = transcript.gen_challenge(1)
+        G[round][hand] = challenge
+
+        // bind the L variable to CHALLENGE
+        VL = bind(VL, challenge)
+        QUAD = bind(QUAD, challenge)
+
+        // swap L and R
+        (VL, VR) = (VR, VL)
+        QUAD = transpose(QUAD)
+      ENDFOR
+   ENDFOR
+   layer_proof.vl = VL[0] - layer_pad.vl
+   layer_proof.vr = VR[0] - layer_pad.vr
+   transcript.write(layer_proof.vl)
+   transcript.write(layer_proof.vr)
+   return (layer_proof, G)
+}
+</pre><a href="#section-6.5-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="generate-constraints-from-the-public-inputs-and-the-padded-proof">
+<section id="section-6.6">
+        <h3 id="name-generate-constraints-from-t">
+<a href="#section-6.6" class="section-number selfRef">6.6. </a><a href="#name-generate-constraints-from-t" class="section-name selfRef">Generate constraints from the public inputs and the padded proof</a>
+        </h3>
+<p id="section-6.6-1">This section defines a procedure <code>constraints_circuit</code> for transforming the proof
+returned by <code>sumcheck_circuit</code> into constraints for the commitment
+scheme.  Specifically, each layer produces one linear constraint and one quadratic constraint.<a href="#section-6.6-1" class="pilcrow">¶</a></p>
+<p id="section-6.6-2">The main difficulty in describing the algorithm is that it operates
+not on concrete witnesses, but on expressions in which the witnesses
+are symbolic quantities.  Symbolic manipulation is necessary because
+the verifier does not have access to the witnesses.  To avoid
+overspecifying the exact representation of such symbolic expressions,
+the convention is that the prefix <code>sym_</code> indicates not a concrete
+value, but a symbolic representation of the value.  Thus, <code>w[3]</code> is
+the fourth concrete witness in the <code>w</code> array, and <code>sym_w[3]</code> is a
+symbolic representation of the fourth element in the <code>w</code> array.  The
+algorithm does not need arbitrarily complex symbolic expressions.  It
+suffices to keep track of affine symbolic expressions of the form
+<code>k + SUM_{i} a[i] sym_w[i]</code> for some (concrete, nonsymbolic) field elements
+<code>k</code> and <code>a[]</code>.<a href="#section-6.6-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.6-3">
+<pre>constraints_circuit(circuit, public_inputs, sym_private_inputs,
+                    sym_pad, transcript, proof) {
+  G[0] = G[1] = transcript.gen_challenge(circuit.lv)
+  claims = [0, 0]
+  FOR 0 &lt;= j &lt; circuit.nl DO
+     alpha = transcript.gen_challenge(1)
+     beta = transcript.gen_challenge(1)
+     QZ = circuit.layer[j].quad + beta * circuit.layer[j].Z;
+     QUAD = bindv(QZ, G[0]) + alpha * bindv(QZ, G[1])
+     (claims, G) = constraints_layer(
+               QUAD, circuit.layer[j].lv, sym_pad[j], transcript,
+               proof[j], claims, alpha)
+  ENDFOR
+
+  // now add constraints that the two final claims
+  // equal the binding of sym_inputs at G[0], G[1]
+
+  gamma = transcript.gen_challenge(1)
+  LET eq2 = bindv(EQ, G[0]) + gamma * bindv(EQ, G[1])
+  LET sym_layer_pad = sym_pad[circuit.nl - 1]
+  LET npub = number of elements in public_inputs
+
+  Output the linear constraint
+      SUM_{i} (eq2[i + npub] * sym_private_inputs[i])
+      - sym_layer_pad.vl
+      - gamma * sym_layer_pad.vr
+    =
+      - SUM_{i} (eq2[i] * public_inputs[i])
+      + claims[0]
+      + gamma * claims[1]
+}
+</pre><a href="#section-6.6-3" class="pilcrow">¶</a>
+</div>
+<div class="alignLeft art-text artwork" id="section-6.6-4">
+<pre>constraints_layer(QUAD, wires, lv, sym_layer_pad, transcript,
+                  layer_proof, claims, alpha) {
+   // Initial symbolic claim, which happens to be
+   // a known constant but which will be updated to contain
+   // symbolic linear terms later.
+   LET sym_claim = claims[0] + alpha * claims[1]
+
+   FOR 0 &lt;= round &lt; lv DO
+      FOR 0 &lt;= hand &lt; 2 DO
+        LET hp = layer_proof.evals[round][hand]
+        LET sym_hpad = sym_layer_pad.evals[round][hand]
+
+        transcript.write(hp);
+        challenge = transcript.gen_challenge(1)
+        G[round][hand] = challenge
+
+        // Now the unpadded polynomial evaluations are expected
+        // to be
+        //   p(P0) = hp.p0 + sym_hpad.p0
+        //   p(P2) = hp.p2 + sym_hpad.p2
+        LET sym_p0 = hp.p0 + sym_hpad.p0
+        LET sym_p2 = hp.p2 + sym_hpad.p2
+
+        // Compute the implied p(P1) = claim - p(P0) in symbolic form
+        LET sym_p1 = sym_claim - sym_p0
+
+        LET lag_i(x) =
+               the quadratic polynomial such that
+                      lag_i(P_k) = 1  if i = k
+                                   0  otherwise
+               for 0 &lt;= k &lt; 3
+
+        // given p(P0), p(P1), and p(P2), interpolate the
+        // new claim symbolically
+        sym_claim =   lag_0(challenge) * sym_p0
+                    + lag_1(challenge) * sym_p1
+                    + lag_2(challenge) * sym_p2
+
+        // bind L
+        QUAD = bind(QUAD, challenge);
+
+        // swap left and right
+        QUAD = transpose(QUAD)
+      ENDFOR
+   ENDFOR
+
+   // now the bound QUAD is a scalar (a 1x1 array)
+   LET Q = QUAD[0,0]
+
+   // now verify that
+   //
+   //   SYM_CLAIM = Q * VL * VR
+   //
+   // where VL = layer_proof.vl + layer_pad.vl
+   //       VR = layer_proof.vr + layer_pad.vr
+
+   // decompose SYM_CLAIM into the known constant
+   // and the symbolic part
+   LET known + symbolic = sym_claim
+
+   Output the linear constraint
+      symbolic
+      - (Q * layer_proof.vr) * sym_layer_pad.vl
+      - (Q * layer_proof.vl) * sym_layer_pad.vr
+      - Q * sym_layer_pad.vl_vr
+     =
+      Q * layer_proof.vl * layer_proof.vl - known
+
+   Output the quadratic constraint
+
+      sym_layer_pad.vl * sym_layer_pad.vr = sym_layer_pad.vl_vr
+
+   transcript.write(layer_proof.vl)
+   transcript.write(layer_proof.vr)
+
+   return (G, [layer_proof.vl, layer_proof.vr])
+}
+</pre><a href="#section-6.6-4" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="serializing-objects">
+<section id="section-7">
+      <h2 id="name-serializing-objects">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-serializing-objects" class="section-name selfRef">Serializing objects</a>
+      </h2>
+<p id="section-7-1">This section explains how a proof consists of smaller, related objects, and how to serialize each such component.  First, the standard methods for serializing integers and arrays are used:<a href="#section-7-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-7-2.1">
+          <code>write_size(n)</code>: serializes an integer in [0, 2^{24} - 1] that represents the size of an array or an index into an array. The integer is serialized in little endian order.<a href="#section-7-2.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-7-2.2">
+          <code>write_array(arr)</code>: A variable-sized array is represented as <code>type array[]</code> and serialized by first writing its length as a size element, and then serializing each element of the array in order.<a href="#section-7-2.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-7-2.3">
+          <code>write_fixed_array(arr)</code>: When the length of the array is explicitly known to be <code>n</code>, it is specified as <code>type array[n]</code> and in this case, the array length is not written first.<a href="#section-7-2.3" class="pilcrow">¶</a>
+</li>
+      </ul>
+<div id="serializing-structs">
+<section id="section-7.1">
+        <h3 id="name-serializing-structs">
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-serializing-structs" class="section-name selfRef">Serializing structs</a>
+        </h3>
+<p id="section-7.1-1">When a section includes just a struct definition, it is serialized in the natural way, starting from the top-most component and proceeding to the last one, each component is serialized in order.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="serializing-field-elements">
+<section id="section-7.2">
+        <h3 id="name-serializing-field-elements">
+<a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-serializing-field-elements" class="section-name selfRef">Serializing Field elements</a>
+        </h3>
+<p id="section-7.2-1">This section describes a method to serialize field elements, particularly when the field structure allows efficient encoding for elements of subfields.<a href="#section-7.2-1" class="pilcrow">¶</a></p>
+<p id="section-7.2-2">Before a field element can be serialized, the context must specify the finite field. In most cases, the Circuit structure will specify the finite field, and all other aspects of the protocol will be defined by this field.<a href="#section-7.2-2" class="pilcrow">¶</a></p>
+<p id="section-7.2-3">A finite field or <code>FieldID</code> is specified using a variable-length encoding. Common finite fields have been assigned special 1-byte codes. An arbitrary prime-order finite field can be specified using the special <code>0xF_</code> byte followed by a variable number of bytes to specify the prime in little-endian order. For example, the 3 byte sequence <code>f11001</code> specifies F<sub>257</sub>. Similarly, a quadratic extension using the polynomial x^2 + 1 can be specified using the <code>0xE_</code> designators.<a href="#section-7.2-3" class="pilcrow">¶</a></p>
+<span id="name-finite-field-identifiers"></span><table class="center" id="table-1">
+          <caption>
+<a href="#table-1" class="selfRef">Table 1</a>:
+<a href="#name-finite-field-identifiers" class="selfRef">Finite field identifiers.</a>
+          </caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Finite field</th>
+              <th class="text-right" rowspan="1" colspan="1">FieldID</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">p256</td>
+              <td class="text-right" rowspan="1" colspan="1">0x01</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">p384</td>
+              <td class="text-right" rowspan="1" colspan="1">0x02</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">p521</td>
+              <td class="text-right" rowspan="1" colspan="1">0x03</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">GF(2<sup>128</sup>)</td>
+              <td class="text-right" rowspan="1" colspan="1">0x04</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">GF(2<sup>16</sup>)</td>
+              <td class="text-right" rowspan="1" colspan="1">0x05</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">2<sup>128</sup> - 2<sup>108</sup> + 1</td>
+              <td class="text-right" rowspan="1" colspan="1">0x06</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">2^64 - 59</td>
+              <td class="text-right" rowspan="1" colspan="1">0x07</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">2^64 - 2^32 + 1</td>
+              <td class="text-right" rowspan="1" colspan="1">0x08</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">F_{2^64 - 59}<sup>2</sup>
+</td>
+              <td class="text-right" rowspan="1" colspan="1">0x09</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">secp256</td>
+              <td class="text-right" rowspan="1" colspan="1">0x0a</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">F_{2<sup>{0--15}</sup>-byte prime}<sup>2</sup>
+</td>
+              <td class="text-right" rowspan="1" colspan="1">0xe{0--f}</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">F_{2<sup>{0--15}</sup>-byte prime}</td>
+              <td class="text-right" rowspan="1" colspan="1">0xf{0--f}</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-7.2-5">The GF(2<sup>128</sup>) field uses the irreducible polynomial x<sup>128</sup> + x<sup>7</sup> + x<sup>2</sup> + x + 1.
+The p256 prime is equal to 115792089210356248762697446949407573530086143415290314195533631308867097853951, which is the base field used by the NIST P256 elliptic curve.
+The p384 prime is equal to 39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319 which is the base field used by the NIST P384 curve.  The p512 prime is equal to 2<sup>521</sup> - 1.  The F_p64^2 field is the quadratic field extension of the base field defined by prime 18446744073709551557 using polynomial x^2 + 1, i.e. by injecting a square root of -1 to the field.<a href="#section-7.2-5" class="pilcrow">¶</a></p>
+<div id="serializing-a-single-field-element">
+<section id="section-7.2.1">
+          <h4 id="name-serializing-a-single-field-">
+<a href="#section-7.2.1" class="section-number selfRef">7.2.1. </a><a href="#name-serializing-a-single-field-" class="section-name selfRef">Serializing a single field element</a>
+          </h4>
+<p id="section-7.2.1-1">Unless specified otherwise, a field element, referred to as an <code>Elt</code>, is serialized to bytes in little-endian order. For example, a 256-bit element of the finite field F<sub>p256</sub> is serialized into 32-bytes starting with the least-significant byte.<a href="#section-7.2.1-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-7.2.1-2.1">
+              <code>write_elt(e, F)</code>: produces a byte encoding of a field element e in field F.<a href="#section-7.2.1-2.1" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+<div id="serializing-an-element-of-a-subfield">
+<section id="section-7.2.2">
+          <h4 id="name-serializing-an-element-of-a">
+<a href="#section-7.2.2" class="section-number selfRef">7.2.2. </a><a href="#name-serializing-an-element-of-a" class="section-name selfRef">Serializing an element of a subfield</a>
+          </h4>
+<p id="section-7.2.2-1">In some cases, when both Prover and Verifier can explicitly conclude that a field element belongs to a smaller subfield, then both parties can use a more efficient sub-field serialization method.   This optimization can be used when the larger field <code>F</code> is a field extension of a smaller field, and both parties can conclude that the serialized element belongs to the smaller subfield.<a href="#section-7.2.2-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-7.2.2-2.1">
+              <code>write_subfield(Elt e, F2, F1)</code>: produce a byte encoding of a field element e that belongs to a subfield F2 of field F1.<a href="#section-7.2.2-2.1" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="serializing-a-sumcheck-transcript">
+<section id="section-7.3">
+        <h3 id="name-serializing-a-sumcheck-tran">
+<a href="#section-7.3" class="section-number selfRef">7.3. </a><a href="#name-serializing-a-sumcheck-tran" class="section-name selfRef">Serializing a Sumcheck Transcript</a>
+        </h3>
+<div class="alignLeft art-text artwork" id="section-7.3-1">
+<pre>struct {
+        PaddedTranscriptLayer layers[];  // NL layers
+} PaddedTranscript;
+
+struct {
+        Elt wires[];  // array of 2 * log_w Elts that store the
+                // evaluations of deg-2 polynomial at 0, 2
+        Elt wc0;
+        Elt wc1;
+} PaddedTranscriptLayer;
+</pre><a href="#section-7.3-1" class="pilcrow">¶</a>
+</div>
+<p id="section-7.3-2">The padded transcript incorporates the optimization in which the eval at 1 is omitted and reconstructed from the expected value of the previous challenge.<a href="#section-7.3-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="serializing-a-ligero-proof">
+<section id="section-7.4">
+        <h3 id="name-serializing-a-ligero-proof">
+<a href="#section-7.4" class="section-number selfRef">7.4. </a><a href="#name-serializing-a-ligero-proof" class="section-name selfRef">Serializing a Ligero Proof</a>
+        </h3>
+<div class="alignLeft art-text artwork" id="section-7.4-1">
+<pre>def serialize_ligero_proof(C, ldt, dot, columns, mt_proof) {
+  write_array(ldt, C.BLOCK)
+  write_array(dot, C.BLOCK)
+  write_runs(columns, C.NREQ * C.NROW, C.subFieldID, C.FieldID)
+  write_merkle(mt_proof)
+}
+</pre><a href="#section-7.4-1" class="pilcrow">¶</a>
+</div>
+<p id="section-7.4-2">The concept of a <code>run</code> allows saving space when a long run of field elements belong to a subfield of the Finite field.  Runs consist of a 4-byte size element, and then size Elt elements that are either in the field or the subfield. Runs alternate, beginning with full field elements. In this way, rows that consist of subfield elements can save space.  The maximum run length is set to 2<sup>25</sup>.<a href="#section-7.4-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.4-3">
+<pre>def write_runs(columns, N, F2, F) {
+    bool subfield_run = false
+    FOR 0 &lt;= ci &lt; N DO
+      size_t runlen = 0
+      while (ci + runlen &lt; N &amp;&amp;
+             runlen &lt; kMaxRunLen &amp;&amp;
+             columns[ci + runlen].is_in_subfield(F2) == subfield_run) {
+        ++runlen;
+      }
+      write_size(runlen, buf);
+      for (size_t i = ci; i &lt; ci + runlen; ++i) {
+        if (subfield_run) {
+          write_subfield(columns[i], F2, F);
+        } else {
+          write_elt(columns[i], F);
+        }
+      }
+      ci += runlen;
+      subfield_run = !subfield_run;
+}
+
+def write_merkle(mt_proof) {
+  FOR (digest in mt_proof) DO
+     write_fixed_array(digest, HASH_LEN)
+}
+</pre><a href="#section-7.4-3" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="serializing-a-sequence-of-proofs">
+<section id="section-7.5">
+        <h3 id="name-serializing-a-sequence-of-p">
+<a href="#section-7.5" class="section-number selfRef">7.5. </a><a href="#name-serializing-a-sequence-of-p" class="section-name selfRef">Serializing a Sequence of proofs</a>
+        </h3>
+<p id="section-7.5-1">For the multi-field optimization, the proof string consists of a sequence of two proofs. This is handled by using the circuit identifier to specify the sequence of proofs to parse.<a href="#section-7.5-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.5-2">
+<pre>struct {
+   Public pub;  // Public arguments to all circuits
+   Proof proofs[]; // array of Proof
+} Proofs;
+</pre><a href="#section-7.5-2" class="pilcrow">¶</a>
+</div>
+<div class="alignLeft art-text artwork" id="section-7.5-3">
+<pre>struct {
+  uint8 oracle[32]; // nonce used to define the random oracle,
+  Digest com;       // commitment to the witness
+  PaddedTranscript sumcheck_transcript;
+  LigeroProof lp;
+} Proof;
+
+struct {
+  char* arguments[];   // array of strings representing
+                       // public arguments to the circuit
+} Public;
+</pre><a href="#section-7.5-3" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="serializing-a-circuit">
+<section id="section-7.6">
+        <h3 id="name-serializing-a-circuit">
+<a href="#section-7.6" class="section-number selfRef">7.6. </a><a href="#name-serializing-a-circuit" class="section-name selfRef">Serializing a Circuit</a>
+        </h3>
+<p id="section-7.6-1">A circuit structure consists of size metadata, a table of constants, and an array of structures that represent the layers of the circuit as follows.<a href="#section-7.6-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.6-2">
+<pre>struct {
+  Version version;     // 1-byte identifier, 0x1.
+  FieldID field;       // identifies the field
+  FieldID subfield;    // identifies the subfield
+  size nv;             // number of outputs
+        size pub_in;         // number of public inputs
+        size ninputs;        // number of inputs, including witnesses
+        size nl;             // number of layers
+        Elt const_table[];   // array of constants used by the quads
+        CircuitLayer layers[];  // array of layers of size nl
+} Circuit;
+</pre><a href="#section-7.6-2" class="pilcrow">¶</a>
+</div>
+<p id="section-7.6-3">The <code>const_table</code> structure contains an array of <code>Elt</code> constants that can be referred by any of the CircuitLayer structures. This feature saves space because a typical circuit uses only a handful of constants, which can be referred by a small index value into this table.<a href="#section-7.6-3" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.6-4">
+<pre>struct {
+  size logw;     // log of number of wires
+  size nw;       // number of wires
+  Quads quads[];  // array of nw Quads
+} CircuitLayer;
+</pre><a href="#section-7.6-4" class="pilcrow">¶</a>
+</div>
+<p id="section-7.6-5">The <code>quads</code> array stores the main portion of the circuit. Each <code>Quad</code> structure contains a g, h0, h1 and a constant <code>v</code> which is represented as an index into the <code>const_table</code> array in the <code>Circuit</code>.  Each <code>g</code>,<code>h0</code>, and <code>h1</code> is stored as a difference from the corresponding item in the <em>previous</em> quad. In other words, these three values are delta-encoded in order to improve the compressibility of the circuit representation. The Delta spec uses LSB as a sign bit to indicate negative numbers.<a href="#section-7.6-5" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.6-6">
+<pre>struct {
+  Delta g;     // delta-encoded gate number
+  Delta h0;    // delta-encoded left wire index
+  Delta h1;    // delta-encoded right wire index
+  size v;      // index into the const_table to specify const v
+} Quad;
+
+typedef Delta uint;
+</pre><a href="#section-7.6-6" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="security-considerations">
+<section id="section-8">
+      <h2 id="name-security-considerations">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<p id="section-8-1">Both the Ligero and Longfellow systems satisfy the standard properties of a zero-knowledge argument system: completeness, soundness, and zero-knowledge.<a href="#section-8-1" class="pilcrow">¶</a></p>
+<p id="section-8-2">Frigo and shelat <span>[<a href="#longfellow" class="cite xref">longfellow</a>]</span> provide an analysis of the soundness of the system, as it derives from the Soundness of the Ligero proof system and the sumcheck protocol.  Similarly, the zero-knowledge property derives almost entirely from the analysis of Ligero <span>[<a href="#ligero" class="cite xref">ligero</a>]</span>. It is a goal to provide a mechanically verifiable proof for a high-level statement of the soundness.<a href="#section-8-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="iana-considerations">
+<section id="section-9">
+      <h2 id="name-iana-considerations">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="section-9-1">This document does not make any requests of IANA.<a href="#section-9-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<section id="section-10">
+      <h2 id="name-references">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-references" class="section-name selfRef">References</a>
+      </h2>
+<section id="section-10.1">
+        <h3 id="name-normative-references">
+<a href="#section-10.1" class="section-number selfRef">10.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+        </h3>
+<dl class="references">
+<dt id="RFC2119">[RFC2119]</dt>
+        <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC4086">[RFC4086]</dt>
+        <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6919">[RFC6919]</dt>
+      <dd>
+<span class="refAuthor">Barnes, R.</span>, <span class="refAuthor">Kent, S.</span>, and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"Further Key Words for Use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">RFC 6919</span>, <span class="seriesInfo">DOI 10.17487/RFC6919</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6919">https://www.rfc-editor.org/info/rfc6919</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+<section id="section-10.2">
+        <h3 id="name-informative-references">
+<a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="GMR">[GMR]</dt>
+        <dd>
+<span class="refAuthor">Goldwasser, S.</span>, <span class="refAuthor">Micali, S.</span>, and <span class="refAuthor">C. Rackoff</span>, <span class="refTitle">"THE KNOWLEDGE COMPLEXITY OF INTERACTIVE PROOF SYSTEMS"</span>, <time datetime="1989" class="refDate">1989</time>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6234">[RFC6234]</dt>
+        <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">T. Hansen</span>, <span class="refTitle">"US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)"</span>, <span class="seriesInfo">RFC 6234</span>, <span class="seriesInfo">DOI 10.17487/RFC6234</span>, <time datetime="2011-05" class="refDate">May 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6234">https://www.rfc-editor.org/info/rfc6234</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="additivefft">[additivefft]</dt>
+        <dd>
+<span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="krs">[krs]</dt>
+        <dd>
+<span class="refAuthor">Khovratovich, D.</span>, <span class="refAuthor">Rothblum, R. D.</span>, and <span class="refAuthor">L. Soukhanov</span>, <span class="refTitle">"How to Prove False Statements: Practical Attacks on Fiat-Shamir"</span>, <time datetime="2025" class="refDate">2025</time>, <span>&lt;<a href="https://eprint.iacr.org/2025/118">https://eprint.iacr.org/2025/118</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ligero">[ligero]</dt>
+        <dd>
+<span class="refAuthor">Ames, S.</span>, <span class="refAuthor">Hazay, C.</span>, <span class="refAuthor">Ishai, Y.</span>, and <span class="refAuthor">M. Venkitasubramaniam</span>, <span class="refTitle">"Ligero: Lightweight Sublinear Arguments Without a Trusted Setup"</span>, <time datetime="2022" class="refDate">2022</time>, <span>&lt;<a href="https://eprint.iacr.org/2022/1608">https://eprint.iacr.org/2022/1608</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="longfellow">[longfellow]</dt>
+        <dd>
+<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="rbr">[rbr]</dt>
+      <dd>
+<span class="refAuthor">Canetti, R.</span>, <span class="refAuthor">Chen, Y.</span>, <span class="refAuthor">Holmgren, J.</span>, <span class="refAuthor">Lombardi, A.</span>, <span class="refAuthor">Rothblum, G.</span>, and <span class="refAuthor">R. Rothblum</span>, <span class="refTitle">"Fiat-Shamir From Simpler Assumptions"</span>, <time datetime="2018" class="refDate">2018</time>, <span>&lt;<a href="https://eprint.iacr.org/2018/1004">https://eprint.iacr.org/2018/1004</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</section>
+<div id="acknowledgements">
+<section id="appendix-A">
+      <h2 id="name-acknowledgements">
+<a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-acknowledgements" class="section-name selfRef">Acknowledgements</a>
+    </h2>
+</section>
+</div>
+<div id="test-vectors">
+<section id="appendix-B">
+      <h2 id="name-test-vectors">
+<a href="#appendix-B" class="section-number selfRef">Appendix B. </a><a href="#name-test-vectors" class="section-name selfRef">Test Vectors</a>
+      </h2>
+<p id="appendix-B-1">This section contains test vectors. Each test vector in specifies the configuration information and inputs. All values are encoded in hexadecimal strings.<a href="#appendix-B-1" class="pilcrow">¶</a></p>
+<div id="test-vectors-for-merkle-tree">
+<section id="appendix-B.1">
+        <h3 id="name-test-vectors-for-merkle-tre">
+<a href="#appendix-B.1" class="section-number selfRef">B.1. </a><a href="#name-test-vectors-for-merkle-tre" class="section-name selfRef">Test Vectors for Merkle Tree</a>
+        </h3>
+<div id="vector-1">
+<section id="appendix-B.1.1">
+          <h4 id="name-vector-1">
+<a href="#appendix-B.1.1" class="section-number selfRef">B.1.1. </a><a href="#name-vector-1" class="section-name selfRef">Vector 1</a>
+          </h4>
+<ul class="compact">
+<li class="compact" id="appendix-B.1.1-1.1">Leaves:
+4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a
+dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986
+084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5
+e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71
+e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db<a href="#appendix-B.1.1-1.1" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.1.1-1.2">Root: f22f4501ffd3bdffcecc9e4cd6828a4479aeedd6aa484eb7c1f808ccf71c6e76<a href="#appendix-B.1.1-1.2" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.1.1-1.3">Proof for leaves (0,1):
+084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5
+f03808f5b8088c61286d505e8e93aa378991d9889ae2d874433ca06acabcd493<a href="#appendix-B.1.1-1.3" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.1.1-1.4">Proof for leaves (1,3):
+e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
+084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5
+4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a<a href="#appendix-B.1.1-1.4" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="test-vectors-for-circuit">
+<section id="appendix-B.2">
+        <h3 id="name-test-vectors-for-circuit">
+<a href="#appendix-B.2" class="section-number selfRef">B.2. </a><a href="#name-test-vectors-for-circuit" class="section-name selfRef">Test Vectors for Circuit</a>
+        </h3>
+<div id="vector-1-1">
+<section id="appendix-B.2.1">
+          <h4 id="name-vector-1-2">
+<a href="#appendix-B.2.1" class="section-number selfRef">B.2.1. </a><a href="#name-vector-1-2" class="section-name selfRef">Vector 1</a>
+          </h4>
+<ul class="compact">
+<li class="compact" id="appendix-B.2.1-1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.2.1-1.1" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.2.1-1.2">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field ID 6)<a href="#appendix-B.2.1-1.2" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.2.1-1.3">Depth: 3 Quads: 11 Terms: 11<a href="#appendix-B.2.1-1.3" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.2.1-1.4">Serialization: 01060000010000010000020000040000020000040000ffffffffffffffffffffffffffefffff00000000000000000000000000f0ffff01000000000000000000000000000000fdffffffffffffffffffffffffefffff030000060000030000000000020000000000000000000000080000040000010000000000030000020000020000020000040000080000000000000000000000020000060000000000000000000000040000000000000000030000090000020000000000020000020000020000000000020000020000020000000000020000040000000000000000020000030000030000040000020000<a href="#appendix-B.2.1-1.4" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="test-vectors-for-sumcheck">
+<section id="appendix-B.3">
+        <h3 id="name-test-vectors-for-sumcheck">
+<a href="#appendix-B.3" class="section-number selfRef">B.3. </a><a href="#name-test-vectors-for-sumcheck" class="section-name selfRef">Test Vectors for Sumcheck</a>
+        </h3>
+<div id="vector-1-2">
+<section id="appendix-B.3.1">
+          <h4 id="name-vector-1-3">
+<a href="#appendix-B.3.1" class="section-number selfRef">B.3.1. </a><a href="#name-vector-1-3" class="section-name selfRef">Vector 1</a>
+          </h4>
+<ul class="compact">
+<li class="compact" id="appendix-B.3.1-1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.3.1-1.1" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.1-1.2">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field id 6)<a href="#appendix-B.3.1-1.2" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.1-1.3">Fiat-Shamir initialized with<a href="#appendix-B.3.1-1.3" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.1-1.4">Serialization: 90e734c42b5f14ee432a0ed95ba2ada05c3f9ecc9b026ded61f00bf57434f93c6f70e9c8b6e3de005ba8b4da93b5fa35fc3efae1e6068399c7f7d009ab5a2711084c97cd5a6e28dd30c598907b328d81915e487c34dbf80aa5da14f0621011a33d838a7b0d9a03533c63c6606f5360f88cf97c728630afdcb9755894a6f5c9068e1fc29f97efc125ba580de64089c6e72433de2a3267b90daeaf418ac8a3df3bbddc6cb141c764c8262346baac2e28033778b1a71f153ba571e80ab29951f9440ba93fede225a35accf6e0114d5240ae92df02d2870e5258ebba416f3d815e1554b05627998fc9d3bf354b89394b27b39f69c6538dbc968a779369e47f214252e0955624e9f4d6dc2a95cf41c57703b8749b959315458d4076f0daf5fdbde23e16c10394ac884ab9cad0782e8f472cb4edb69682d17465363691aafc31b83cd764fb909b50e2fe907fd2137566ddb8c47cc13974957e7f76180860571035f7a4d2658a82e1be8fe155353bc10feae9541365926f0646b4a5351907cbd5d9dbb4<a href="#appendix-B.3.1-1.4" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="test-vectors-for-ligero">
+<section id="appendix-B.4">
+        <h3 id="name-test-vectors-for-ligero">
+<a href="#appendix-B.4" class="section-number selfRef">B.4. </a><a href="#name-test-vectors-for-ligero" class="section-name selfRef">Test Vectors for Ligero</a>
+        </h3>
+<div id="vector-1-3">
+<section id="appendix-B.4.1">
+          <h4 id="name-vector-1-4">
+<a href="#appendix-B.4.1" class="section-number selfRef">B.4.1. </a><a href="#name-vector-1-4" class="section-name selfRef">Vector 1</a>
+          </h4>
+<ul class="compact">
+<li class="compact" id="appendix-B.4.1-1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.4.1-1.1" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.4.1-1.2">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field id 6)<a href="#appendix-B.4.1-1.2" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.4.1-1.3">Witness vector: [1, 45, 5, 6]<a href="#appendix-B.4.1-1.3" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.4.1-1.4">Pad elements: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4]<a href="#appendix-B.4.1-1.4" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.4.1-1.5">
+              <p id="appendix-B.4.1-1.5.1">Parameters:<a href="#appendix-B.4.1-1.5.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-B.4.1-1.5.2.1">NREQ: 6<a href="#appendix-B.4.1-1.5.2.1" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.4.1-1.5.2.2">RATE: 4<a href="#appendix-B.4.1-1.5.2.2" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.4.1-1.5.2.3">WR: 20<a href="#appendix-B.4.1-1.5.2.3" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.4.1-1.5.2.4">QR: 2<a href="#appendix-B.4.1-1.5.2.4" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.4.1-1.5.2.5">NROW: 7<a href="#appendix-B.4.1-1.5.2.5" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.4.1-1.5.2.6">NQ: 1<a href="#appendix-B.4.1-1.5.2.6" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.4.1-1.5.2.7">BLOCK: 51<a href="#appendix-B.4.1-1.5.2.7" class="pilcrow">¶</a>
+</li>
+              </ul>
+</li>
+            <li class="compact" id="appendix-B.4.1-1.6">Commitment: 738d2ffb3a8bf24e7aedb94be59041fb2dc13da30fe6b05ebe5126ef8fc36ec2<a href="#appendix-B.4.1-1.6" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.4.1-1.7">Proof size: 3180 bytes<a href="#appendix-B.4.1-1.7" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.4.1-1.8">Proof: fa8d88a73b3a0f9c067658c45bb394a602000000000000000000000000000000fa8d8...2cd5f61cd2b2eb84c79e1707cbad0048fcd820c716584f31991cf1628fb041<a href="#appendix-B.4.1-1.8" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="test-vectors-for-libzk">
+<section id="appendix-B.5">
+        <h3 id="name-test-vectors-for-libzk">
+<a href="#appendix-B.5" class="section-number selfRef">B.5. </a><a href="#name-test-vectors-for-libzk" class="section-name selfRef">Test Vectors for libzk</a>
+      </h3>
+</section>
+</div>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-C">
+      <h2 id="name-authors-addresses">
+<a href="#name-authors-addresses" class="section-name selfRef">Authors' Addresses</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Matteo Frigo</span></div>
+<div dir="auto" class="left"><span class="org">Google</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:matteof@google.com" class="email">matteof@google.com</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">abhi shelat</span></div>
+<div dir="auto" class="left"><span class="org">Google</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:shelat@google.com" class="email">shelat@google.com</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>
