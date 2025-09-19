@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['witnesses_20are_20the_20same_20but_20the_20gates_20have_20changed_0',['If the inputs and witnesses are the same, but the gates have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md5',1,'']]],
-  ['witnesses_20have_20changed_1',['If the inputs/witnesses have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md6',1,'']]]
+  ['ubuntu_20debian_0',['Ubuntu, debian',['../md__r_e_a_d_m_e.html#autotoc_md15',1,'']]],
+  ['url_20decoding_1',['base64 url decoding',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/base64/README.md#autotoc_md0',1,'']]]
 ];

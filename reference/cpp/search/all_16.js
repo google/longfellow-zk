@@ -1,14 +1,18 @@
 var searchData=
 [
-  ['term_0',['term',['../structproofs_1_1term.html',1,'proofs']]],
-  ['testing_20via_20devcontainer_1',['Testing via devcontainer',['../md_README.html#autotoc_md9',1,'']]],
-  ['the_20gates_20have_20changed_2',['If the inputs and witnesses are the same, but the gates have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md5',1,'']]],
-  ['the_20inputs_20and_20witnesses_20are_20the_20same_20but_20the_20gates_20have_20changed_3',['If the inputs and witnesses are the same, but the gates have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md5',1,'']]],
-  ['the_20inputs_20witnesses_20have_20changed_4',['If the inputs/witnesses have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md6',1,'']]],
-  ['the_20same_20but_20the_20gates_20have_20changed_5',['If the inputs and witnesses are the same, but the gates have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md5',1,'']]],
-  ['to_20build_6',['Instructions to build',['../md_README.html#autotoc_md10',1,'']]],
-  ['to_20version_202_7',['Hashes from 2025-05-15 corresponding to version 2',['../dir_526da5f91d7cbd4b4389f9db984516d8.html#autotoc_md3',1,'']]],
-  ['transcript_8',['Transcript',['../classproofs_1_1Transcript.html',1,'proofs']]],
-  ['transcriptsumcheck_9',['TranscriptSumcheck',['../classproofs_1_1TranscriptSumcheck.html',1,'proofs']]],
-  ['twiddle_10',['Twiddle',['../classproofs_1_1Twiddle.html',1,'proofs']]]
+  ['randomengine_0',['RandomEngine',['../classproofs_1_1_random_engine.html',1,'proofs']]],
+  ['readbuffer_1',['ReadBuffer',['../classproofs_1_1_read_buffer.html',1,'proofs']]],
+  ['redhat_2',['Fedora, redhat',['../md__r_e_a_d_m_e.html#autotoc_md16',1,'']]],
+  ['reedsolomon_3',['ReedSolomon',['../classproofs_1_1_reed_solomon.html',1,'proofs']]],
+  ['reedsolomonfactory_4',['ReedSolomonFactory',['../classproofs_1_1_reed_solomon_factory.html',1,'proofs']]],
+  ['reedsolomonfactory_3c_20fp256base_2c_20fftextconvolutionfactory_20_3e_5',['ReedSolomonFactory&lt; Fp256Base, FftExtConvolutionFactory &gt;',['../classproofs_1_1_reed_solomon_factory.html',1,'proofs']]],
+  ['removed_20hashes_20from_202025_2004_2018_6',['(Removed) Hashes from 2025-04-18',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/circuits/README.md#autotoc_md6',1,'']]],
+  ['removed_20hashes_20from_202025_2005_2015_20corresponding_20to_20version_202_7',['(Removed) Hashes from 2025-05-15 corresponding to version 2',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/circuits/README.md#autotoc_md5',1,'']]],
+  ['requestedattribute_8',['RequestedAttribute',['../struct_requested_attribute.html',1,'']]],
+  ['requirements_9',['Requirements',['../md__r_e_a_d_m_e.html#autotoc_md14',1,'']]],
+  ['reviews_10',['Ongoing Security Reviews',['../md__r_e_a_d_m_e.html#autotoc_md11',1,'']]],
+  ['rfft_11',['RFFT',['../classproofs_1_1_r_f_f_t.html',1,'proofs']]],
+  ['routing_12',['Routing',['../classproofs_1_1_routing.html',1,'proofs']]],
+  ['routing_3c_20logiccircuit_20_3e_13',['Routing&lt; LogicCircuit &gt;',['../classproofs_1_1_routing.html',1,'proofs']]],
+  ['running_20benchmarks_14',['Running benchmarks',['../md__r_e_a_d_m_e.html#autotoc_md19',1,'']]]
 ];

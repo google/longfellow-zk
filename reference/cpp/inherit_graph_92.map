@@ -1,3 +1,11 @@
 <map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="Node000000" href="$classproofs_1_1mdoc__1f.html" title=" " alt="" coords="5,5,207,45"/>
+<area shape="rect" id="Node000000" href="$classproofs_1_1_limb.html" title=" " alt="" coords="5,80,150,106"/>
+<area shape="rect" id="Node000001" href="$classproofs_1_1_g_f2_poly.html" title=" " alt="" coords="208,5,355,31"/>
+<area shape="poly" id="edge2_Node000000_Node000001" title=" " alt="" coords="121,71,197,40,230,29,231,34,199,45,123,76"/>
+<area shape="rect" id="Node000002" href="$classproofs_1_1_nat.html" title=" " alt="" coords="220,55,343,80"/>
+<area shape="poly" id="edge3_Node000000_Node000002" title=" " alt="" coords="165,79,219,72,220,78,166,85"/>
+<area shape="rect" id="Node000003" href="$classproofs_1_1_g_f2_poly.html" title=" " alt="" coords="198,104,365,130"/>
+<area shape="poly" id="edge4_Node000000_Node000003" title=" " alt="" coords="166,101,197,104,197,110,165,106"/>
+<area shape="rect" id="Node000004" href="$classproofs_1_1_nat.html" title=" " alt="" coords="213,153,350,179"/>
+<area shape="poly" id="edge5_Node000000_Node000004" title=" " alt="" coords="124,110,199,140,231,150,230,155,197,145,122,115"/>
 </map>

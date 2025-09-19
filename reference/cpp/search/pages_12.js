@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['ubuntu_20debian_0',['Ubuntu, debian',['../md_README.html#autotoc_md12',1,'']]],
-  ['url_20decoding_1',['base64 url decoding',['../dir_777a07a5b84533f65730e5cc504d10e9.html#autotoc_md0',1,'']]]
+  ['same_20but_20the_20gates_20have_20changed_0',['If the inputs and witnesses are the same, but the gates have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md7',1,'']]],
+  ['security_20reviews_1',['Ongoing Security Reviews',['../md__r_e_a_d_m_e.html#autotoc_md11',1,'']]]
 ];

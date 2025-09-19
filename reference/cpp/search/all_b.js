@@ -1,11 +1,8 @@
 var searchData=
 [
-  ['if_20the_20inputs_20and_20witnesses_20are_20the_20same_20but_20the_20gates_20have_20changed_0',['If the inputs and witnesses are the same, but the gates have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md5',1,'']]],
-  ['if_20the_20inputs_20witnesses_20have_20changed_1',['If the inputs/witnesses have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md6',1,'']]],
-  ['index_5ft_2',['index_t',['../classproofs_1_1Quad.html',1,'proofs']]],
-  ['inputs_20and_20witnesses_20are_20the_20same_20but_20the_20gates_20have_20changed_3',['If the inputs and witnesses are the same, but the gates have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md5',1,'']]],
-  ['inputs_20witnesses_20have_20changed_4',['If the inputs/witnesses have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md6',1,'']]],
-  ['instructions_20to_20build_5',['Instructions to build',['../md_README.html#autotoc_md10',1,'']]],
-  ['interpolation_6',['Interpolation',['../classproofs_1_1Interpolation.html',1,'proofs']]],
-  ['interpolation_3c_20kn_2c_20field_20_3e_7',['Interpolation&lt; kN, Field &gt;',['../classproofs_1_1Interpolation.html',1,'proofs']]]
+  ['gates_20have_20changed_0',['If the inputs and witnesses are the same, but the gates have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md7',1,'']]],
+  ['gf2_5f128_1',['GF2_128',['../classproofs_1_1_g_f2__128.html',1,'proofs']]],
+  ['gf2poly_2',['GF2Poly',['../classproofs_1_1_g_f2_poly.html',1,'proofs']]],
+  ['gf2poly_3c_202_20_3e_3',['GF2Poly&lt; 2 &gt;',['../classproofs_1_1_g_f2_poly.html',1,'proofs']]],
+  ['global_5fwitness_4',['global_witness',['../structproofs_1_1_cbor_1_1global__witness.html',1,'proofs::Cbor&lt; Logic, IndexBits &gt;::global_witness'],['../structproofs_1_1_cbor_witness_1_1global__witness.html',1,'proofs::CborWitness&lt; Field &gt;::global_witness']]]
 ];

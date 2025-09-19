@@ -1,11 +1,14 @@
 var searchData=
 [
-  ['v_0',['V',['../structproofs_1_1EvaluationBackend_1_1V.html',1,'proofs::EvaluationBackend']]],
-  ['verifier_1',['Verifier',['../classproofs_1_1Verifier.html',1,'proofs']]],
-  ['verifierlayers_2',['VerifierLayers',['../classproofs_1_1VerifierLayers.html',1,'proofs']]],
-  ['verifycircuit_3',['VerifyCircuit',['../classproofs_1_1VerifyCircuit.html',1,'proofs']]],
-  ['verifywitness3_4',['VerifyWitness3',['../classproofs_1_1VerifyWitness3.html',1,'proofs']]],
-  ['verifywitness3_3c_20p256_2c_20fp256scalar_20_3e_5',['VerifyWitness3&lt; P256, Fp256Scalar &gt;',['../classproofs_1_1VerifyWitness3.html',1,'proofs']]],
-  ['version_202_6',['Hashes from 2025-05-15 corresponding to version 2',['../dir_526da5f91d7cbd4b4389f9db984516d8.html#autotoc_md3',1,'']]],
-  ['via_20devcontainer_7',['Testing via devcontainer',['../md_README.html#autotoc_md9',1,'']]]
+  ['term_0',['term',['../structproofs_1_1term.html',1,'proofs']]],
+  ['testing_20via_20devcontainer_1',['Testing via devcontainer',['../md__r_e_a_d_m_e.html#autotoc_md12',1,'']]],
+  ['the_20gates_20have_20changed_2',['If the inputs and witnesses are the same, but the gates have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md7',1,'']]],
+  ['the_20inputs_20and_20witnesses_20are_20the_20same_20but_20the_20gates_20have_20changed_3',['If the inputs and witnesses are the same, but the gates have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md7',1,'']]],
+  ['the_20inputs_20witnesses_20have_20changed_4',['If the inputs/witnesses have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md8',1,'']]],
+  ['the_20same_20but_20the_20gates_20have_20changed_5',['If the inputs and witnesses are the same, but the gates have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md7',1,'']]],
+  ['to_20build_6',['Instructions to build',['../md__r_e_a_d_m_e.html#autotoc_md13',1,'']]],
+  ['to_20version_202_7',['(Removed) Hashes from 2025-05-15 corresponding to version 2',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/circuits/README.md#autotoc_md5',1,'']]],
+  ['transcript_8',['Transcript',['../classproofs_1_1_transcript.html',1,'proofs']]],
+  ['transcriptsumcheck_9',['TranscriptSumcheck',['../classproofs_1_1_transcript_sumcheck.html',1,'proofs']]],
+  ['twiddle_10',['Twiddle',['../classproofs_1_1_twiddle.html',1,'proofs']]]
 ];

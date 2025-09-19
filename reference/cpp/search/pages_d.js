@@ -1,6 +1,8 @@
 var searchData=
 [
-  ['macos_0',['MacOS',['../md_README.html#autotoc_md14',1,'']]],
-  ['manually_1',['Building manually',['../md_README.html#autotoc_md15',1,'']]],
-  ['minimization_2',['Output of espresso minimization',['../dir_777a07a5b84533f65730e5cc504d10e9.html#autotoc_md1',1,'']]]
+  ['if_20the_20inputs_20and_20witnesses_20are_20the_20same_20but_20the_20gates_20have_20changed_0',['If the inputs and witnesses are the same, but the gates have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md7',1,'']]],
+  ['if_20the_20inputs_20witnesses_20have_20changed_1',['If the inputs/witnesses have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md8',1,'']]],
+  ['inputs_20and_20witnesses_20are_20the_20same_20but_20the_20gates_20have_20changed_2',['If the inputs and witnesses are the same, but the gates have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md7',1,'']]],
+  ['inputs_20witnesses_20have_20changed_3',['If the inputs/witnesses have changed',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/mdoc/README.md#autotoc_md8',1,'']]],
+  ['instructions_20to_20build_4',['Instructions to build',['../md__r_e_a_d_m_e.html#autotoc_md13',1,'']]]
 ];

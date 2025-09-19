@@ -1,7 +1,6 @@
 var searchData=
 [
-  ['witness_0',['Witness',['../classproofs_1_1JWT_1_1Witness.html',1,'proofs::JWT&lt; LogicCircuit, Field, EC &gt;::Witness'],['../classproofs_1_1MAC_1_1Witness.html',1,'proofs::MAC&lt; Logic, BitPlucker &gt;::Witness'],['../classproofs_1_1MACGF2_1_1Witness.html',1,'proofs::MACGF2&lt; Backend, BitPlucker &gt;::Witness'],['../classproofs_1_1mdoc__1f_1_1Witness.html',1,'proofs::mdoc_1f&lt; LogicCircuit, Field, EC, kNumAttr &gt;::Witness'],['../classproofs_1_1MdocHash_1_1Witness.html',1,'proofs::MdocHash&lt; LogicCircuit, Field &gt;::Witness'],['../classproofs_1_1MdocRevocationSpan_1_1Witness.html',1,'proofs::MdocRevocationSpan&lt; LogicCircuit, Field, EC &gt;::Witness'],['../classproofs_1_1MdocSignature_1_1Witness.html',1,'proofs::MdocSignature&lt; LogicCircuit, Field, EC &gt;::Witness'],['../classproofs_1_1PtrCred_1_1Witness.html',1,'proofs::PtrCred&lt; LogicCircuit, Field, EC, kNumAttr &gt;::Witness'],['../classproofs_1_1Small_1_1Witness.html',1,'proofs::Small&lt; LogicCircuit, Field, EC, kNumAttr &gt;::Witness'],['../structproofs_1_1VerifyCircuit_1_1Witness.html',1,'proofs::VerifyCircuit&lt; LogicCircuit, Field, EC &gt;::Witness']]],
-  ['witnesses_20are_20the_20same_20but_20the_20gates_20have_20changed_1',['If the inputs and witnesses are the same, but the gates have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md5',1,'']]],
-  ['witnesses_20have_20changed_2',['If the inputs/witnesses have changed',['../dir_132aaae8336f38c43fdc2511ede95d9a.html#autotoc_md6',1,'']]],
-  ['wpoly_3',['WPoly',['../structproofs_1_1LayerProof.html',1,'proofs']]]
+  ['u_0',['U',['../unionproofs_1_1_cbor_doc_1_1_u.html',1,'proofs::CborDoc']]],
+  ['ubuntu_20debian_1',['Ubuntu, debian',['../md__r_e_a_d_m_e.html#autotoc_md15',1,'']]],
+  ['url_20decoding_2',['base64 url decoding',['..//Users/shelat/Projects/longfellow-zk/lib/circuits/base64/README.md#autotoc_md0',1,'']]]
 ];
