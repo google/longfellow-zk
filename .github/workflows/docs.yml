@@ -1,0 +1,53 @@
+name: Build website, deploy to GH pages if on main
+permissions: read-all
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+
+jobs:
+  build-and-deploy:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+      with:
+        fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
+
+    - name: Setup Hugo
+      uses: peaceiris/actions-hugo@75d2e84710de30f6ff7268e08f310b60ef14033f #v3.0.0
+      with:
+        hugo-version: '0.147.9'
+        extended: true
+
+    - name: Setup Node
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: '18'
+        cache: 'npm'
+        # The action defaults to search for the dependency file (package-lock.json,
+        # npm-shrinkwrap.json or yarn.lock) in the repository root, and uses its
+        # hash as a part of the cache key.
+        # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
+        cache-dependency-path: '**/package-lock.json'
+
+    - name: Install Docsy dependencies
+      working-directory: ./docs
+      run: npm ci        
+
+    - name: Build
+      working-directory: ./docs
+      run: hugo --minify
+
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # pin@v4.0.0
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/public        

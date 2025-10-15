@@ -1,0 +1,18 @@
+<map id="proofs::mdoc_1f_witness&lt; EC, Field, ScalarField &gt;" name="proofs::mdoc_1f_witness&lt; EC, Field, ScalarField &gt;">
+<area shape="rect" id="Node000001" title=" " alt="" coords="882,177,1056,218"/>
+<area shape="rect" id="Node000002" href="$structproofs_1_1_g_f2__128_1_1_elt.html" title=" " alt="" coords="282,77,457,118"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="473,87,481,87,589,86,674,94,756,114,859,148,924,174,922,179,857,153,755,119,673,99,589,91,481,92,473,92"/>
+<area shape="rect" id="Node000006" href="$structproofs_1_1_cbor_witness_1_1global__witness.html" title=" " alt="" coords="612,144,780,184"/>
+<area shape="poly" id="edge6_Node000006_Node000002" title=" " alt="" coords="445,120,482,130,612,152,612,158,480,135,444,125"/>
+<area shape="rect" id="Node000003" href="$structproofs_1_1_flat_s_h_a256_witness_1_1_block_witness.html" title=" " alt="" coords="604,209,788,250"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="804,224,858,219,882,215,882,220,859,224,804,229"/>
+<area shape="rect" id="Node000004" href="$classproofs_1_1_parsed_mdoc.html" title=" " alt="" coords="627,351,765,377"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="731,340,932,216,935,220,733,345"/>
+<area shape="rect" id="Node000005" href="$structproofs_1_1_cbor_index.html" title=" " alt="" coords="307,452,432,478"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="447,464,513,458,579,441,609,427,637,410,679,375,683,379,640,414,611,432,581,446,514,463,448,469"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="796,173,882,184,882,189,795,179"/>
+<area shape="rect" id="Node000007" href="$structproofs_1_1_g_f2__128_1_1_c_elt.html" title=" " alt="" coords="282,168,457,208"/>
+<area shape="poly" id="edge7_Node000006_Node000007" title=" " alt="" coords="472,189,580,184,612,180,613,185,580,190,472,194"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="5,160,219,216"/>
+<area shape="poly" id="edge8_Node000007_Node000008" title=" " alt="" coords="234,185,281,185,281,191,234,191"/>
+</map>

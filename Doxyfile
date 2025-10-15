@@ -12,7 +12,7 @@ PROJECT_NUMBER         = 0290cb32
 PROJECT_BRIEF          =
 PROJECT_LOGO           =
 
-OUTPUT_DIRECTORY       = docs
+OUTPUT_DIRECTORY       = docs/static/reference
 
 CREATE_SUBDIRS         = NO
 
@@ -997,7 +997,7 @@ GENERATE_HTML          = YES
 # The default directory is: html.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_OUTPUT            = html
+HTML_OUTPUT            = cpp
 
 # The HTML_FILE_EXTENSION tag can be used to specify the file extension for each
 # generated HTML page (for example: .htm, .php, .asp).

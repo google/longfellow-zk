@@ -1,0 +1,5 @@
+go 1.19
+
+use .
+use ../docsy/   // Local docsy clone resides in sibling folder to this project
+// use ./themes/docsy/           // Local docsy clone resides in themes folder

@@ -1,0 +1,9 @@
+<map id="proofs::ProverState" name="proofs::ProverState">
+<area shape="rect" id="Node000001" title=" " alt="" coords="325,92,459,118"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,5,219,61"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="234,58,301,75,350,89,349,94,300,80,233,63"/>
+<area shape="rect" id="Node000003" href="$structproofs_1_1_g_f2__128_1_1_elt.html" title=" " alt="" coords="24,85,200,126"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="216,102,324,102,324,108,216,108"/>
+<area shape="rect" id="Node000004" href="$classproofs_1_1_mac_g_f2_witness.html" title=" " alt="" coords="30,150,194,175"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="209,148,300,131,352,116,353,121,301,136,210,153"/>
+</map>
