@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(algebra OBJECT nat.cc)
+add_library(algebra OBJECT nat.cc crt.cc)
 
 proofs_add_tests(fft_interpolation_test interpolation_test
 reed_solomon_test fft_test limb_test rfft_test fp2_test

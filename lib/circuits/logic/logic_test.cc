@@ -93,6 +93,7 @@ TEST(Logic, Simple) {
                   L.eval(L.bit(a ^ (b & c))));
         EXPECT_EQ(L.eval(L.lxor(&ea, L.lor(&eb, ec))),
                   L.eval(L.bit(a ^ (b | c))));
+        EXPECT_EQ(L.eval(L.mux(&ea, &eb, ec)), L.eval(L.bit(a ? b : c)));
 
         EXPECT_EQ(L.eval(L.lCh(&ea, &eb, ec)),
                   L.eval(L.bit((a & b) ^ ((!a) & c))));

@@ -302,7 +302,7 @@ class Logic {
   BitW mux(const BitW* control, const BitW* iftrue, const BitW& iffalse) const {
     auto cif = land(control, *iftrue);
     auto nc = lnot(*control);
-    auto ciff = land(&nc, *iffalse);
+    auto ciff = land(&nc, iffalse);
     return lor_exclusive(&cif, ciff);
   }
 

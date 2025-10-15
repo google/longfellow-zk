@@ -125,7 +125,7 @@ class CRT {
   CRT(const CRT&) = delete;
   CRT& operator=(const CRT&) = delete;
 
-  Elt to_crt(const Field::Elt& e) const {
+  Elt to_crt(const typename Field::Elt& e) const {
     Elt r;
     auto n = f_.from_montgomery(e);
     for (size_t b = 0; b < VS; ++b) {
@@ -163,7 +163,7 @@ class CRT {
   // If the eventual goal is to reconstruct an element in Fp, then the last
   // reconstruction step can be done in Fp, thereby requiring no arithmetic
   // in the Bigring.
-  Field::Elt to_field(const Elt& x) const {
+  typename Field::Elt to_field(const Elt& x) const {
     // Let cij be s.t. c_ij.pi = 1 mod pj
     // v1 = x1
     // v2 = (x2 - v1).c12 mod p2
