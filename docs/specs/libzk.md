@@ -296,44 +296,39 @@ pseudo-random integers via rejection sampling as follows:
 
 # Overview of the Longfellow protocol
 
-The Longfellow ZK protocol utilizes two primitive operations. The first is a variant of the sumcheck protocol, modified to support zero knowledge. Informally, the non-padded sumcheck prover takes the description of a circuit and the concrete values of all the wires in the circuit, and produces a proof that all wires have been computed correctly.  The proof itself is a sequence of field elements.  The padded-variant of the sumcheck prover used in this document also takes as input a random and secret one-time pad and it outputs a "padded" proof such that each element in the padded proof is the difference of the element in the non-padded proof and of the element in the pad.  (The choice of "difference" instead of "sum" is a matter of convention.)
+The Longfellow ZK protocol utilizes two primitive operations. The first is a variant of the sumch
+eck protocol, modified to support zero knowledge. Informally, the standard sumcheck prover takes t
+he description of a circuit and the concrete values of all the wires in the circuit, and produces
+a proof that all wires have been computed correctly.  The proof itself is a sequence of field elem
+ents.  The encrypted-variant of the sumcheck prover used in this document also takes as input a ra
+ndom and secret one-time pad and it outputs an "encrypted" proof such that each element in this pr
+oof is the difference of the element in the standard sumcheck proof and its corresponding element
+in the pad.  (The choice of "difference" instead of "sum" is a matter of convention.)
 
-In this padded sumcheck variant, the verifier cannot check the proof
-directly, because it cannot access the pad.  Instead of running the
+In this encrypted sumcheck variant, the verifier cannot check the proof
+directly, because it cannot access the one-time pad.  Instead of running the
 sumcheck verifier directly, a commitment scheme is used to hide the
-pad, and the sumcheck verifier is translated into a sequence of linear and
-quadratic constraints on the inputs and the pad.  The commitment
+one-time pad, and the sumcheck verifier is translated into a sequence of linear and
+quadratic constraints on the inputs and the one-time pad.  The commitment
 scheme then produces a proof that the constraints are satisfied.
 
-Some of the wires of the circuit are *inputs*, i.e., set outside the
-circuit and not computed by the circuit itself.  Some of the inputs
-are *public*, i.e., known to both parties, and some are *private*,
-i.e., known only to the prover.  Sumcheck does not use the distinction
-between public and private inputs, but this document distinguishes inputs
-from the pad.  On the contrary, the commitment scheme does not use
-public inputs at all, but it does treat private inputs and the pad
+Some of the wires of the circuit are *inputs*, i.e., set outside the circuit and not computed by the circuit itself.  Some of the inputs are *public*, i.e., known to both parties, and some are *private*, i.e., known only to the prover.  Sumcheck does not use the distinction between public and private inputs. This document distinguishes private inputs from the one-time pad.  The commitment scheme does not use public inputs at all, but it does treat private inputs and the one-time pad elements
 equally.  These constraints motivate the following terminology.
 
-* *public inputs*: inputs to the circuit known to both
-  parties.
-* *private inputs*: inputs to the circuit known to the
-  prover but not to the verifier.
-* *inputs*: both public and private inputs.  When forming
-  an array of all inputs, the public inputs come first, followed
+* *public inputs*: inputs to the circuit known to both parties.
+* *private inputs*: inputs to the circuit known to the prover but not to the verifier.
+* *inputs*: both public and private inputs.  When forming an array of all inputs, the public inputs come first, followed
   by the private inputs.
-* *witnesses*: the private inputs and the pad.  When forming
-  an array of all witnesses, the private inputs come first, followed
-  by the pad.
+* *witnesses*: the private inputs and the elements in the one-time pad.  When forming an array of all witnesses, the private inputs come first, followed by the one-time pad.
 
-Thus, at a high level, the sequence of operations in the ZK
-protocol is the following:
+Thus, at a high level, the sequence of operations in the ZK protocol is the following:
 
 1. The prover commits to all witness values.
 
-2. The prover runs the padded sumcheck prover on the witness values to producing a padded proof, and sends the padded proof to the verifier.
+2. The prover runs the encrypted sumcheck prover on the witness values to producing an encrypted proof, all-the-while sending the encrypted proof to the verifier.
 
 3. Both the prover and the verifier take the public inputs and the
-   padded proof and produce a sequence of constraints.
+   encrypted proof and produce a sequence of constraints.
 
 4. Using the commitment scheme and the witnesses, the prover generates
    a proof that the constraints from step 3 are satisfied.
