@@ -376,7 +376,7 @@ GF(2^16^)                     |   0x05
 2^64 - 59                     |   0x07
 2^64 - 2^32 + 1               |   0x08
 F_{2^64 - 59}^2^              |   0x09
-secp256                       |   0x0a
+secp256k1                     |   0x0a
 F_{2^{0--15}^-byte prime}^2^  |   0xe{0--f}
 F_{2^{0--15}^-byte prime}     |   0xf{0--f}
 Table: Finite field identifiers.
