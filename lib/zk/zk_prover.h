@@ -15,11 +15,13 @@
 #ifndef PRIVACY_PROOFS_ZK_LIB_ZK_ZK_PROVER_H_
 #define PRIVACY_PROOFS_ZK_LIB_ZK_ZK_PROVER_H_
 
+#include <cstdint>
 #include <stddef.h>
 
 #include <memory>
 #include <vector>
 
+#include "algebra/fp_generic.h"
 #include "arrays/dense.h"
 #include "ligero/ligero_param.h"
 #include "ligero/ligero_prover.h"
@@ -34,6 +36,17 @@
 #include "zk/zk_proof.h"
 
 namespace proofs {
+
+void dump(const char *msg, const std::vector<uint8_t> bytes) {
+  size_t sz = bytes.size();
+
+  printf("%s ", msg);
+
+  for (size_t i = 0; i < sz; ++i) {
+    printf("%02x", bytes[i]);
+  }
+  printf("\n");
+}
 // ZK Prover
 //
 // This class implements a zero-knowledge argument over a sumcheck transcript
@@ -134,6 +147,22 @@ class ZkProver : public ProverLayers<Field> {
     size_t ci = ZkCommon<Field>::verifier_constraints(c_, W, zkp.proof, &aux, a,
                                                       b, tsp, n_witness_, f_);
     log(INFO, "ZK constraints done");
+
+    printf("linear constraint lhses\n");
+    std::vector<uint8_t> buf(16, 0);
+    for (size_t i = 0; i < a.size(); i++) {
+      f_.to_bytes_field(&buf[0], a[i].k);
+      printf("c: %zu w: %zu ", a[i].c, a[i].w);
+      dump("k", buf);
+      printf("\n");
+    }
+
+    printf("linear constraint rhses\n");
+    for (size_t i = 0; i < b.size(); i++) {
+      f_.to_bytes_field(&buf[0], b[i]);
+      dump("b", buf);
+      printf("\n");
+    }
 
     // 6. Produce proof over commitment.
     // For FS soundness, it is ok for hash_of_A to be any string.
