@@ -250,7 +250,7 @@ pseudo-random bytes from the same stream.
 ## Generating challenges
 
 When the prover has finished sending messages for a round in the interactive
-protocol, it can make a sequence of calls to `transcript.generate_{nat,field_element,challenge}` to obtain the Verifier's random challenges.   
+protocol, it can make a sequence of calls to `transcript.generate_{nat,nats_wo_replacement,field_element,challenge}` to obtain the Verifier's random challenges.   
 
 The `bytes` method of the FSPRF is used by the transcript object to sample pseudo-random field elements and
 pseudo-random integers via rejection sampling as follows:
@@ -262,6 +262,17 @@ pseudo-random integers via rejection sampling as follows:
   Let `b = fs.bytes(nbytes)`.  Interpret bytes `b` as a little-endian
   integer `k`.  Let `r = k mod 2^l`, i.e., mask off the high `8 * nbytes - l`
   bits of `k`.  If `r < m` return `r`, otherwise start over.
+
+* `transcript.generate_nats_wo_replacement(m, n)` generates a list of `n` different, random natural numbers between `0` and `m - 1` inclusive.  There are many equivalent algorithms to perform this step.  The following approach requires only `n` calls to the `generate_nat` method.
+	```
+	def generate_nats_wo_replacement(m, n):
+	    # assert(m > n)
+	    A = list(range(0, m))
+	    for i in range(0, n):
+	        j = i + generate_nat(m - i)
+	        A[i], A[j] = A[j], A[i]
+	    return A[:n]	
+ 	``` 
     
 * `transcript.generate_field_element(F)` generates a field element.
 
