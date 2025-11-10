@@ -330,9 +330,9 @@ def prove(transcript, digest, linear[], lqc[])  {
     transcript.write(dot);
     transcript.write(qpr);
 
-    challenge_indicies = transcript.generate_challenge([NREQ]);
+    challenge_indicies = transcript.generate_nats_wo_replacement(NCOL - DBLOCK, NREQ);
 
-    columns = requested_columns(challenge_indicies);
+    columns = requested_columns(challenge_indicies, DBLOCK);
 
     mt_proof = M.compressed_proof(challenge_indicies);
 
@@ -432,10 +432,10 @@ def quadratic_proof(lqc, uquad) {
     return y[0..NREQ], y[BLOCK..DBLOCK]
 }
 
-def requested_columns(challenge_indicies) {
+def requested_columns(challenge_indicies, offset) {
   cols = []   // array of columns of T
   FOR (index i : challenge_indicies) {
-    cols.append( [ T[0..NROW][i] ] )
+    cols.append( [ T[0..NROW][i + offset] ] )
   }
   return cols
 }
