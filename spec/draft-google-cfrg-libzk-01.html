@@ -4,28 +4,27 @@
 <meta charset="utf-8">
 <meta content="Common,Latin" name="scripts">
 <meta content="initial-scale=1.0" name="viewport">
-<title>The Longfellow Zero-knowledge Scheme</title>
+<title>Longfellow ZK</title>
 <meta content="Matteo Frigo" name="author">
 <meta content="abhi shelat" name="author">
 <meta content="
        This document defines an algorithm for generating and verifying a succinct non-interactive zero-knowledge argument that for a given input  x  and a circuit  C , there exists a witness  w , such that  C(x,w)  evaluates to 0. The technique here combines the MPC-in-the-head approach for constructing ZK arguments described in Ligero   with a verifiable computation protocol based on sumcheck for proving that  C(x,w)=0 . 
     " name="description">
-<meta content="xml2rfc 3.25.0" name="generator">
-<meta content="draft-google-cfrg-libzk-01" name="ietf.draft">
+<meta content="xml2rfc 3.31.0" name="generator">
+<meta name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.25.0
-    Python 3.13.4
-    ConfigArgParse 1.7
+  xml2rfc 3.31.0
+    Python 3.14.0
+    ConfigArgParse 1.7.1
     google-i18n-address 3.1.1
     intervaltree 3.1.0
-    Jinja2 3.1.5
-    lxml 5.3.0
-    platformdirs 4.3.6
+    Jinja2 3.1.6
+    lxml 6.0.2
+    platformdirs 4.5.0
     pycountry 24.6.1
-    PyYAML 6.0.2
-    requests 2.32.3
-    setuptools 75.7.0
-    wcwidth 0.2.13
+    PyYAML 6.0.3
+    requests 2.32.5
+    wcwidth 0.2.14
 -->
 <link href="libzk.xml" rel="alternate" type="application/rfc+xml">
 <link href="#copyright" rel="license">
@@ -43,9 +42,9 @@
 */
 
 /* fonts */
-@import url('https://fonts.googleapis.com/css?family=Noto+Sans'); /* Sans-serif */
-@import url('https://fonts.googleapis.com/css?family=Noto+Serif'); /* Serif (print) */
-@import url('https://fonts.googleapis.com/css?family=Roboto+Mono'); /* Monospace */
+@import url('https://static.ietf.org/fonts/noto-sans/import.css'); /* Sans-serif */
+@import url('https://static.ietf.org/fonts/noto-serif/import.css'); /* Serif (print) */
+@import url('https://static.ietf.org/fonts/roboto-mono/import.css'); /* Monospace */
 
 :root {
   --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
@@ -158,6 +157,12 @@ div {
 }
 svg {
   display: block;
+}
+@media print {
+  svg {
+    max-height: 850px;
+    max-width: 660px;
+  }
 }
 svg[font-family~="serif" i], svg [font-family~="serif" i] {
   font-family: var(--font-serif);
@@ -402,7 +407,7 @@ hr {
 /* Fix PDF info block run off issue */
 @media print {
   #identifiers dd {
-    float: none;
+    max-width: 100%;
   }
 }
 #identifiers .authors .author {
@@ -1181,6 +1186,7 @@ dl > dd > dl {
 /* This should match the element list in writer.text.TextWriter.render_dl() */
 dd > div.artwork:first-child,
 dd > aside:first-child,
+dd > blockquote:first-child,
 dd > figure:first-child,
 dd > ol:first-child,
 dd > div.sourcecode:first-child,
@@ -1205,16 +1211,15 @@ li > p:last-of-type:only-child {
 <script type="application/javascript">async function addMetadata(){try{const e=document.styleSheets[0].cssRules;for(let t=0;t<e.length;t++)if(/#identifiers/.exec(e[t].selectorText)){const a=e[t].cssText.replace("#identifiers","#external-updates");document.styleSheets[0].insertRule(a,document.styleSheets[0].cssRules.length)}}catch(e){console.log(e)}const e=document.getElementById("external-metadata");if(e)try{var t,a="",o=function(e){const t=document.getElementsByTagName("meta");for(let a=0;a<t.length;a++)if(t[a].getAttribute("name")===e)return t[a].getAttribute("content");return""}("rfc.number");if(o){t="https://www.rfc-editor.org/rfc/rfc"+o+".json";try{const e=await fetch(t);a=await e.json()}catch(e){t=document.URL.indexOf("html")>=0?document.URL.replace(/html$/,"json"):document.URL+".json";const o=await fetch(t);a=await o.json()}}if(!a)return;e.style.display="block";const s="",d="https://datatracker.ietf.org/doc",n="https://datatracker.ietf.org/ipr/search",c="https://www.rfc-editor.org/info",l=a.doc_id.toLowerCase(),i=a.doc_id.slice(0,3).toLowerCase(),f=a.doc_id.slice(3).replace(/^0+/,""),u={status:"Status",obsoletes:"Obsoletes",obsoleted_by:"Obsoleted By",updates:"Updates",updated_by:"Updated By",see_also:"See Also",errata_url:"Errata"};let h="<dl style='overflow:hidden' id='external-updates'>";["status","obsoletes","obsoleted_by","updates","updated_by","see_also","errata_url"].forEach(e=>{if("status"==e){a[e]=a[e].toLowerCase();var t=a[e].split(" "),o=t.length,w="",p=1;for(let e=0;e<o;e++)p<o?w=w+r(t[e])+" ":w+=r(t[e]),p++;a[e]=w}else if("obsoletes"==e||"obsoleted_by"==e||"updates"==e||"updated_by"==e){var g,m="",b=1;g=a[e].length;for(let t=0;t<g;t++)a[e][t]&&(a[e][t]=String(a[e][t]).toLowerCase(),m=b<g?m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>, ":m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>",b++);a[e]=m}else if("see_also"==e){var y,L="",C=1;y=a[e].length;for(let t=0;t<y;t++)if(a[e][t]){a[e][t]=String(a[e][t]);var _=a[e][t].slice(0,3),v=a[e][t].slice(3).replace(/^0+/,"");L=C<y?"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>, ":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>, ":"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>",C++}a[e]=L}else if("errata_url"==e){var R="";R=a[e]?R+"<a href='"+a[e]+"'>Errata exist</a> | <a href='"+d+"/"+l+"'>Datatracker</a>| <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>":"<a href='"+d+"/"+l+"'>Datatracker</a> | <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>",a[e]=R}""!=a[e]?"Errata"==u[e]?h+=`<dt>More info:</dt><dd>${a[e]}</dd>`:h+=`<dt>${u[e]}:</dt><dd>${a[e]}</dd>`:"Errata"==u[e]&&(h+=`<dt>More info:</dt><dd>${a[e]}</dd>`)}),h+="</dl>",e.innerHTML=h}catch(e){console.log(e)}else console.log("Could not locate metadata <div> element");function r(e){return e.charAt(0).toUpperCase()+e.slice(1)}}window.removeEventListener("load",addMetadata),window.addEventListener("load",addMetadata);</script>
 </head>
 <body class="xml2rfc">
-<script src="metadata.min.js"></script>
 <table class="ears">
 <thead><tr>
 <td class="left">Internet-Draft</td>
-<td class="center">The Longfellow Zero-knowledge Scheme</td>
-<td class="right">August 2025</td>
+<td class="center">Longfellow ZK</td>
+<td class="right">December 2025</td>
 </tr></thead>
 <tfoot><tr>
 <td class="left">Frigo &amp; shelat</td>
-<td class="center">Expires 12 February 2026</td>
+<td class="center">Expires 5 June 2026</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1227,12 +1232,12 @@ li > p:last-of-type:only-child {
 <dd class="internet-draft">draft-google-cfrg-libzk-01</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-08-11" class="published">11 August 2025</time>
+<time datetime="2025-12-02" class="published">2 December 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2026-02-12">12 February 2026</time></dd>
+<dd class="expires"><time datetime="2026-06-05">5 June 2026</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1246,7 +1251,7 @@ li > p:last-of-type:only-child {
 </dd>
 </dl>
 </div>
-<h1 id="title">The Longfellow Zero-knowledge Scheme</h1>
+<h1 id="title">Longfellow ZK</h1>
 <section id="section-abstract">
       <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
 <p id="section-abstract-1">This document defines an algorithm for generating and verifying a succinct non-interactive zero-knowledge argument that for a given input <code>x</code> and a circuit <code>C</code>, there exists a witness <code>w</code>, such that <code>C(x,w)</code> evaluates to 0. The technique here combines the MPC-in-the-head approach for constructing ZK arguments described in Ligero <span>[<a href="#ligero" class="cite xref">ligero</a>]</span> with a verifiable computation protocol based on sumcheck for proving that <code>C(x,w)=0</code>.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
@@ -1270,7 +1275,7 @@ li > p:last-of-type:only-child {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 12 February 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 5 June 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1330,7 +1335,7 @@ li > p:last-of-type:only-child {
             <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-fiat-shamir-primitives" class="internal xref">Fiat-Shamir primitives</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1">
-                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="auto internal xref">3.1</a>.  <a href="#name-implementation" class="internal xref">Implementation</a></p>
+                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="auto internal xref">3.1</a>.  <a href="#name-implementation-of-a-random-" class="internal xref">Implementation of a random oracle</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1.2.1">
                     <p id="section-toc.1-1.3.2.1.2.1.1"><a href="#section-3.1.1" class="auto internal xref">3.1.1</a>.  <a href="#name-initialization" class="internal xref">Initialization</a></p>
@@ -1348,6 +1353,11 @@ li > p:last-of-type:only-child {
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3">
                 <p id="section-toc.1-1.3.2.3.1"><a href="#section-3.3" class="auto internal xref">3.3</a>.  <a href="#name-generating-challenges" class="internal xref">Generating challenges</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3.2.1">
+                    <p id="section-toc.1-1.3.2.3.2.1.1"><a href="#section-3.3.1" class="auto internal xref">3.3.1</a>.  <a href="#name-optimizations" class="internal xref">Optimizations</a></p>
+</li>
+                </ul>
 </li>
             </ul>
 </li>
@@ -1403,6 +1413,11 @@ li > p:last-of-type:only-child {
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
             <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-overview-of-the-longfellow-" class="internal xref">Overview of the Longfellow protocol</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
+                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-parameters-needed-to-define" class="internal xref">Parameters needed to define Longfellow</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
             <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-sumcheck" class="internal xref">Sumcheck</a></p>
@@ -1481,61 +1496,56 @@ li > p:last-of-type:only-child {
             <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
-            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-references" class="internal xref">References</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.1">
-                <p id="section-toc.1-1.10.2.1.1"><a href="#section-10.1" class="auto internal xref">10.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.2">
-                <p id="section-toc.1-1.10.2.2.1"><a href="#section-10.2" class="auto internal xref">10.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
-</li>
-            </ul>
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-normative-references" class="internal xref">Normative References</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
-            <p id="section-toc.1-1.11.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-acknowledgements" class="internal xref">Acknowledgements</a></p>
+            <p id="section-toc.1-1.11.1"><a href="#section-11" class="auto internal xref">11</a>. <a href="#name-informative-references" class="internal xref">Informative References</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
-            <p id="section-toc.1-1.12.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-test-vectors" class="internal xref">Test Vectors</a></p>
+            <p id="section-toc.1-1.12.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-acknowledgements" class="internal xref">Acknowledgements</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
+            <p id="section-toc.1-1.13.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-test-vectors" class="internal xref">Test Vectors</a></p>
 <ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.1">
-                <p id="section-toc.1-1.12.2.1.1"><a href="#appendix-B.1" class="auto internal xref">B.1</a>.  <a href="#name-test-vectors-for-merkle-tre" class="internal xref">Test Vectors for Merkle Tree</a></p>
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.1">
+                <p id="section-toc.1-1.13.2.1.1"><a href="#appendix-B.1" class="auto internal xref">B.1</a>.  <a href="#name-test-vectors-for-merkle-tre" class="internal xref">Test Vectors for Merkle Tree</a></p>
 <ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.1.2.1">
-                    <p id="section-toc.1-1.12.2.1.2.1.1"><a href="#appendix-B.1.1" class="auto internal xref">B.1.1</a>.  <a href="#name-vector-1" class="internal xref">Vector 1</a></p>
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.1.2.1">
+                    <p id="section-toc.1-1.13.2.1.2.1.1"><a href="#appendix-B.1.1" class="auto internal xref">B.1.1</a>.  <a href="#name-vector-1" class="internal xref">Vector 1</a></p>
 </li>
                 </ul>
 </li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.2">
-                <p id="section-toc.1-1.12.2.2.1"><a href="#appendix-B.2" class="auto internal xref">B.2</a>.  <a href="#name-test-vectors-for-circuit" class="internal xref">Test Vectors for Circuit</a></p>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2">
+                <p id="section-toc.1-1.13.2.2.1"><a href="#appendix-B.2" class="auto internal xref">B.2</a>.  <a href="#name-test-vectors-for-circuit" class="internal xref">Test Vectors for Circuit</a></p>
 <ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.2.2.1">
-                    <p id="section-toc.1-1.12.2.2.2.1.1"><a href="#appendix-B.2.1" class="auto internal xref">B.2.1</a>.  <a href="#name-vector-1-2" class="internal xref">Vector 1</a></p>
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2.2.1">
+                    <p id="section-toc.1-1.13.2.2.2.1.1"><a href="#appendix-B.2.1" class="auto internal xref">B.2.1</a>.  <a href="#name-vector-1-2" class="internal xref">Vector 1</a></p>
 </li>
                 </ul>
 </li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.3">
-                <p id="section-toc.1-1.12.2.3.1"><a href="#appendix-B.3" class="auto internal xref">B.3</a>.  <a href="#name-test-vectors-for-sumcheck" class="internal xref">Test Vectors for Sumcheck</a></p>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.3">
+                <p id="section-toc.1-1.13.2.3.1"><a href="#appendix-B.3" class="auto internal xref">B.3</a>.  <a href="#name-test-vectors-for-sumcheck" class="internal xref">Test Vectors for Sumcheck</a></p>
 <ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.3.2.1">
-                    <p id="section-toc.1-1.12.2.3.2.1.1"><a href="#appendix-B.3.1" class="auto internal xref">B.3.1</a>.  <a href="#name-vector-1-3" class="internal xref">Vector 1</a></p>
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.3.2.1">
+                    <p id="section-toc.1-1.13.2.3.2.1.1"><a href="#appendix-B.3.1" class="auto internal xref">B.3.1</a>.  <a href="#name-vector-1-3" class="internal xref">Vector 1</a></p>
 </li>
                 </ul>
 </li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.4">
-                <p id="section-toc.1-1.12.2.4.1"><a href="#appendix-B.4" class="auto internal xref">B.4</a>.  <a href="#name-test-vectors-for-ligero" class="internal xref">Test Vectors for Ligero</a></p>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.4">
+                <p id="section-toc.1-1.13.2.4.1"><a href="#appendix-B.4" class="auto internal xref">B.4</a>.  <a href="#name-test-vectors-for-ligero" class="internal xref">Test Vectors for Ligero</a></p>
 <ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.4.2.1">
-                    <p id="section-toc.1-1.12.2.4.2.1.1"><a href="#appendix-B.4.1" class="auto internal xref">B.4.1</a>.  <a href="#name-vector-1-4" class="internal xref">Vector 1</a></p>
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.4.2.1">
+                    <p id="section-toc.1-1.13.2.4.2.1.1"><a href="#appendix-B.4.1" class="auto internal xref">B.4.1</a>.  <a href="#name-vector-1-4" class="internal xref">Vector 1</a></p>
 </li>
                 </ul>
 </li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.5">
-                <p id="section-toc.1-1.12.2.5.1"><a href="#appendix-B.5" class="auto internal xref">B.5</a>.  <a href="#name-test-vectors-for-libzk" class="internal xref">Test Vectors for libzk</a></p>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.5">
+                <p id="section-toc.1-1.13.2.5.1"><a href="#appendix-B.5" class="auto internal xref">B.5</a>.  <a href="#name-test-vectors-for-libzk" class="internal xref">Test Vectors for libzk</a></p>
 </li>
             </ul>
 </li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
-            <p id="section-toc.1-1.13.1"><a href="#appendix-C" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14">
+            <p id="section-toc.1-1.14.1"><a href="#appendix-C" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
 </li>
         </ul>
 </nav>
@@ -1576,28 +1586,36 @@ this document are to interpreted as described in RFC 6919 <span>[<a href="#RFC69
         </h3>
 <p id="section-2.1-1">The notation <code>A[0..N]</code> refers to the array of size <code>N</code> that contains <code>A[0],A[1],...,A[N-1]</code>, i.e., the right-boundary in the notation <code>X..Y</code> is an exclusive index bound.
 The following functions are used throughout the document:<a href="#section-2.1-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-2.1-2.1">copy(n, Dst, Src): copies n elements from Src to Dst with different strides<a href="#section-2.1-2.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-2.1-2.1">
+            <p id="section-2.1-2.1.1">copy(n, Dst, Src): copies n elements from Src to Dst with different strides<a href="#section-2.1-2.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.2">axpy(n, Y, A, X): sets Y[i] += A*X[i] for 0 &lt;= i &lt; n.<a href="#section-2.1-2.2" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.2">
+            <p id="section-2.1-2.2.1">axpy(n, Y, A, X): sets Y[i] += A*X[i] for 0 &lt;= i &lt; n.<a href="#section-2.1-2.2.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.3">sum(n, A): computes the sum of the first n elements in array A<a href="#section-2.1-2.3" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.3">
+            <p id="section-2.1-2.3.1">sum(n, A): computes the sum of the first n elements in array A<a href="#section-2.1-2.3.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.4">dot(n, A, Y): computes the dot product of length n between arrays A and Y.<a href="#section-2.1-2.4" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.4">
+            <p id="section-2.1-2.4.1">dot(n, A, Y): computes the dot product of length n between arrays A and Y.<a href="#section-2.1-2.4.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.5">add(n, A, Y): returns the array <code>[A[0]+Y[0], A[1]+Y[1], ..., A[n-1]+Y[n-1]]</code>.<a href="#section-2.1-2.5" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.5">
+            <p id="section-2.1-2.5.1">add(n, A, Y): returns the array <code>[A[0]+Y[0], A[1]+Y[1], ..., A[n-1]+Y[n-1]]</code>.<a href="#section-2.1-2.5.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.6">prod(n, A, Y): returns the array <code>[A[0]*Y[0], A[1]*Y[1], ..., A[n-1]*Y[n-1]]</code>.<a href="#section-2.1-2.6" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.6">
+            <p id="section-2.1-2.6.1">prod(n, A, Y): returns the array <code>[A[0]*Y[0], A[1]*Y[1], ..., A[n-1]*Y[n-1]]</code>.<a href="#section-2.1-2.6.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.7">equal(n, A, Y): true if <code>A[i]==Y[i]</code> for 0 &lt;= i &lt; n and false otherwise.<a href="#section-2.1-2.7" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.7">
+            <p id="section-2.1-2.7.1">equal(n, A, Y): true if <code>A[i]==Y[i]</code> for 0 &lt;= i &lt; n and false otherwise.<a href="#section-2.1-2.7.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.8">gather(n, A, I): returns the array <code>[A[I[0]], A[I[1]], ..., A[I[n-1]]</code>.<a href="#section-2.1-2.8" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.8">
+            <p id="section-2.1-2.8.1">gather(n, A, I): returns the array <code>[A[I[0]], A[I[1]], ..., A[I[n-1]]</code>.<a href="#section-2.1-2.8.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.9">
-            <code>A[n][m] = [0]</code>: initializes the 2-dimensional n x m array A to all zeroes.<a href="#section-2.1-2.9" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.9">
+            <p id="section-2.1-2.9.1"><code>A[n][m] = [0]</code>: initializes the 2-dimensional n x m array A to all zeroes.<a href="#section-2.1-2.9.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-2.1-2.10">
-            <code>A[0..NREQ] = X</code> : array assignment, this operation copies the first NREQ elements of X into the corresponding indicies of the A array.<a href="#section-2.1-2.10" class="pilcrow">¶</a>
+          <li class="normal" id="section-2.1-2.10">
+            <p id="section-2.1-2.10.1"><code>A[0..NREQ] = X</code> : array assignment, this operation copies the first NREQ elements of X into the corresponding indicies of the A array.<a href="#section-2.1-2.10.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 </section>
@@ -1656,31 +1674,34 @@ Next, choose GF(2<sup>16</sup>) as the subfield of GF(2<sup>128</sup>) with <cod
       <h2 id="name-fiat-shamir-primitives">
 <a href="#section-3" class="section-number selfRef">3. </a><a href="#name-fiat-shamir-primitives" class="section-name selfRef">Fiat-Shamir primitives</a>
       </h2>
-<p id="section-3-1">A ZK protocol must in general be interactive whereby the Prover and Verifier engage in multiple rounds of communication.  However, in practice, it is often more convenient to deploy so-called ``non-interactive" protocols that only require a single message from Prover to Verifier.  It is possible to apply the Fiat-Shamir heuristic to transform a special class of interactive protocols into single-message protocols from Prover to Verifier.<a href="#section-3-1" class="pilcrow">¶</a></p>
+<p id="section-3-1">A ZK protocol may in general be interactive whereby the Prover and Verifier engage in multiple rounds of communication.  However, in practice, it is often more convenient to deploy a so-called non-interactive or single-message protocol that only requires a single message from Prover to Verifier.  It is possible to apply the Fiat-Shamir heuristic to transform a special class of interactive protocols into single-message protocols.<a href="#section-3-1" class="pilcrow">¶</a></p>
 <p id="section-3-2">The Fiat-Shamir transform is a method for generating a verifier's public coin challenges by processing the concatenation of all of the Prover's messages.   The transform can be proven to be sound when applied to an interactive protocol that is round-by-round sound and when the oracle is implemented with a hash function that satisfies a correlation-intractability property with respect to the state function implied by the round-by-round soundness.  See Theorem 5.8 of <span>[<a href="#rbr" class="cite xref">rbr</a>]</span> for details.<a href="#section-3-2" class="pilcrow">¶</a></p>
 <p id="section-3-3">In practice, whether an implementation of the random oracle satisfies this correlation-intractability property becomes an implicit assumption.  Towards that, this document adapts best practices in selecting the oracle implementation. First, the random oracle should have higher circuit depth and require more gates to compute than the circuit C that the protocol is applied to.  Furthermore, the size of the messages which are used as input to the oracle to generate the Verifier's challenges should be larger than C.  These choices are easy to implement and add very little processing time to the protocol. On the other hand, they seemingly avoid attacks against correlation-intractability in which the random oracle is computed within the ZK protocol thereby allowing the output of the circuit to be related to the verifier's challenge.<a href="#section-3-3" class="pilcrow">¶</a></p>
 <p id="section-3-4">As an additional property, each query to the random oracle should be able to be uniquely mapped into a protocol transcript. To facilitate this property, the type and length of each message is incorporated into the query string.<a href="#section-3-4" class="pilcrow">¶</a></p>
-<div id="implementation">
+<div id="implementation-of-a-random-oracle">
 <section id="section-3.1">
-        <h3 id="name-implementation">
-<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-implementation" class="section-name selfRef">Implementation</a>
+        <h3 id="name-implementation-of-a-random-">
+<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-implementation-of-a-random-" class="section-name selfRef">Implementation of a random oracle</a>
         </h3>
-<p id="section-3.1-1">Let <code>H</code> be a collision-resistant hash function.
-A protocol consists of multiple rounds in which a Prover sends a message, and a verifier responds with a public-coin or random challenge. The Fiat-Shamir transform for such a protocol is implemented by maintaining a <code>transcript</code> object.<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<p id="section-3.1-1">The Fiat-Shamir transform makes use of an ideal random oracle that maps an arbitrarily long string to a random element sampled from a specific domain.
+A protocol consists of multiple rounds in which a Prover sends a message, and a verifier responds with a public-coin or random challenge. The Fiat-Shamir transform for such a protocol is implemented by maintaining a <code>transcript</code> object. The <code>transcript</code> object is parameterized by a collision-resistant hash function <code>H</code> that is specified externally. For example, the SHA-256 function is a suitable choice.<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<p id="section-3.1-2">The <code>transcript</code> object maintains an internal string <code>tr</code> that begins as the empty string.<a href="#section-3.1-2" class="pilcrow">¶</a></p>
 <div id="initialization">
 <section id="section-3.1.1">
           <h4 id="name-initialization">
 <a href="#section-3.1.1" class="section-number selfRef">3.1.1. </a><a href="#name-initialization" class="section-name selfRef">Initialization</a>
           </h4>
 <p id="section-3.1.1-1">At the beginning of the protocol, the transcript object must be initialized.<a href="#section-3.1.1-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-3.1.1-2.1">
-              <code>transcript.init(session_id)</code>: The initialization begins by
+<ul class="normal">
+<li class="normal" id="section-3.1.1-2.1">
+              <p id="section-3.1.1-2.1.1"><code>transcript.init(session_id)</code>: The initialization begins by
 selecting an oracle, which concretely consists of selecting a fresh
-session identifier. This process is handled by the encapsulating
+session identifier nonce. This process is handled by the encapsulating
 protocol---for example, the transcript that is used for key
 exchange for a session can be used as the session identifier as it
-is guaranteed to be unique.<a href="#section-3.1.1-2.1" class="pilcrow">¶</a>
+is guaranteed to be unique.
+The <code>session_id</code> string should be exactly 32 bytes and it is appended to the end of <code>tr</code>.
+This method must be called exactly once before any other method on the <code>transcript</code> object is invoked.<a href="#section-3.1.1-2.1.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
@@ -1691,30 +1712,26 @@ is guaranteed to be unique.<a href="#section-3.1.1-2.1" class="pilcrow">¶</a>
 <a href="#section-3.1.2" class="section-number selfRef">3.1.2. </a><a href="#name-writing-to-the-transcript" class="section-name selfRef">Writing to the transcript</a>
           </h4>
 <p id="section-3.1.2-1">The transcript object supports a <code>write</code> method that is used to record
-the Prover's messages.  To produce the verifier's challenge message, the transcript object internally maintains a Fiat-Shamir Pseudo-random Function (FSPRF) object that
-generates a stream of pseudo-random bytes.  Each invocation of
-<code>write</code> creates a new FSPRF object, which we denote by <code>fs</code>.<a href="#section-3.1.2-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-3.1.2-2.1">
-              <code>transcript.write(msg)</code>: appends the Prover's next message to
-the transcript.<a href="#section-3.1.2-2.1" class="pilcrow">¶</a>
+the Prover's messages.<a href="#section-3.1.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.1.2-2.1">
+              <p id="section-3.1.2-2.1.1"><code>transcript.write(msg)</code>: appends the Prover's next message to
+the end of the <code>tr</code> string that is maintained by the transcript.<a href="#section-3.1.2-2.1.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
-<p id="section-3.1.2-3">There are three types of messages that can be appended to the transcript: a field element, an array of bytes, or an array of field elements.<a href="#section-3.1.2-3" class="pilcrow">¶</a></p>
+<p id="section-3.1.2-3">There are three types of messages that can be appended to the transcript: a field element, an array of bytes, or an array of field elements.<br>
+* To append a field element, first the byte designator <code>0x1</code> is appended to <code>tr</code>, and then the canonical byte serialization of the field element is appended to <code>tr</code>.<a href="#section-3.1.2-3" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-3.1.2-4.1">
-              <p id="section-3.1.2-4.1.1">To append a field element, first the byte designator <code>0x1</code> is appended, and then the canonical byte serialization of the field element is appended.<a href="#section-3.1.2-4.1.1" class="pilcrow">¶</a></p>
+              <p id="section-3.1.2-4.1.1">To append an array of bytes, first the byte designator <code>0x2</code> is
+appended, an 8-byte little-endian encoding of the number of bytes in
+the array is appended, and then the bytes of the array are appended to <code>tr</code>.<a href="#section-3.1.2-4.1.1" class="pilcrow">¶</a></p>
 </li>
             <li class="normal" id="section-3.1.2-4.2">
-              <p id="section-3.1.2-4.2.1">To append an array of bytes, first the byte designator <code>0x2</code> is
-appended, an 8-byte little-endian encoding of the number of bytes in
-the array is appended, and then the bytes of the array are appended.<a href="#section-3.1.2-4.2.1" class="pilcrow">¶</a></p>
-</li>
-            <li class="normal" id="section-3.1.2-4.3">
-              <p id="section-3.1.2-4.3.1">To append an array of field elements, the byte designator <code>0x3</code> is
-added, an 8-byte little-endian encoding of the number of field
+              <p id="section-3.1.2-4.2.1">To append an array of field elements, the byte designator <code>0x3</code> is
+appended, an 8-byte little-endian encoding of the number of field
 elements is appended, and finally, all of the field elements in array
-order are serialized and appended.<a href="#section-3.1.2-4.3.1" class="pilcrow">¶</a></p>
+order are serialized and appended to <code>tr</code>.<a href="#section-3.1.2-4.2.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
@@ -1726,26 +1743,29 @@ order are serialized and appended.<a href="#section-3.1.2-4.3.1" class="pilcrow"
           </h4>
 <p id="section-3.1.3-1">The <code>write</code> method for the first prover message incorporates
 additional steps that enhance the correlation-intractability property
-of the oracle.  To process the Prover's first message (which is usually a
-commitment):<a href="#section-3.1.3-1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="compact type-1" id="section-3.1.3-2">
-<li id="section-3.1.3-2.1">The Prover message is appended to the transcript. Specifically, the length of the message, as per the above convention, is appended, and then the bytes of the message are appended.<a href="#section-3.1.3-2.1" class="pilcrow">¶</a>
+of the oracle.  To process the Prover's first message:<a href="#section-3.1.3-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-3.1.3-2">
+<li id="section-3.1.3-2.1">
+              <p id="section-3.1.3-2.1.1">The Prover message is appended to <code>tr</code>. Specifically, the length of the message, as per the above convention, is appended, and then the bytes of the message are appended.<a href="#section-3.1.3-2.1.1" class="pilcrow">¶</a></p>
 </li>
-            <li id="section-3.1.3-2.2">Next, an encoding of the statement to be proven, which consists of
+            <li id="section-3.1.3-2.2">
+              <p id="section-3.1.3-2.2.1">Next, an encoding of the statement to be proven, which consists of
 the circuit identifier, and a serialization of the input and
 output of the statement is appended. Each of these three message are added as
-byte sequences, with their length appended as per convention.<a href="#section-3.1.3-2.2" class="pilcrow">¶</a>
+byte sequences, with their length appended first as per convention.<a href="#section-3.1.3-2.2.1" class="pilcrow">¶</a></p>
 </li>
-            <li id="section-3.1.3-2.3">Finally, the transcript is augmented by the byte-array 0<sup>|C|</sup>,
-which consists of |C| bytes of zeroes.<a href="#section-3.1.3-2.3" class="pilcrow">¶</a>
+            <li id="section-3.1.3-2.3">
+              <p id="section-3.1.3-2.3.1">Finally, the transcript is augmented by the byte-array 0<sup>|C|</sup>,
+which consists of |C| bytes of zeroes.<a href="#section-3.1.3-2.3.1" class="pilcrow">¶</a></p>
 </li>
           </ol>
-<p id="section-3.1.3-3">One might at first think of performing steps 2 and 3 first so as to
+<p id="section-3.1.3-3">One might think of performing steps 2 and 3 first so as to
 simplify the description of the protocol, and moreover step 3 may
 appear to be unnecessary.  Performing the steps in the indicated order
 protects against the attack described in <span>[<a href="#krs" class="cite xref">krs</a>]</span>, under the assumption
-that it is infeasible for a circuit C that contains |C| arithmetic
-gates to compute the hash of a string of length |C|.<a href="#section-3.1.3-3" class="pilcrow">¶</a></p>
+that it is infeasible for a circuit <code>C</code> that contains <code>|C|</code> arithmetic
+gates to compute the hash of a string (with a random prefix) of length
+greater than <code>|C|</code>.<a href="#section-3.1.3-3" class="pilcrow">¶</a></p>
 <p id="section-3.1.3-4">Subsequent calls to the <code>write</code> method are used to record the Prover's
 response messages <code>msg</code>. In this case, the message is appended
 following the conventions described above.<a href="#section-3.1.3-4" class="pilcrow">¶</a></p>
@@ -1758,26 +1778,28 @@ following the conventions described above.<a href="#section-3.1.3-4" class="pilc
         <h3 id="name-the-fsprf-object">
 <a href="#section-3.2" class="section-number selfRef">3.2. </a><a href="#name-the-fsprf-object" class="section-name selfRef">The FSPRF object</a>
         </h3>
-<p id="section-3.2-1">Each <code>write</code> internally creates an FSPRF object <code>fs</code> that is seeded
-with the hash digest of the transcript at the end of the write
-operation.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
-<p id="section-3.2-2">The FSPRF object is defined to produce an infinite stream of bytes that can be used to sample all of the verifier's challenges in this round. The stream is organized in blocks of 16 bytes each,
-numbered consecutively starting at 0.  Block <code>i</code> contains<a href="#section-3.2-2" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-3.2-3">
-<pre>    AES256(KEY, ID(i))
-</pre><a href="#section-3.2-3" class="pilcrow">¶</a>
+<p id="section-3.2-1">To produce the verifier's challenge message, the transcript object internally maintains a Fiat-Shamir Pseudo-random Function (FSPRF) object that generates a stream of pseudo-random bytes.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
+<p id="section-3.2-2">Each invocation of <code>write</code> defines an FSPRF object <code>fs</code> as follows.
+First, the append operations described above for each type of <code>write</code> are performed, resulting in a new <code>tr</code> string.
+Next, a seed is generated by applying the function <code>H</code> to the (entire) string <code>tr</code>. This seed is then used to define the
+FSPRF object.<a href="#section-3.2-2" class="pilcrow">¶</a></p>
+<p id="section-3.2-3">The FSPRF object is defined to produce an infinite stream of bytes that can be used to sample all of the verifier's challenges in this round. The stream is organized in blocks of 16 bytes each,
+numbered consecutively starting at 0.  Block <code>i</code> contains<a href="#section-3.2-3" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-3.2-4">
+<pre>    AES256(SEED, ID(i))
+</pre><a href="#section-3.2-4" class="pilcrow">¶</a>
 </div>
-<p id="section-3.2-4">where <code>KEY</code> is the seed of the FSPRF object, and <code>ID(i)</code> is the
-16-byte little-endian representation of integer <code>i</code>.<a href="#section-3.2-4" class="pilcrow">¶</a></p>
-<p id="section-3.2-5">The FSPRF object supports a <code>bytes</code> method:<a href="#section-3.2-5" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-3.2-6.1">
-            <code>b = fs.bytes(n)</code> returns the next <code>n</code> bytes in the stream.<a href="#section-3.2-6.1" class="pilcrow">¶</a>
+<p id="section-3.2-5">where <code>SEED</code> is the seed of the FSPRF object, and <code>ID(i)</code> is the
+16-byte little-endian representation of integer <code>i</code>.<a href="#section-3.2-5" class="pilcrow">¶</a></p>
+<p id="section-3.2-6">The FSPRF object supports a <code>bytes</code> method:<a href="#section-3.2-6" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.2-7.1">
+            <p id="section-3.2-7.1.1"><code>b = fs.bytes(n)</code> returns the next <code>n</code> bytes in the stream.<a href="#section-3.2-7.1.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-3.2-7">Thus, <code>fs</code> implicitly maintains an index into the next position in
+<p id="section-3.2-8">Thus, <code>fs</code> implicitly maintains an index into the next position in
 the stream.  Calls to <code>bytes</code> without an intervening <code>write</code> read
-pseudo-random bytes from the same stream.<a href="#section-3.2-7" class="pilcrow">¶</a></p>
+pseudo-random bytes from the same stream.<a href="#section-3.2-8" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="generating-challenges">
@@ -1786,38 +1808,53 @@ pseudo-random bytes from the same stream.<a href="#section-3.2-7" class="pilcrow
 <a href="#section-3.3" class="section-number selfRef">3.3. </a><a href="#name-generating-challenges" class="section-name selfRef">Generating challenges</a>
         </h3>
 <p id="section-3.3-1">When the prover has finished sending messages for a round in the interactive
-protocol, it can make a sequence of calls to <code>transcript.generate_{nat,field_element,challenge}</code> to obtain the Verifier's random challenges.<a href="#section-3.3-1" class="pilcrow">¶</a></p>
+protocol, it can make a sequence of calls to <code>transcript.generate_{nat,nats_wo_replacement,field_element,challenge}</code> to obtain the Verifier's random challenges.<a href="#section-3.3-1" class="pilcrow">¶</a></p>
 <p id="section-3.3-2">The <code>bytes</code> method of the FSPRF is used by the transcript object to sample pseudo-random field elements and
 pseudo-random integers via rejection sampling as follows:<a href="#section-3.3-2" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-3.3-3.1">
-            <code>transcript.generate_nat(m)</code> generates a random natural between <code>0</code> and
-<code>m-1</code> inclusive, as follows.<a href="#section-3.3-3.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-3.3-3.1">
+            <p id="section-3.3-3.1.1"><code>transcript.generate_nat(m)</code> generates a random natural between <code>0</code> and
+<code>m-1</code> inclusive, as follows.<a href="#section-3.3-3.1.1" class="pilcrow">¶</a></p>
+<p id="section-3.3-3.1.2">Let <code>l</code> be minimal such that <code>2^l &gt;= m</code>.  Let <code>nbytes = ceil(l / 8)</code>.
+Let <code>b = fs.bytes(nbytes)</code>.  Interpret bytes <code>b</code> as a little-endian integer <code>k</code>.  Let <code>r = k mod 2^l</code>, i.e., mask off the high <code>8 * nbytes - l</code> bits of <code>k</code>.  If <code>r &lt; m</code> return <code>r</code>, otherwise start over.<a href="#section-3.3-3.1.2" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.3-3.2">
+            <p id="section-3.3-3.2.1"><code>transcript.generate_nats_wo_replacement(m, n)</code> generates a list of <code>n</code> different, random natural numbers between <code>0</code> and <code>m - 1</code> inclusive.  There are many equivalent algorithms to perform this step.  The following approach requires only <code>n</code> calls to the <code>generate_nat</code> method.<a href="#section-3.3-3.2.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-3.3-4">Let <code>l</code> be minimal such that <code>2^l &gt;= m</code>.  Let <code>nbytes = ceil(l / 8)</code>.
-  Let <code>b = fs.bytes(nbytes)</code>.  Interpret bytes <code>b</code> as a little-endian
-  integer <code>k</code>.  Let <code>r = k mod 2^l</code>, i.e., mask off the high <code>8 * nbytes - l</code>
-  bits of <code>k</code>.  If <code>r &lt; m</code> return <code>r</code>, otherwise start over.<a href="#section-3.3-4" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-3.3-5.1">
-            <code>transcript.generate_field_element(F)</code> generates a field element.<a href="#section-3.3-5.1" class="pilcrow">¶</a>
+<div class="alignLeft art-text artwork" id="section-3.3-4">
+<pre>        def generate_nats_wo_replacement(m, n):
+            # assert(m &gt; n)
+            A = list(range(0, m))
+            for i in range(0, n):
+                j = i + generate_nat(m - i)
+                A[i], A[j] = A[j], A[i]
+            return A[:n]
+</pre><a href="#section-3.3-4" class="pilcrow">¶</a>
+</div>
+<ul class="normal">
+<li class="normal" id="section-3.3-5.1">
+            <p id="section-3.3-5.1.1"><code>transcript.generate_field_element(F)</code> generates a field element.<a href="#section-3.3-5.1.1" class="pilcrow">¶</a></p>
+<p id="section-3.3-5.1.2">If the field <code>F</code> is <code>Z / (p)</code>, return <code>generate_nat(fs, p)</code> interpreted as a field element.<a href="#section-3.3-5.1.2" class="pilcrow">¶</a></p>
+<p id="section-3.3-5.1.3">If the field is <code>GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)</code>, obtain <code>b = fs.bytes(16)</code> and interpret the 128 bits of <code>b</code> as a little-endian polynomial.<a href="#section-3.3-5.1.3" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-3.3-6">If the field <code>F</code> is <code>Z / (p)</code>, return <code>generate_nat(fs, p)</code> interpreted
-  as a field element.<a href="#section-3.3-6" class="pilcrow">¶</a></p>
-<p id="section-3.3-7">If the field is <code>GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)</code> obtain
-  <code>b = fs.bytes(16)</code> and interpret the 128 bits of <code>b</code> as a little-endian
-  polynomial.  This document does not specify the generation of
-  a field element for other binary fields, but extensions SHOULD follow
-  a similar pattern.<a href="#section-3.3-7" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-3.3-8.1">
-            <code>a = transcript.generate_challenge(F, n)</code> generates an array of <code>n</code>
+<p id="section-3.3-6"> This document does not specify the generation of a field element for other binary fields, but extensions SHOULD follow a similar pattern.<a href="#section-3.3-6" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.3-7.1">
+            <p id="section-3.3-7.1.1"><code>a = transcript.generate_challenge(F, n)</code> generates an array of <code>n</code>
 field elements in the straightforward way: for <code>0 &lt;= i &lt; n</code>
-in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>.<a href="#section-3.3-8.1" class="pilcrow">¶</a>
+in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>.<a href="#section-3.3-7.1.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
+<div id="optimizations">
+<section id="section-3.3.1">
+          <h4 id="name-optimizations">
+<a href="#section-3.3.1" class="section-number selfRef">3.3.1. </a><a href="#name-optimizations" class="section-name selfRef">Optimizations</a>
+          </h4>
+<p id="section-3.3.1-1">As described, the hash function <code>H</code> is applied to progressively longer and longer <code>tr</code> strings as the protocol evolves from round to round. In practice, most implementations of cryptographic hash functions provide a data-structure which allows incremental update of the state of the hash function while also allowing a digest to be computed at any intermediate point.<a href="#section-3.3.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 </section>
@@ -1951,54 +1988,54 @@ def mark_tree(requested_leaves[], n) {
 <a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-common-parameters" class="section-name selfRef">Common parameters</a>
         </h3>
 <p id="section-4.2-1">The Prover and Verifier in Ligero must agree on the following parameters. These parameters can be agreed upon out of band.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-4.2-2.1">
-            <code>F</code>: The finite field over which the commit is produced.<a href="#section-4.2-2.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-4.2-2.1">
+            <p id="section-4.2-2.1.1"><code>F</code>: The finite field over which the commit is produced.<a href="#section-4.2-2.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.2">
-            <code>NREQ</code>: The number of columns of the commitment matrix that the Verifier requests to be revealed by the Prover.<a href="#section-4.2-2.2" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.2">
+            <p id="section-4.2-2.2.1"><code>NREQ</code>: The number of columns of the commitment matrix that the Verifier requests to be revealed by the Prover.<a href="#section-4.2-2.2.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.3">
-            <code>rate</code>: The inverse rate of the error correcting code. This parameter, along with <code>NREQ</code> and Field size, determines the soundness of the scheme.<a href="#section-4.2-2.3" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.3">
+            <p id="section-4.2-2.3.1"><code>rate</code>: The inverse rate of the error correcting code. This parameter, along with <code>NREQ</code> and Field size, determines the soundness of the scheme.<a href="#section-4.2-2.3.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.4">
-            <code>BLOCK</code>: the size of each row, in terms of number of field elements<a href="#section-4.2-2.4" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.4">
+            <p id="section-4.2-2.4.1"><code>BLOCK</code>: the size of each row, in terms of number of field elements<a href="#section-4.2-2.4.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.5">
-            <code>DBLOCK</code>: 2 * <code>BLOCK</code> - 1<a href="#section-4.2-2.5" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.5">
+            <p id="section-4.2-2.5.1"><code>DBLOCK</code>: 2 * <code>BLOCK</code> - 1<a href="#section-4.2-2.5.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.6">
-            <code>WR</code>: the number of witness values included in each row.<a href="#section-4.2-2.6" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.6">
+            <p id="section-4.2-2.6.1"><code>WR</code>: the number of witness values included in each row.<a href="#section-4.2-2.6.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.7">
-            <code>QR</code>: the number of quadratic constraints written in each row<a href="#section-4.2-2.7" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.7">
+            <p id="section-4.2-2.7.1"><code>QR</code>: the number of quadratic constraints written in each row<a href="#section-4.2-2.7.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.8">
-            <code>IW</code>: Row index at which the witness values start, usually IW = 2.<a href="#section-4.2-2.8" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.8">
+            <p id="section-4.2-2.8.1"><code>IW</code>: Row index at which the witness values start, usually IW = 2.<a href="#section-4.2-2.8.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.9">
-            <code>IQ</code>: Row index at which the quadratic constraints begin, it is the first row after all of the witnesses have been encoded.<a href="#section-4.2-2.9" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.9">
+            <p id="section-4.2-2.9.1"><code>IQ</code>: Row index at which the quadratic constraints begin, it is the first row after all of the witnesses have been encoded.<a href="#section-4.2-2.9.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.10">
-            <code>NL</code>: Number of linear constraints.<a href="#section-4.2-2.10" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.10">
+            <p id="section-4.2-2.10.1"><code>NL</code>: Number of linear constraints.<a href="#section-4.2-2.10.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.11">
-            <code>NQ</code>: Number of quadratic constraints.<a href="#section-4.2-2.11" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.11">
+            <p id="section-4.2-2.11.1"><code>NQ</code>: Number of quadratic constraints.<a href="#section-4.2-2.11.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.12">
-            <code>NWROW</code>: Number of rows used to encode witnesses.<a href="#section-4.2-2.12" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.12">
+            <p id="section-4.2-2.12.1"><code>NWROW</code>: Number of rows used to encode witnesses.<a href="#section-4.2-2.12.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.13">
-            <code>NQT</code>: Number of row triples needed to encode the quadratic constraints.<a href="#section-4.2-2.13" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.13">
+            <p id="section-4.2-2.13.1"><code>NQT</code>: Number of row triples needed to encode the quadratic constraints.<a href="#section-4.2-2.13.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.14">
-            <code>NQW</code>: <code>NWROW + NQT</code>, rows needed to encode witnesses and quadratic constraints.<a href="#section-4.2-2.14" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.14">
+            <p id="section-4.2-2.14.1"><code>NQW</code>: <code>NWROW + NQT</code>, rows needed to encode witnesses and quadratic constraints.<a href="#section-4.2-2.14.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.15">
-            <code>NROW</code>: Total number of rows in the witness matrix, <code>NQW + 2</code><a href="#section-4.2-2.15" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.15">
+            <p id="section-4.2-2.15.1"><code>NROW</code>: Total number of rows in the witness matrix, <code>NQW + 2</code><a href="#section-4.2-2.15.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.2-2.16">
-            <code>NCOL</code>: Total number of columns in the tableau matrix.<a href="#section-4.2-2.16" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.2-2.16">
+            <p id="section-4.2-2.16.1"><code>NCOL</code>: Total number of columns in the tableau matrix.<a href="#section-4.2-2.16.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <p id="section-4.2-3">A row of the tableau consists of<a href="#section-4.2-3" class="pilcrow">¶</a></p>
@@ -2011,10 +2048,10 @@ def mark_tree(requested_leaves[], n) {
           </h4>
 <ul class="normal">
 <li class="normal" id="section-4.2.1-1.1">
-              <code>BLOCK &lt; |F|</code> The block size must be smaller than the field size.<a href="#section-4.2.1-1.1" class="pilcrow">¶</a>
+              <p id="section-4.2.1-1.1.1"><code>BLOCK &lt; |F|</code> The block size must be smaller than the field size.<a href="#section-4.2.1-1.1.1" class="pilcrow">¶</a></p>
 </li>
             <li class="normal" id="section-4.2.1-1.2">
-              <code>BLOCK &gt; NREQ</code> The block size must be larger than the number of columns requested.<a href="#section-4.2.1-1.2" class="pilcrow">¶</a>
+              <p id="section-4.2.1-1.2.1"><code>BLOCK &gt; NREQ</code> The block size must be larger than the number of columns requested.<a href="#section-4.2.1-1.2.1" class="pilcrow">¶</a></p>
 </li>
             <li class="normal" id="section-4.2.1-1.3">
               <p id="section-4.2.1-1.3.1"><code>BLOCK = NREQ + WR</code><a href="#section-4.2.1-1.3.1" class="pilcrow">¶</a></p>
@@ -2051,19 +2088,16 @@ row i for IW = IDOT + 1 &lt;= i &lt; IQ    : witness rows
 row i for IQ &lt;= i &lt; NROW             : quadratic rows
 </pre><a href="#section-4.3-3" class="pilcrow">¶</a>
 </div>
-<span class="break"></span><dl class="olPercent" id="section-4.3-4">
-<dt>1)</dt>
-<dd id="section-4.3-4.1">
+<ol start="1" type="1" class="normal type-1" id="section-4.3-4">
+<li id="section-4.3-4.1">
             <p id="section-4.3-4.1.1">The first ILDT row is defined as<a href="#section-4.3-4.1.1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.3-4.1.2">
 <pre>extend(RANDOM[BLOCK], BLOCK, NCOL)
 </pre><a href="#section-4.3-4.1.2" class="pilcrow">¶</a>
 </div>
 <p id="section-4.3-4.1.3">by selecting BLOCK random field elements and applying extend.<a href="#section-4.3-4.1.3" class="pilcrow">¶</a></p>
-</dd>
-          <dd class="break"></dd>
-<dt>2)</dt>
-<dd id="section-4.3-4.2">
+</li>
+          <li id="section-4.3-4.2">
             <p id="section-4.3-4.2.1">The second IDOT row is defined as<a href="#section-4.3-4.2.1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.3-4.2.2">
 <pre>Z = RANDOM[DBLOCK] such that sum_{i = NREQ ... NREQ + WR - 1} Z_i = 0
@@ -2074,20 +2108,16 @@ extend(Z, DBLOCK, NCOL)
 from index NREQ to NREQ + WR sums to 0 and then applying extend.
 The first step can be performed by selecting DBLOCK-1 random
 field elements, and then setting element of the specified range to be the additive inverse of the sum of elements from NREQ...NREQ + WR - 1.<a href="#section-4.3-4.2.3" class="pilcrow">¶</a></p>
-</dd>
-          <dd class="break"></dd>
-<dt>3)</dt>
-<dd id="section-4.3-4.3">
+</li>
+          <li id="section-4.3-4.3">
             <p id="section-4.3-4.3.1">The third IQD row is defined as
     ZQ = RANDOM[DBLOCK]
     ZQ[NREQ ... NREQ + WR - 1] = 0
     extend(ZQ, DBLOCK, NCOL)
 by first selecting DBLOCK random field elements, and then setting the
 portion coresponding to the witness values to 0 and then applying extend.<a href="#section-4.3-4.3.1" class="pilcrow">¶</a></p>
-</dd>
-          <dd class="break"></dd>
-<dt>4)</dt>
-<dd id="section-4.3-4.4">
+</li>
+          <li id="section-4.3-4.4">
             <p id="section-4.3-4.4.1">The next rows from IW=3,...,IQ are <em>padded witness</em> rows that contain
 random elements and portions of the witness vector.
 Specifically, row i is formed by applying <code>extend</code> to an array that
@@ -2099,10 +2129,8 @@ consists of <code>NREQ</code> random elements and then <code>WR</code> elements 
 <p id="section-4.3-4.4.3">When the finite field contains a subfield, and if all of the witness elements in a given row are elements from this subfield, then the randomness for that row can also be chosen from the subfield.
 Consequently, the <code>extend</code> method for that row produces polynomial evaluations that are elements of the subfield. When these elements are serialized, they will require less space.
 The simplest way to apply this optimization is for the commiting process to maintain an index <code>SF</code> such that witnesses at indices <code>0..SF</code> belong to the subfield, and the rest do not. This value <code>SF</code> can be conveyed to the verifier as part of the proof, or part of the circuit.<a href="#section-4.3-4.4.3" class="pilcrow">¶</a></p>
-</dd>
-          <dd class="break"></dd>
-<dt>5)</dt>
-<dd id="section-4.3-4.5">
+</li>
+          <li id="section-4.3-4.5">
             <p id="section-4.3-4.5.1">The final portion of the witness matrix consists of <em>padded quadratic</em> rows
 that consists of NREQ random elements and WR quadratic constraint elements:<a href="#section-4.3-4.5.1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.3-4.5.2">
@@ -2113,22 +2141,24 @@ extend([RANDOM[NREQ], QZ[WR]], BLOCK, NCOL)
 </div>
 <p id="section-4.3-4.5.3">The specific elements in the QX, QY, QZ array are determined by the quadratic
 constraints on the witness values that are verified by the proof.<a href="#section-4.3-4.5.3" class="pilcrow">¶</a></p>
-</dd>
-        <dd class="break"></dd>
-</dl>
+</li>
+        </ol>
 <p id="section-4.3-5">The second step of the procedure is to compute a Merkle tree on columns
 of the tableau matrix. Specifically, the i-th leaf of the tree is defined
 to be columns DBLOCK...NCOL of the i-th row of the tableau T.<a href="#section-4.3-5" class="pilcrow">¶</a></p>
 <p id="section-4.3-6">Input:<a href="#section-4.3-6" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-4.3-7.1">The witness vector <code>W</code>.<a href="#section-4.3-7.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-4.3-7.1">
+            <p id="section-4.3-7.1.1">The witness vector <code>W</code>.<a href="#section-4.3-7.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="compact" id="section-4.3-7.2">Array of quadratic constraints <code>lqc[]</code>, which consists of triples <code>(x,y,z)</code> that represent the constraint that <code>W[x] * W[y] = W[z]</code>.<a href="#section-4.3-7.2" class="pilcrow">¶</a>
+          <li class="normal" id="section-4.3-7.2">
+            <p id="section-4.3-7.2.1">Array of quadratic constraints <code>lqc[]</code>, which consists of triples <code>(x,y,z)</code> that represent the constraint that <code>W[x] * W[y] = W[z]</code>.<a href="#section-4.3-7.2.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <p id="section-4.3-8">Output:<a href="#section-4.3-8" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-4.3-9.1">A digest; root of a Merkle tree formed from columns of the tableau.<a href="#section-4.3-9.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-4.3-9.1">
+            <p id="section-4.3-9.1.1">A digest; root of a Merkle tree formed from columns of the tableau.<a href="#section-4.3-9.1.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <div class="alignLeft art-text artwork" id="section-4.3-10">
@@ -2264,9 +2294,9 @@ def layout_zk_rows(T) {
     transcript.write(dot);
     transcript.write(qpr);
 
-    challenge_indicies = transcript.generate_challenge([NREQ]);
+    challenge_indicies = transcript.generate_nats_wo_replacement(NCOL - DBLOCK, NREQ);
 
-    columns = requested_columns(challenge_indicies);
+    columns = requested_columns(challenge_indicies, DBLOCK);
 
     mt_proof = M.compressed_proof(challenge_indicies);
 
@@ -2366,10 +2396,10 @@ def quadratic_proof(lqc, uquad) {
     return y[0..NREQ], y[BLOCK..DBLOCK]
 }
 
-def requested_columns(challenge_indicies) {
+def requested_columns(challenge_indicies, offset) {
   cols = []   // array of columns of T
   FOR (index i : challenge_indicies) {
-    cols.append( [ T[0..NROW][i] ] )
+    cols.append( [ T[0..NROW][i + offset] ] )
   }
   return cols
 }
@@ -2500,53 +2530,41 @@ def dot_check(proof, challenge_indicies, A) {
       <h2 id="name-overview-of-the-longfellow-">
 <a href="#section-5" class="section-number selfRef">5. </a><a href="#name-overview-of-the-longfellow-" class="section-name selfRef">Overview of the Longfellow protocol</a>
       </h2>
-<p id="section-5-1">The Longfellow ZK protocol utilizes two primitive operations. The first is a variant of the sumcheck protocol, modified to support zero knowledge. Informally, the non-padded sumcheck prover takes the description of a circuit and the concrete values of all the wires in the circuit, and produces a proof that all wires have been computed correctly.  The proof itself is a sequence of field elements.  The padded-variant of the sumcheck prover used in this document also takes as input a random and secret one-time pad and it outputs a "padded" proof such that each element in the padded proof is the difference of the element in the non-padded proof and of the element in the pad.  (The choice of "difference" instead of "sum" is a matter of convention.)<a href="#section-5-1" class="pilcrow">¶</a></p>
-<p id="section-5-2">In this padded sumcheck variant, the verifier cannot check the proof
-directly, because it cannot access the pad.  Instead of running the
+<p id="section-5-1">The Longfellow ZK protocol uses two protocol components. The first is a variant of the sumcheck protocol, modified to support zero knowledge. Informally, the standard sumcheck prover takes the description of a circuit and the concrete values of all the wires in the circuit, and produces a proof that all wires have been computed correctly.  The proof itself is a sequence of field elements.  Longfellow uses an encrypted-variant of the sumcheck prover that also takes as input a random and secret one-time pad and outputs an "encrypted" proof such that each element in this proof is the difference of the element in the standard sumcheck proof and its corresponding element in the pad.  (The choice of "difference" instead of "sum" is a matter of convention.)<a href="#section-5-1" class="pilcrow">¶</a></p>
+<p id="section-5-2">In this encrypted sumcheck variant, the verifier cannot check the proof
+directly because it cannot access the one-time pad.  Instead of running the
 sumcheck verifier directly, a commitment scheme is used to hide the
-pad, and the sumcheck verifier is translated into a sequence of linear and
-quadratic constraints on the inputs and the pad.  The commitment
-scheme then produces a proof that the constraints are satisfied.<a href="#section-5-2" class="pilcrow">¶</a></p>
-<p id="section-5-3">Some of the wires of the circuit are <em>inputs</em>, i.e., set outside the
-circuit and not computed by the circuit itself.  Some of the inputs
-are <em>public</em>, i.e., known to both parties, and some are <em>private</em>,
-i.e., known only to the prover.  Sumcheck does not use the distinction
-between public and private inputs, but this document distinguishes inputs
-from the pad.  On the contrary, the commitment scheme does not use
-public inputs at all, but it does treat private inputs and the pad
+one-time pad, and the sumcheck verifier is translated into a sequence of linear and
+quadratic constraints on the inputs and the one-time pad.  A secondary proof system
+is then used to produce a proof with respect to the commitment that the constraints are satisfied.<a href="#section-5-2" class="pilcrow">¶</a></p>
+<p id="section-5-3">Some of the wires of the circuit are <em>inputs</em>, i.e., set outside the circuit and not computed by the circuit itself.  Some of the inputs are <em>public</em>, i.e., known to both parties, and some are <em>private</em>, i.e., known only to the prover.  Sumcheck does not use the distinction between public and private inputs. This document distinguishes private inputs from the one-time pad.  The commitment scheme does not use public inputs at all, but it does treat private inputs and the one-time pad elements
 equally.  These constraints motivate the following terminology.<a href="#section-5-3" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-5-4.1">
-          <em>public inputs</em>: inputs to the circuit known to both
-parties.<a href="#section-5-4.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-5-4.1">
+          <p id="section-5-4.1.1"><em>public inputs</em>: inputs to the circuit known to both parties.<a href="#section-5-4.1.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="compact" id="section-5-4.2">
-          <em>private inputs</em>: inputs to the circuit known to the
-prover but not to the verifier.<a href="#section-5-4.2" class="pilcrow">¶</a>
+        <li class="normal" id="section-5-4.2">
+          <p id="section-5-4.2.1"><em>private inputs</em>: inputs to the circuit known to the prover but not to the verifier.<a href="#section-5-4.2.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="compact" id="section-5-4.3">
-          <em>inputs</em>: both public and private inputs.  When forming
-an array of all inputs, the public inputs come first, followed
-by the private inputs.<a href="#section-5-4.3" class="pilcrow">¶</a>
+        <li class="normal" id="section-5-4.3">
+          <p id="section-5-4.3.1"><em>inputs</em>: both public and private inputs.  When forming an array of all inputs, the public inputs come first, followed
+by the private inputs.<a href="#section-5-4.3.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="compact" id="section-5-4.4">
-          <em>witnesses</em>: the private inputs and the pad.  When forming
-an array of all witnesses, the private inputs come first, followed
-by the pad.<a href="#section-5-4.4" class="pilcrow">¶</a>
+        <li class="normal" id="section-5-4.4">
+          <p id="section-5-4.4.1"><em>witnesses</em>: the private inputs and the elements in the one-time pad.  When forming an array of all witnesses, the private inputs come first, followed by the one-time pad.<a href="#section-5-4.4.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
-<p id="section-5-5">Thus, at a high level, the sequence of operations in the ZK
-protocol is the following:<a href="#section-5-5" class="pilcrow">¶</a></p>
+<p id="section-5-5">Thus, at a high level, the sequence of operations in the ZK protocol is the following:<a href="#section-5-5" class="pilcrow">¶</a></p>
 <ol start="1" type="1" class="normal type-1" id="section-5-6">
 <li id="section-5-6.1">
           <p id="section-5-6.1.1">The prover commits to all witness values.<a href="#section-5-6.1.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-5-6.2">
-          <p id="section-5-6.2.1">The prover runs the padded sumcheck prover on the witness values to producing a padded proof, and sends the padded proof to the verifier.<a href="#section-5-6.2.1" class="pilcrow">¶</a></p>
+          <p id="section-5-6.2.1">The prover runs the encrypted sumcheck prover on the witness values to producing an encrypted proof, all-the-while sending the encrypted proof to the verifier.<a href="#section-5-6.2.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-5-6.3">
           <p id="section-5-6.3.1">Both the prover and the verifier take the public inputs and the
-padded proof and produce a sequence of constraints.<a href="#section-5-6.3.1" class="pilcrow">¶</a></p>
+encrypted proof and produce a sequence of constraints.<a href="#section-5-6.3.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-5-6.4">
           <p id="section-5-6.4.1">Using the commitment scheme and the witnesses, the prover generates
@@ -2558,6 +2576,17 @@ step 3 to check the constraints.<a href="#section-5-6.5.1" class="pilcrow">¶</a
 </li>
       </ol>
 <p id="section-5-7">Steps 2 and 3 are referred to as "sumcheck", and the rest as "commitment scheme".  While the classification of step 3 as "sumcheck" is  arbitrary, there are situations where one might want to use a commitment scheme other than the Ligero protocol specified in this document.  In this case, the "commitment scheme" can change while the "sumcheck" remains unaffected.<a href="#section-5-7" class="pilcrow">¶</a></p>
+<div id="parameters-needed-to-define-longfellow">
+<section id="section-5.1">
+        <h3 id="name-parameters-needed-to-define">
+<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-parameters-needed-to-define" class="section-name selfRef">Parameters needed to define Longfellow</a>
+        </h3>
+<p id="section-5.1-1">Longfellow is parameterized by a sumcheck protocol, a commitment protocol, and a Fiat-Shamir instantiation.
+A selection of all three defines a <code>Longfellow profile</code>. This document introduces one opinionated profile that
+uses (a) The longfellow sumcheck described below, (b) the Ligero commitment described above, (c) the Fiat-Shamir instantiation defined
+above and using SHA-256 as the function <code>H</code>.<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 <div id="sumcheck">
@@ -2751,27 +2780,31 @@ of those two equations, effectively operating on a combined
 quad <code>QZ = Q + beta * Z</code> for some random <code>beta</code>.<a href="#section-6.3.3-5" class="pilcrow">¶</a></p>
 <p id="section-6.3.3-6">To allow for a compact representation of the two quads without
 losing any real generality, the following conditions are imposed:<a href="#section-6.3.3-6" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-6.3.3-7.1">The two quads <code>Q</code> and <code>Z</code> are disjoint: for all layers <code>j</code> and output
+<ul class="normal">
+<li class="normal" id="section-6.3.3-7.1">
+              <p id="section-6.3.3-7.1.1">The two quads <code>Q</code> and <code>Z</code> are disjoint: for all layers <code>j</code> and output
 wire <code>g</code>, if any <code>Q[j][g, ., .]</code> are nonzero, then all <code>Z[j][g, ., .]</code>
-are zero, and vice versa.<a href="#section-6.3.3-7.1" class="pilcrow">¶</a>
+are zero, and vice versa.<a href="#section-6.3.3-7.1.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="section-6.3.3-7.2">
-              <code>Z</code> is binary: <code>Z[j][g, l, r] \in {0, 1}</code><a href="#section-6.3.3-7.2" class="pilcrow">¶</a>
+            <li class="normal" id="section-6.3.3-7.2">
+              <p id="section-6.3.3-7.2.1"><code>Z</code> is binary: <code>Z[j][g, l, r] \in {0, 1}</code><a href="#section-6.3.3-7.2.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 <p id="section-6.3.3-8">With these choices, the two quads allow a compact sparse
 representation as a single list of 4-tuples <code>(g, l, r, v)</code>
 with the following conventions:<a href="#section-6.3.3-8" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-6.3.3-9.1">If <code>v = 0</code>, the 4-tuple represents an element of <code>Z</code>,
-and <code>Z[j][g, l, r] = 1</code>.<a href="#section-6.3.3-9.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-6.3.3-9.1">
+              <p id="section-6.3.3-9.1.1">If <code>v = 0</code>, the 4-tuple represents an element of <code>Z</code>,
+and <code>Z[j][g, l, r] = 1</code>.<a href="#section-6.3.3-9.1.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="section-6.3.3-9.2">If <code>v != 0</code>, the 4-tuple represents an element of <code>Q</code>,
-and <code>Q[j][g, l, r] = v</code>.<a href="#section-6.3.3-9.2" class="pilcrow">¶</a>
+            <li class="normal" id="section-6.3.3-9.2">
+              <p id="section-6.3.3-9.2.1">If <code>v != 0</code>, the 4-tuple represents an element of <code>Q</code>,
+and <code>Q[j][g, l, r] = v</code>.<a href="#section-6.3.3-9.2.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="section-6.3.3-9.3">All other elements of <code>Q</code> and <code>Z</code> not specified by the list are
-zero.<a href="#section-6.3.3-9.3" class="pilcrow">¶</a>
+            <li class="normal" id="section-6.3.3-9.3">
+              <p id="section-6.3.3-9.3.1">All other elements of <code>Q</code> and <code>Z</code> not specified by the list are
+zero.<a href="#section-6.3.3-9.3.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 <p id="section-6.3.3-10">Moreover, this compact representation can be transformed into
@@ -3014,15 +3047,15 @@ suffices to keep track of affine symbolic expressions of the form
 <a href="#section-7" class="section-number selfRef">7. </a><a href="#name-serializing-objects" class="section-name selfRef">Serializing objects</a>
       </h2>
 <p id="section-7-1">This section explains how a proof consists of smaller, related objects, and how to serialize each such component.  First, the standard methods for serializing integers and arrays are used:<a href="#section-7-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-7-2.1">
-          <code>write_size(n)</code>: serializes an integer in [0, 2^{24} - 1] that represents the size of an array or an index into an array. The integer is serialized in little endian order.<a href="#section-7-2.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-7-2.1">
+          <p id="section-7-2.1.1"><code>write_size(n)</code>: serializes an integer in [0, 2^{24} - 1] that represents the size of an array or an index into an array. The integer is serialized in little endian order.<a href="#section-7-2.1.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="compact" id="section-7-2.2">
-          <code>write_array(arr)</code>: A variable-sized array is represented as <code>type array[]</code> and serialized by first writing its length as a size element, and then serializing each element of the array in order.<a href="#section-7-2.2" class="pilcrow">¶</a>
+        <li class="normal" id="section-7-2.2">
+          <p id="section-7-2.2.1"><code>write_array(arr)</code>: A variable-sized array is represented as <code>type array[]</code> and serialized by first writing its length as a size element, and then serializing each element of the array in order.<a href="#section-7-2.2.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="compact" id="section-7-2.3">
-          <code>write_fixed_array(arr)</code>: When the length of the array is explicitly known to be <code>n</code>, it is specified as <code>type array[n]</code> and in this case, the array length is not written first.<a href="#section-7-2.3" class="pilcrow">¶</a>
+        <li class="normal" id="section-7-2.3">
+          <p id="section-7-2.3.1"><code>write_fixed_array(arr)</code>: When the length of the array is explicitly known to be <code>n</code>, it is specified as <code>type array[n]</code> and in this case, the array length is not written first.<a href="#section-7-2.3.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <div id="serializing-structs">
@@ -3091,7 +3124,7 @@ suffices to keep track of affine symbolic expressions of the form
               <td class="text-right" rowspan="1" colspan="1">0x09</td>
             </tr>
             <tr>
-              <td class="text-left" rowspan="1" colspan="1">secp256</td>
+              <td class="text-left" rowspan="1" colspan="1">secp256k1</td>
               <td class="text-right" rowspan="1" colspan="1">0x0a</td>
             </tr>
             <tr>
@@ -3114,9 +3147,9 @@ The p384 prime is equal to 39402006196394479212279040100143613805079739270465446
 <a href="#section-7.2.1" class="section-number selfRef">7.2.1. </a><a href="#name-serializing-a-single-field-" class="section-name selfRef">Serializing a single field element</a>
           </h4>
 <p id="section-7.2.1-1">Unless specified otherwise, a field element, referred to as an <code>Elt</code>, is serialized to bytes in little-endian order. For example, a 256-bit element of the finite field F<sub>p256</sub> is serialized into 32-bytes starting with the least-significant byte.<a href="#section-7.2.1-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-7.2.1-2.1">
-              <code>write_elt(e, F)</code>: produces a byte encoding of a field element e in field F.<a href="#section-7.2.1-2.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-7.2.1-2.1">
+              <p id="section-7.2.1-2.1.1"><code>write_elt(e, F)</code>: produces a byte encoding of a field element e in field F.<a href="#section-7.2.1-2.1.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
@@ -3127,9 +3160,9 @@ The p384 prime is equal to 39402006196394479212279040100143613805079739270465446
 <a href="#section-7.2.2" class="section-number selfRef">7.2.2. </a><a href="#name-serializing-an-element-of-a" class="section-name selfRef">Serializing an element of a subfield</a>
           </h4>
 <p id="section-7.2.2-1">In some cases, when both Prover and Verifier can explicitly conclude that a field element belongs to a smaller subfield, then both parties can use a more efficient sub-field serialization method.   This optimization can be used when the larger field <code>F</code> is a field extension of a smaller field, and both parties can conclude that the serialized element belongs to the smaller subfield.<a href="#section-7.2.2-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-7.2.2-2.1">
-              <code>write_subfield(Elt e, F2, F1)</code>: produce a byte encoding of a field element e that belongs to a subfield F2 of field F1.<a href="#section-7.2.2-2.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="section-7.2.2-2.1">
+              <p id="section-7.2.2-2.1.1"><code>write_subfield(Elt e, F2, F1)</code>: produce a byte encoding of a field element e that belongs to a subfield F2 of field F1.<a href="#section-7.2.2-2.1.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
@@ -3294,63 +3327,58 @@ typedef Delta uint;
 </section>
 </div>
 <section id="section-10">
-      <h2 id="name-references">
-<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-references" class="section-name selfRef">References</a>
+      <h2 id="name-normative-references">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
       </h2>
-<section id="section-10.1">
-        <h3 id="name-normative-references">
-<a href="#section-10.1" class="section-number selfRef">10.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
-        </h3>
 <dl class="references">
-<dt id="RFC2119">[RFC2119]</dt>
-        <dd>
-<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="RFC4086">[RFC4086]</dt>
-        <dd>
+      <dd>
 <span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
 <dd class="break"></dd>
-<dt id="RFC6919">[RFC6919]</dt>
+<dt id="RFC2119">[RFC2119]</dt>
       <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6919">[RFC6919]</dt>
+    <dd>
 <span class="refAuthor">Barnes, R.</span>, <span class="refAuthor">Kent, S.</span>, and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"Further Key Words for Use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">RFC 6919</span>, <span class="seriesInfo">DOI 10.17487/RFC6919</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6919">https://www.rfc-editor.org/info/rfc6919</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
-<section id="section-10.2">
-        <h3 id="name-informative-references">
-<a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
-        </h3>
+<section id="section-11">
+      <h2 id="name-informative-references">
+<a href="#section-11" class="section-number selfRef">11. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+      </h2>
 <dl class="references">
-<dt id="GMR">[GMR]</dt>
-        <dd>
-<span class="refAuthor">Goldwasser, S.</span>, <span class="refAuthor">Micali, S.</span>, and <span class="refAuthor">C. Rackoff</span>, <span class="refTitle">"THE KNOWLEDGE COMPLEXITY OF INTERACTIVE PROOF SYSTEMS"</span>, <time datetime="1989" class="refDate">1989</time>. </dd>
-<dd class="break"></dd>
-<dt id="RFC6234">[RFC6234]</dt>
-        <dd>
-<span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">T. Hansen</span>, <span class="refTitle">"US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)"</span>, <span class="seriesInfo">RFC 6234</span>, <span class="seriesInfo">DOI 10.17487/RFC6234</span>, <time datetime="2011-05" class="refDate">May 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6234">https://www.rfc-editor.org/info/rfc6234</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="additivefft">[additivefft]</dt>
-        <dd>
-<span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="krs">[krs]</dt>
-        <dd>
-<span class="refAuthor">Khovratovich, D.</span>, <span class="refAuthor">Rothblum, R. D.</span>, and <span class="refAuthor">L. Soukhanov</span>, <span class="refTitle">"How to Prove False Statements: Practical Attacks on Fiat-Shamir"</span>, <time datetime="2025" class="refDate">2025</time>, <span>&lt;<a href="https://eprint.iacr.org/2025/118">https://eprint.iacr.org/2025/118</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="ligero">[ligero]</dt>
-        <dd>
-<span class="refAuthor">Ames, S.</span>, <span class="refAuthor">Hazay, C.</span>, <span class="refAuthor">Ishai, Y.</span>, and <span class="refAuthor">M. Venkitasubramaniam</span>, <span class="refTitle">"Ligero: Lightweight Sublinear Arguments Without a Trusted Setup"</span>, <time datetime="2022" class="refDate">2022</time>, <span>&lt;<a href="https://eprint.iacr.org/2022/1608">https://eprint.iacr.org/2022/1608</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="longfellow">[longfellow]</dt>
-        <dd>
-<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="rbr">[rbr]</dt>
       <dd>
 <span class="refAuthor">Canetti, R.</span>, <span class="refAuthor">Chen, Y.</span>, <span class="refAuthor">Holmgren, J.</span>, <span class="refAuthor">Lombardi, A.</span>, <span class="refAuthor">Rothblum, G.</span>, and <span class="refAuthor">R. Rothblum</span>, <span class="refTitle">"Fiat-Shamir From Simpler Assumptions"</span>, <time datetime="2018" class="refDate">2018</time>, <span>&lt;<a href="https://eprint.iacr.org/2018/1004">https://eprint.iacr.org/2018/1004</a>&gt;</span>. </dd>
 <dd class="break"></dd>
+<dt id="krs">[krs]</dt>
+      <dd>
+<span class="refAuthor">Khovratovich, D.</span>, <span class="refAuthor">Rothblum, R. D.</span>, and <span class="refAuthor">L. Soukhanov</span>, <span class="refTitle">"How to Prove False Statements: Practical Attacks on Fiat-Shamir"</span>, <time datetime="2025" class="refDate">2025</time>, <span>&lt;<a href="https://eprint.iacr.org/2025/118">https://eprint.iacr.org/2025/118</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6234">[RFC6234]</dt>
+      <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">T. Hansen</span>, <span class="refTitle">"US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)"</span>, <span class="seriesInfo">RFC 6234</span>, <span class="seriesInfo">DOI 10.17487/RFC6234</span>, <time datetime="2011-05" class="refDate">May 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6234">https://www.rfc-editor.org/info/rfc6234</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="GMR">[GMR]</dt>
+      <dd>
+<span class="refAuthor">Goldwasser, S.</span>, <span class="refAuthor">Micali, S.</span>, and <span class="refAuthor">C. Rackoff</span>, <span class="refTitle">"THE KNOWLEDGE COMPLEXITY OF INTERACTIVE PROOF SYSTEMS"</span>, <time datetime="1989" class="refDate">1989</time>. </dd>
+<dd class="break"></dd>
+<dt id="longfellow">[longfellow]</dt>
+      <dd>
+<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="additivefft">[additivefft]</dt>
+      <dd>
+<span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ligero">[ligero]</dt>
+    <dd>
+<span class="refAuthor">Ames, S.</span>, <span class="refAuthor">Hazay, C.</span>, <span class="refAuthor">Ishai, Y.</span>, and <span class="refAuthor">M. Venkitasubramaniam</span>, <span class="refTitle">"Ligero: Lightweight Sublinear Arguments Without a Trusted Setup"</span>, <time datetime="2022" class="refDate">2022</time>, <span>&lt;<a href="https://eprint.iacr.org/2022/1608">https://eprint.iacr.org/2022/1608</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 </dl>
-</section>
 </section>
 <div id="acknowledgements">
 <section id="appendix-A">
@@ -3375,24 +3403,28 @@ typedef Delta uint;
           <h4 id="name-vector-1">
 <a href="#appendix-B.1.1" class="section-number selfRef">B.1.1. </a><a href="#name-vector-1" class="section-name selfRef">Vector 1</a>
           </h4>
-<ul class="compact">
-<li class="compact" id="appendix-B.1.1-1.1">Leaves:
+<ul class="normal">
+<li class="normal" id="appendix-B.1.1-1.1">
+              <p id="appendix-B.1.1-1.1.1">Leaves:
 4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a
 dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986
 084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5
 e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71
-e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db<a href="#appendix-B.1.1-1.1" class="pilcrow">¶</a>
+e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db<a href="#appendix-B.1.1-1.1.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.1.1-1.2">Root: f22f4501ffd3bdffcecc9e4cd6828a4479aeedd6aa484eb7c1f808ccf71c6e76<a href="#appendix-B.1.1-1.2" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.1.1-1.2">
+              <p id="appendix-B.1.1-1.2.1">Root: f22f4501ffd3bdffcecc9e4cd6828a4479aeedd6aa484eb7c1f808ccf71c6e76<a href="#appendix-B.1.1-1.2.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.1.1-1.3">Proof for leaves (0,1):
+            <li class="normal" id="appendix-B.1.1-1.3">
+              <p id="appendix-B.1.1-1.3.1">Proof for leaves (0,1):
 084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5
-f03808f5b8088c61286d505e8e93aa378991d9889ae2d874433ca06acabcd493<a href="#appendix-B.1.1-1.3" class="pilcrow">¶</a>
+f03808f5b8088c61286d505e8e93aa378991d9889ae2d874433ca06acabcd493<a href="#appendix-B.1.1-1.3.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.1.1-1.4">Proof for leaves (1,3):
+            <li class="normal" id="appendix-B.1.1-1.4">
+              <p id="appendix-B.1.1-1.4.1">Proof for leaves (1,3):
 e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
 084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5
-4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a<a href="#appendix-B.1.1-1.4" class="pilcrow">¶</a>
+4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a<a href="#appendix-B.1.1-1.4.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
@@ -3409,14 +3441,18 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
           <h4 id="name-vector-1-2">
 <a href="#appendix-B.2.1" class="section-number selfRef">B.2.1. </a><a href="#name-vector-1-2" class="section-name selfRef">Vector 1</a>
           </h4>
-<ul class="compact">
-<li class="compact" id="appendix-B.2.1-1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.2.1-1.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="appendix-B.2.1-1.1">
+              <p id="appendix-B.2.1-1.1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.2.1-1.1.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.2.1-1.2">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field ID 6)<a href="#appendix-B.2.1-1.2" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.2.1-1.2">
+              <p id="appendix-B.2.1-1.2.1">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field ID 6)<a href="#appendix-B.2.1-1.2.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.2.1-1.3">Depth: 3 Quads: 11 Terms: 11<a href="#appendix-B.2.1-1.3" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.2.1-1.3">
+              <p id="appendix-B.2.1-1.3.1">Depth: 3 Quads: 11 Terms: 11<a href="#appendix-B.2.1-1.3.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.2.1-1.4">Serialization: 01060000010000010000020000040000020000040000ffffffffffffffffffffffffffefffff00000000000000000000000000f0ffff01000000000000000000000000000000fdffffffffffffffffffffffffefffff030000060000030000000000020000000000000000000000080000040000010000000000030000020000020000020000040000080000000000000000000000020000060000000000000000000000040000000000000000030000090000020000000000020000020000020000000000020000020000020000000000020000040000000000000000020000030000030000040000020000<a href="#appendix-B.2.1-1.4" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.2.1-1.4">
+              <p id="appendix-B.2.1-1.4.1">Serialization: 01060000010000010000020000040000020000040000ffffffffffffffffffffffffffefffff00000000000000000000000000f0ffff01000000000000000000000000000000fdffffffffffffffffffffffffefffff030000060000030000000000020000000000000000000000080000040000010000000000030000020000020000020000040000080000000000000000000000020000060000000000000000000000040000000000000000030000090000020000000000020000020000020000000000020000020000020000000000020000040000000000000000020000030000030000040000020000<a href="#appendix-B.2.1-1.4.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
@@ -3433,14 +3469,18 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
           <h4 id="name-vector-1-3">
 <a href="#appendix-B.3.1" class="section-number selfRef">B.3.1. </a><a href="#name-vector-1-3" class="section-name selfRef">Vector 1</a>
           </h4>
-<ul class="compact">
-<li class="compact" id="appendix-B.3.1-1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.3.1-1.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="appendix-B.3.1-1.1">
+              <p id="appendix-B.3.1-1.1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.3.1-1.1.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.3.1-1.2">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field id 6)<a href="#appendix-B.3.1-1.2" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.3.1-1.2">
+              <p id="appendix-B.3.1-1.2.1">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field id 6)<a href="#appendix-B.3.1-1.2.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.3.1-1.3">Fiat-Shamir initialized with<a href="#appendix-B.3.1-1.3" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.3.1-1.3">
+              <p id="appendix-B.3.1-1.3.1">Fiat-Shamir initialized with<a href="#appendix-B.3.1-1.3.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.3.1-1.4">Serialization: 90e734c42b5f14ee432a0ed95ba2ada05c3f9ecc9b026ded61f00bf57434f93c6f70e9c8b6e3de005ba8b4da93b5fa35fc3efae1e6068399c7f7d009ab5a2711084c97cd5a6e28dd30c598907b328d81915e487c34dbf80aa5da14f0621011a33d838a7b0d9a03533c63c6606f5360f88cf97c728630afdcb9755894a6f5c9068e1fc29f97efc125ba580de64089c6e72433de2a3267b90daeaf418ac8a3df3bbddc6cb141c764c8262346baac2e28033778b1a71f153ba571e80ab29951f9440ba93fede225a35accf6e0114d5240ae92df02d2870e5258ebba416f3d815e1554b05627998fc9d3bf354b89394b27b39f69c6538dbc968a779369e47f214252e0955624e9f4d6dc2a95cf41c57703b8749b959315458d4076f0daf5fdbde23e16c10394ac884ab9cad0782e8f472cb4edb69682d17465363691aafc31b83cd764fb909b50e2fe907fd2137566ddb8c47cc13974957e7f76180860571035f7a4d2658a82e1be8fe155353bc10feae9541365926f0646b4a5351907cbd5d9dbb4<a href="#appendix-B.3.1-1.4" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.3.1-1.4">
+              <p id="appendix-B.3.1-1.4.1">Serialization: 90e734c42b5f14ee432a0ed95ba2ada05c3f9ecc9b026ded61f00bf57434f93c6f70e9c8b6e3de005ba8b4da93b5fa35fc3efae1e6068399c7f7d009ab5a2711084c97cd5a6e28dd30c598907b328d81915e487c34dbf80aa5da14f0621011a33d838a7b0d9a03533c63c6606f5360f88cf97c728630afdcb9755894a6f5c9068e1fc29f97efc125ba580de64089c6e72433de2a3267b90daeaf418ac8a3df3bbddc6cb141c764c8262346baac2e28033778b1a71f153ba571e80ab29951f9440ba93fede225a35accf6e0114d5240ae92df02d2870e5258ebba416f3d815e1554b05627998fc9d3bf354b89394b27b39f69c6538dbc968a779369e47f214252e0955624e9f4d6dc2a95cf41c57703b8749b959315458d4076f0daf5fdbde23e16c10394ac884ab9cad0782e8f472cb4edb69682d17465363691aafc31b83cd764fb909b50e2fe907fd2137566ddb8c47cc13974957e7f76180860571035f7a4d2658a82e1be8fe155353bc10feae9541365926f0646b4a5351907cbd5d9dbb4<a href="#appendix-B.3.1-1.4.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
@@ -3457,39 +3497,53 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
           <h4 id="name-vector-1-4">
 <a href="#appendix-B.4.1" class="section-number selfRef">B.4.1. </a><a href="#name-vector-1-4" class="section-name selfRef">Vector 1</a>
           </h4>
-<ul class="compact">
-<li class="compact" id="appendix-B.4.1-1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.4.1-1.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="appendix-B.4.1-1.1">
+              <p id="appendix-B.4.1-1.1.1">Description: Circuit C(n, m, s) = 0 if and only if n is the m-th s-gonal number in F_p128.  This circuit verifies that 2n = (s-2)m^2 - (s - 4)*m.<a href="#appendix-B.4.1-1.1.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.4.1-1.2">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field id 6)<a href="#appendix-B.4.1-1.2" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.4.1-1.2">
+              <p id="appendix-B.4.1-1.2.1">Field: 2<sup>128</sup> - 2<sup>108</sup> + 1 (Field id 6)<a href="#appendix-B.4.1-1.2.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.4.1-1.3">Witness vector: [1, 45, 5, 6]<a href="#appendix-B.4.1-1.3" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.4.1-1.3">
+              <p id="appendix-B.4.1-1.3.1">Witness vector: [1, 45, 5, 6]<a href="#appendix-B.4.1-1.3.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.4.1-1.4">Pad elements: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4]<a href="#appendix-B.4.1-1.4" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.4.1-1.4">
+              <p id="appendix-B.4.1-1.4.1">Pad elements: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4]<a href="#appendix-B.4.1-1.4.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.4.1-1.5">
+            <li class="normal" id="appendix-B.4.1-1.5">
               <p id="appendix-B.4.1-1.5.1">Parameters:<a href="#appendix-B.4.1-1.5.1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="appendix-B.4.1-1.5.2.1">NREQ: 6<a href="#appendix-B.4.1-1.5.2.1" class="pilcrow">¶</a>
+<ul class="normal">
+<li class="normal" id="appendix-B.4.1-1.5.2.1">
+                  <p id="appendix-B.4.1-1.5.2.1.1">NREQ: 6<a href="#appendix-B.4.1-1.5.2.1.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="compact" id="appendix-B.4.1-1.5.2.2">RATE: 4<a href="#appendix-B.4.1-1.5.2.2" class="pilcrow">¶</a>
+                <li class="normal" id="appendix-B.4.1-1.5.2.2">
+                  <p id="appendix-B.4.1-1.5.2.2.1">RATE: 4<a href="#appendix-B.4.1-1.5.2.2.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="compact" id="appendix-B.4.1-1.5.2.3">WR: 20<a href="#appendix-B.4.1-1.5.2.3" class="pilcrow">¶</a>
+                <li class="normal" id="appendix-B.4.1-1.5.2.3">
+                  <p id="appendix-B.4.1-1.5.2.3.1">WR: 20<a href="#appendix-B.4.1-1.5.2.3.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="compact" id="appendix-B.4.1-1.5.2.4">QR: 2<a href="#appendix-B.4.1-1.5.2.4" class="pilcrow">¶</a>
+                <li class="normal" id="appendix-B.4.1-1.5.2.4">
+                  <p id="appendix-B.4.1-1.5.2.4.1">QR: 2<a href="#appendix-B.4.1-1.5.2.4.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="compact" id="appendix-B.4.1-1.5.2.5">NROW: 7<a href="#appendix-B.4.1-1.5.2.5" class="pilcrow">¶</a>
+                <li class="normal" id="appendix-B.4.1-1.5.2.5">
+                  <p id="appendix-B.4.1-1.5.2.5.1">NROW: 7<a href="#appendix-B.4.1-1.5.2.5.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="compact" id="appendix-B.4.1-1.5.2.6">NQ: 1<a href="#appendix-B.4.1-1.5.2.6" class="pilcrow">¶</a>
+                <li class="normal" id="appendix-B.4.1-1.5.2.6">
+                  <p id="appendix-B.4.1-1.5.2.6.1">NQ: 1<a href="#appendix-B.4.1-1.5.2.6.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="compact" id="appendix-B.4.1-1.5.2.7">BLOCK: 51<a href="#appendix-B.4.1-1.5.2.7" class="pilcrow">¶</a>
+                <li class="normal" id="appendix-B.4.1-1.5.2.7">
+                  <p id="appendix-B.4.1-1.5.2.7.1">BLOCK: 51<a href="#appendix-B.4.1-1.5.2.7.1" class="pilcrow">¶</a></p>
 </li>
               </ul>
 </li>
-            <li class="compact" id="appendix-B.4.1-1.6">Commitment: 738d2ffb3a8bf24e7aedb94be59041fb2dc13da30fe6b05ebe5126ef8fc36ec2<a href="#appendix-B.4.1-1.6" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.4.1-1.6">
+              <p id="appendix-B.4.1-1.6.1">Commitment: 738d2ffb3a8bf24e7aedb94be59041fb2dc13da30fe6b05ebe5126ef8fc36ec2<a href="#appendix-B.4.1-1.6.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.4.1-1.7">Proof size: 3180 bytes<a href="#appendix-B.4.1-1.7" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.4.1-1.7">
+              <p id="appendix-B.4.1-1.7.1">Proof size: 3180 bytes<a href="#appendix-B.4.1-1.7.1" class="pilcrow">¶</a></p>
 </li>
-            <li class="compact" id="appendix-B.4.1-1.8">Proof: fa8d88a73b3a0f9c067658c45bb394a602000000000000000000000000000000fa8d8...2cd5f61cd2b2eb84c79e1707cbad0048fcd820c716584f31991cf1628fb041<a href="#appendix-B.4.1-1.8" class="pilcrow">¶</a>
+            <li class="normal" id="appendix-B.4.1-1.8">
+              <p id="appendix-B.4.1-1.8.1">Proof: fa8d88a73b3a0f9c067658c45bb394a602000000000000000000000000000000fa8d8...2cd5f61cd2b2eb84c79e1707cbad0048fcd820c716584f31991cf1628fb041<a href="#appendix-B.4.1-1.8.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
