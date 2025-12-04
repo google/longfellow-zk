@@ -24,20 +24,22 @@ A tree that contains `n` leaves is represented by an array of `2 * n` message di
 ### Constructing a Merkle tree from `n` digests
 
 ```
-struct {
-   Digest a[2 * n]
-} MerkleTree
+class MerkleTree:
+    def __init__(self, n):
+        self.n = n
+        self.a = [b''] * (2 * n)
 
-def set_leaf(M, pos, leaf) {
-  assert(pos < M.n)
-  M.a[pos + n] = leaf
-}
+    def set_leaf(self, pos, leaf):
+        assert 0 <= pos < self.n, f"{pos} is out of bounds"
+        self.a[pos + self.n] = leaf
 
-def build_tree(M) {
-  FOR M.n < i <= 1 DO
-    M.a[i] = hash(M.a[2 * i] || M.a[2 * i + 1])
-  return M.a[1]
-}
+    def build_tree(self):
+        for i in range(self.n - 1, 0, -1):
+            left = self.a[2 * i]
+            right = self.a[2 * i + 1]s
+            self.a[i] = hash(left + right)
+
+        return self.a[1]
 ```
 
 ### Constructing a proof of inclusion
@@ -48,72 +50,77 @@ To address these inefficiencies, this section explains how to produce a batch pr
 It is important in this formulation to treat the input digests as a sequence, i.e. with a given order. Both the prover and verifier of this batch proof must use the same order of the `requested_leaves` array.
 
 ```
-def compressed_proof(M, requested_leaves[], n) {
-  marked = mark_tree(requested_leaves, n)
-  FOR n < i <= 1 DO
-    IF (marked[i]) {
-      child = 2 * i
-      IF (marked[child]) {
-        child += 1
-      }
-      IF (!marked[child]) {
-        proof.append(M.a[child])
-      }
-    }
-  return proof
-}
+    def mark_tree(self, requested_leaves):
+        marked = [False] * (2 * self.n)
 
-def mark_tree(requested_leaves[], n) {
-  bool marked[2 * n]   // initialized to false
+        for i in requested_leaves:
+            assert 0 <= i < self.n, f"invalid requested index {i}"
+            marked[i + self.n] = True
 
-  for(index i : requested_leaves)
-    marked[i + n] = true
+        for i in range(self.n - 1, 0, -1):
+            marked[i] = marked[2 * i] or marked[2 * i + 1]
 
-  FOR n < i <= 1 DO
-    // mark parent if child is marked
-    marked[i] = marked[2 * i] || marked[2 * i + 1];
+        return marked
 
-  return marked
-}
+    def compressed_proof(self, requested_leaves):
+        proof = []
+        marked = self.mark_tree(requested_leaves)
+        for i in range(self.n - 1, 0, -1):
+            if marked[i]:
+                child = 2 * i
+
+                # If the left child is marked, we need the right child.
+                if marked[child]:
+                    child += 1
+
+                # If the identified child/sibling is NOT marked,
+                # add its hash to the proof so the verifier can calculate the parent.
+                if not marked[child]:
+                    proof.append(self.a[child])
+
+        return proof
 ```
 
 ### Verifying a proof of inclusion
-This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment `root` defines an `n`-leaf Merkle tree that contains `k` digests s[0],..s[k-1] at corresponding indicies i[0],...i[k-1]."  The strategy of this verification procedure is to deduce which nodes are needed along the `k` verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the `root` digest. As an optimization, the `defined[]` array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of `k=0` digests is defined to fail. It is assumed that the `indicies[]` array does not contain duplicates.
+This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment `root` defines an `n`-leaf Merkle tree that contains `k` digests `s[0], ...,s[k-1]` at corresponding indicies `i[0], ...,i[k-1]`."  The strategy of this verification procedure is to deduce which nodes are needed along the `k` verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the `root` digest. As an optimization, the `defined[]` array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of `k=0` digests is defined to fail. It is assumed that the `indicies[]` array does not contain duplicates.
 
 ```
-def verify_merkle(root, n, k,  s[], indicies[], proof[]) {
-  tmp = []
-  defined = []
+    def verify_merkle(self, root, n, k, s, indices, proof):
+        tmp = [None] * (2 * n)
+        defined = [False] * (2 * n)
 
-  proof_index = 0
-  marked = mark_tree(indicies, n)
-  FOR n < i <= 1 DO
-    if (marked[i]) {
-      child = 2 * i
-      if (marked[child]) {
-        child += 1
-      }
-      if (!marked[child]) {
-        if proof_index > |proof| {
-          return false
-        }
-        tmp[child] = proof[proof_index++]
-        defined[child] = true
-      }
-    }
+        proof_index = 0
 
-  FOR 0 <= i < k DO
-    tmp[indicies[i] + n] = s[i]
-    defined[indicies[i] + n] = true
+        if n != self.n: return False
 
-  FOR n < j <= 1 DO
-    if defined[2 * i] && defined[2 * i + 1] {
-      tmp[i] = hash(tmp[2 * i] || tmp[2 * i + 1])
-      defined[i] = true
-    }
+        marked = self.mark_tree(indices)
 
-  return defined[1] && tmp[1] = root
-}
+        for i in range(n - 1, 0, -1):
+            if marked[i]:
+                child = 2 * i
+                if marked[child]:
+                    child += 1
+
+                if not marked[child]:
+                    if proof_index >= len(proof):
+                        return False
+                    tmp[child] = proof[proof_index]
+                    proof_index += 1
+                    defined[child] = True
+
+        for i in range(k):
+            pos = indices[i] + n
+            tmp[pos] = s[i]
+            defined[pos] = True
+
+        for i in range(n - 1, 0, -1):
+            if defined[2 * i] and defined[2 * i + 1]:
+                left = tmp[2 * i]
+                right = tmp[2 * i + 1]
+                tmp[i] = hash(left + right)
+                defined[i] = True
+
+        return defined[1] and (tmp[1] == root)
 ```
 
 ## Common parameters
@@ -288,6 +295,8 @@ def layout_quadratic_rows(T, w, lqc[]) {
 ## Ligero Prove
 This section specifies how a Ligero proof for a given sequence of linear constraints and quadratic constraints on the committed witness vector `W` is constructed. The proof consists of a low-degree test on the tableau, a linearity test, and a quadratic constraint test.
 
+
+
 ### Low-degree test
 In the low-degree test, the verifier sends a challenge vector consisting of `NROW` field elements, `u[0..NROW]`.  This challenge is generated via the Fiat-Shamir transform. The prover computes the sum of `u[i]*T[i]` where `T[i]` is the i-th row of the tableau, and returns the first BLOCK elements of the result. The verifier applies the `extend` method to this response, and then verifies that the extended row is consistent with the positions of the Merkle tree that the verifier will later request from the Prover.
 
@@ -304,11 +313,14 @@ In this sense, the quadratic constraints are reduced to linear constraints, and 
 The last step of the prove method is for the verifier to select a subset of unique indicies (i.e., they are sampled without replacement) from the range `DBLOCK...NCOL` and request that the prover open these columns of tableau `T`. These opened columns are then used to verify consistency with the previous messages sent by the prover.
 
 ### Ligero Prover procedure
+The `context` argument is application-dependent and includes information about the theorem statement that is proven.
+
 ```
-def prove(transcript, digest, linear[], lqc[])  {
+def prove(transcript, context, linear[], lqc[])  {
+
+    transcript.write(context)
 
     u = transcript.generate_challenge([BLOCK]);
-    transcript.write(digest)
 
     ldt[0..BLOCK] = T[ILDT][0..BLOCK]
 
