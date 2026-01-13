@@ -25,31 +25,9 @@ This section contains test vectors. Each test vector in specifies the configurat
 
 Let `p=115792089237316195423570985008687907853269984665640564039457584007908834671663` and `Fp` be the 4-word field defined by `p`.
 
+### Vector 1: WriteBytes
 
-### Vector 1: WriteAll
-
-- Description: Using `Fp`, the test steps are to (a) initialize the transcript object with the 4-byte string `test`, (b) write an array of bytes of size 100 that contains the integers 0, 1, 2, ..., 99, write the field element '7', write the 2-long array of field elements `[8, 9]`, and
-finally (c) generate 16 field elements.  The field elements should be:
-  - 0x9c9d62aa71f49f996a3579631f28cfb58d47177e58245b260571738893d2d156
-  - 0xada427bb3f99541766d3d542587307bc5d84e3fde9ae328568797bac1499b446
-  - 0x77f02b641fbd89b6d6d9d4a0f941bae6eafabee54a70e654b4546a543c15e5bd
-  - 0x6ac559513811b95584af9ce3ca73cea07739199ef44163072695c212ab6f7964
-  - 0x6edf6128a50daf1c03fc67d720ee529a4a01d8e594d0eaa1b5189eb0df898ca4
-  - 0x0c1212524eac26560099c197d2412c840992b5a7c3a39341d36a1fec62e9bc55
-  - 0x0bba75f82ad1e76b9398ed1fffcc52d2bf413c31e691ff7134b0a33c0de1a236
-  - 0xe8a3426744c4e2101c254f8b174383deb33e9537a30375e8fe652a02254c4df4
-  - 0xf7c7bafe0efc325b9e7e579294c0c370b3e17466d91c22b215b7e73544b6bf50
-  - 0xa1eaac6e545f28bab1579911c7ea000b7c4cf42202eb3ba3d304eaecfc79b8b8
-  - 0x3fcd8c478cdca3ca9a37b8ec44386c32db658a51cc740d4fec99129c7cc65ad5
-  - 0xf7c454d8385b4d8c13a4c37a00d63f0db4d39939759397073b501f32556c8418
-  - 0x28912d46813691ed86163864eb723017ce07fdf45881a0b96234b2813b557e08
-  - 0x5ec633319eaaf202af7207d544251ebcd205dc29415506eabae29770f6f16455
-  - 0xdaeb005a647c61dbbf9328317ac1e40b1f467dc343da1d175899a774f8cb87a3
-  - 0xb3cb99cde603369ce86e4c030f94566b6d023aa4269fc8983e40bd08de5c7fbd
-
-### Vector 2: WriteByteArray
-- Using `Fp`, the test steps are to (a) initialize the transcript object with the 4-byte string `test`, (b) write an array of bytes of size 100 that contains the integers 0, 1, 2, ..., 99, and finally (c) generate 16 field elements:
-
+- Description: Using `Fp`, the test steps are to (a) initialize the transcript object with the 4-byte string `test`; (b) write an array of bytes of size 100 that contains the integers 0, 1, 2, ..., 99;  (c) generate 16 field elements:
   - 0x8b297f0bffd583c6c6b6796385d5fd20a08665733b833970ebdd1054bbbc1b14
   - 0x0667c08ad7f38efec5f30dc8aa4f20d749cdcf96d63a770f9810ac5c0ca8dcb1
   - 0xc8037fc12d4da00b5dc7597e3042f33f72a06f970cb71fb6b103ebb5419d8a6b
@@ -67,48 +45,58 @@ finally (c) generate 16 field elements.  The field elements should be:
   - 0x976353931711c634f2691e507b119fd7f6e653d419a2620676122db08db18765
   - 0x332729ab436dca654866a9382deaee0add6fb7e90a80261f1488e56598e8bc99
 
+### Vector 2: WriteFieldElement
+-  Starting from the state at the end of Vector 1, (a) write the field element '7' in Fp; (b) generate 16 field elements
 
-### Vector 3: WriteFieldElement
--  Using `Fp`, the test steps are to (a) initialize the transcript object with the 4-byte string `test`, (b) write the field element '7'
-and finally (c) generate 16 field elements
+  - 0x609db3e9a8f548df038519fa46cef23eb8c6553d3c1f698604e60a51613a738e
+  - 0x1cb69cb31999eb88e83c7586aac53f5e3286b084b0cf9e43619b48df01e0a310
+  - 0x3bf36e3ddc690a1b12b417628c115959b373d056c90c42dc2417baf46f538868
+  - 0xe336594f29dcda52e48896517b5cdb2d062ffd861ab02db5f8ca197aacc635f6
+  - 0xc1f396a8bad16bb0f57da6d380402a25b571bd4691226d11449a741440e325c8
+  - 0x5195336ec73751de066e3a8939b40c3c5555f1a513486dfc50dcf4c2d47e6ff2
+  - 0x8dcf872f3ded2b7ed1d1ee9a2b125bedc6eacd3c09b3a4a5286d8fc2fc3a6634
+  - 0x950dd2ef7be25eab686a6688497962ee4ad521da12b9ff3d8e56ad9435885b12
+  - 0xe14389d1d8448678cac33fdbc9aab20dba019e75149d170dd2f353891cd4b84f
+  - 0xe84906c09cd6423865baf64e48027cc598d52bdb90b17524c87ea892e53b5200
+  - 0x493cea587f1ec5622c04221cd6e5a41c26c1c1c24c0375f7aaa367d9678d83bc
+  - 0x5aca0010aced30bcb3b84a7f10ea39c4269ab7c92fcb6cff52958d8921ef2cc5
+  - 0x4498fa8340f41467c0fa813bd0ca83ef6e1c4b85c7b1168a94339fd9e8296139
+  - 0xf9a95b738a8e775421b1baa503abbeed2d283b236ebba25e1954b3c993d30a3d
+  - 0x98178711d03a0b1204ebb56b37bd3a2724dfb08e4dc925609391768b126d21f2
+  - 0x79251f49534f5c4b10b798b2dbf6e80a3b07593f616ce6a9617ccc61040aac78
 
-  - 0x79dbf7dcaadb98df53c37f79a27d83ce183df6ac0e09d9b9c94d90bdc397267e
-  - 0x6e1310e73726e68e7dc2d187cb88482f4230bc9347c90e040bbf50db2ed969b7
-  - 0xf6045a731e0734126c6ebd450c2f6d4a25ff181fa669a2ba9a27cf3c89099f94
-  - 0x3ea763e44d31e2affa8756106d6d756fd214287070b74ac75736096dad6ddc5a
-  - 0xafc7ef2406665ebe9591ee90b61606811ff86a836d2656e3326638f3de6de79f
-  - 0x756ea3b644ef82b92ec05b2d0247c108841e524d170d0c8444662e435c592031
-  - 0xa3309c8b0effdbe00dc7e32069751e5d2ea42c57bd5edda4a926eebfe544defb
-  - 0xb5892b1d967bba61faf40df6326c2d6c3d9bd0de196292278d5872a6a0cd8dfe
-  - 0x4402a2bbca75741b36e5576960abe050f8a7ba2a40708d4c399311054ad98a10
-  - 0xa7618dc260c840a7e7a73cff97e3aac3a9ef43b308e67cd205c0f744a64a8781
-  - 0xf88ac012402776fef8b47a12157b36e237fc7a58ed807b9d416c3ac07e20c104
-  - 0x08e3b0abae0dff1be9e610db25468905aaa7e88175367f815e69a3a515edba1a
-  - 0x1ecc211d37a4de8a310f1f3cc434112d105ae875300739c5485626820575c7f5
-  - 0xf2940f2aa7e29ee971c13af8d22f78d2464874fd76f049616fffb6dc76e043cd
-  - 0xb15df6859bb1b5145717aa346f395798625ca0af8ff6aaa31cdacab4a3891da5
-  - 0xbd9b4e85d27ff6e6e7983891e177eb25e8a6a5ecf3e1fd04e4f08c520eff6e7b
+### Vector 3: WriteFieldElementArray
+- Starting from the state at the end of Vector 2, (a) write the 2-long array of field elements `[8, 9]`; (b) generate 16 field elements:
 
-### Vector 4: WriteFieldElementArray
-- Description: Using `Fp`, the test steps are to (a) initialize the transcript object with the 4-byte string `test`, (b) write the 2-long array of field elements `[8, 9]`
-and finally (c) generate 16 field elements:
+  - 0xae1a921288590205fc24543303ff527476359b8db4a983b2886a133b02f3217e
+  - 0x8c5d52a04b295f9fdb45ab66100fa00ca32c9634aa87cbbdb2bc3e1912459feb
+  - 0x12f82963b5b242156f6e9eb756eddee7652b60c7d6394403f7bd995e0b9bcd9c
+  - 0x880aa50b049b3939055deb7933749d338bb3fb5f64a9adf95019e6cfc232995c
+  - 0xf8558f693f0fa6df20a37147a898fb4c678831f566d80113bbe2cdcd18285da2
+  - 0xbbcc8d9b46f88bc8c6cec0ad2d5e49508b7db91d548548eddc61800de1329e1c
+  - 0x479a17244398caae8155a73438a22583df7de10a8a2e12ad53ddd3bc7305fac9
+  - 0x9ba1917f1227932250288a843f64b4e7b7f47a5fbc16c111f6e1f76235ccf38c
+  - 0xd1582138045d1636fb7f677c9e8a4a4143ce2b2bb54fb4f49fb0ad1fee5df6b4
+  - 0x5331e5b8508f79c017a8dfbbb805f3f8c5e3e4bc417e44849b9212439646331
+  - 0xb6b95862194ca52dcaa9ee651b7fc5b708f43feae108bb9a7f95213f4d069048
+  - 0xe86b1602f0a54c4e237867ebaf05e7581464fd238e50f6ed9c3cea63909c8e60
+  - 0xb7280439f3b21b113ff29cefe39292d5e2d137709c3d3cec36473a0f97a24e62
+  - 0xbeaa5e08257d232506fb3e46c6daa29e0859c34c7d0cd673bc6706ee261ae059
+  - 0x691ead55728cd087a1952b22b6628ba4e26fbefc8debeec5e6fbc3a16f637be
+  - 0x47dc31f6d8bc9c44290781176df3e4b95ac8793a4a42fa5859c564d92d6d5af5
 
-  - 0xdceeffa746fa8d6733d54e90d107f219e8c54ccf95bcd038f5dc0be89d756f1c
-  - 0x4e92ffec4e426b8d78b04c4b73b3b1649e154cb73f929ae5835af23a7784c3da
-  - 0xd529ca59cb04d8015924c31148130a3b37093fa1d67b894d0dacaad68f1f3bf2
-  - 0xc830d695e0a3f69e5bd7df4298b2c3a5c345bba6de89edfbc3d1255640823c77
-  - 0x589ab4ce35561d8a717557ea47aa8fc8a318ae79c1a78dcfca89a77b64c3bffe
-  - 0xba9c43ed7fa666b9d2b5c2f13eca365ac0a8bfb3eaf66e739b3e4afae9bce824
-  - 0x970c4fb3d48f76d1ee27c8e12d5c81632c736ecc12436c115a15f76ce6a01cbc
-  - 0x1fd18d8cc8ee9ed717d4da6da5ef2779a8c7e5cc44d10aa4c8e71f4064a310c4
-  - 0x23ef27bc299da254427d8cade2256c0078f1a820a267784c663bf14b1ab643d5
-  - 0xe11c54a3a5c75dda77bbece74f9a0fa58e915f927027921b4189a29296f773fd
-  - 0x54c8300bfa2a9fc98f8e975c0fe3dd93c8f19b0466aa490762c5653a7ed1798f
-  - 0x87df7994955345d30ac9a84c7bfdc00f9ec5fa54620a47eb43df05ea9e7fcd89
-  - 0x3dfdc0ad656f225fdf105b3f226fd6117a3c63be174114a4c30fa7ed6e98537a
-  - 0x77e46ff1c83ed47d4845e13f5660e27b319b85073e1621e2a40d92f7c2ab298e
-  - 0x19a19a13fb10140fbd6e76c252e4339e4e306b1f7d4d1d2f275525eb3b367b9c
-  - 0x95beabd1f934fba041db42142d731f1e5b54cc92ec64cb7d61c01cef85a8b300
+### Vector 4: Nat
+- Starting from the state at the end of Vector 3, (a) write the 4-byte string "nats"; (b) call `generate_nat` with the following list of parameters: `[1, 1, 1, 2, 2, 2, 7, 7,7, 7, 32, 32, 32, 32, 256, 256, 256, 256, 1000, 10000, 60000, 65535, 100000, 100000]`. The result of each call should correspond to the list of results:
+  - `[0, 0, 0, 0, 0, 0, 3, 0, 4, 5, 10, 30, 27, 22, 100, 189, 3, 92, 999, 3105, 40886, 51590, 56367, 10678]`
+
+### Vector 5: Choice
+- Starting from the state at the end of Vector 4, (a) write the 6-byte string "choice"; (b) perform the following calls to `generate_natgenerate_nats_wo_replacement`
+  - `m=31, k=20`:  `[10, 29, 30, 11, 4, 15, 16, 28, 19, 21, 25, 18, 17, 3, 5, 23, 24, 22, 6, 1]`
+  - `m=32, k=20`: `[3, 17, 18, 8, 30, 7, 14, 19, 25, 23, 12, 4, 31, 16, 0, 6, 20, 27, 11, 10]`
+  - `m=63, k=20`: `[9, 56, 61, 45, 35, 53, 51, 3, 39, 32, 31, 6, 59, 58, 54, 22, 27, 62, 55, 19]`
+  - `m=64, k=20`: `[12, 52, 39, 17, 51, 38, 58, 2, 28, 27, 46, 63, 61, 50, 40, 55, 47, 13, 56, 32]`
+  - `m=1000, k=20`: `[157, 668, 572, 138, 913, 994, 797, 249, 440, 723, 489, 241, 383, 108, 710, 341, 406, 585, 42, 692]`
+  - `m=65535, k=20`: `[40745, 48408, 17108, 44500, 53993, 10008, 24910, 52200, 61265, 54989, 41237, 25958, 28697, 61187, 34729, 3525, 9005, 38627, 9724, 12169]`
 
 ## Test Vectors for Circuit
 
