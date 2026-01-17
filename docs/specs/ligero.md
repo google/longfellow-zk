@@ -124,6 +124,7 @@ The Prover and Verifier in Ligero must agree on the following parameters. These 
 - `rate`: The inverse rate of the error correcting code. This parameter, along with `NREQ` and Field size, determines the soundness of the scheme.
 - `BLOCK`: the size of each row, in terms of number of field elements
 - `DBLOCK`: 2 * `BLOCK` - 1
+- `NW`: total number of witnesses
 - `WR`: the number of witness values included in each row.
 - `QR`: the number of quadratic constraints written in each row
 - `IW`: Row index at which the witness values start, usually IW = 2.
@@ -132,8 +133,8 @@ The Prover and Verifier in Ligero must agree on the following parameters. These 
 - `NQ`: Number of quadratic constraints.
 - `NWROW`: Number of rows used to encode witnesses.
 - `NQT`: Number of row triples needed to encode the quadratic constraints.
-- `NQW`: `NWROW + NQT`, rows needed to encode witnesses and quadratic constraints.
-- `NROW`: Total number of rows in the witness matrix, `NQW + 2`
+- `NQW`: `NWROW + 3 * NQT`, rows needed to encode witnesses and quadratic constraints.
+- `NROW`: Total number of rows in the witness matrix, `NQW + 3`
 - `NCOL`: Total number of columns in the tableau matrix.
 
 A row of the tableau consists of
@@ -144,12 +145,10 @@ A row of the tableau consists of
 ### Constraints on parameters
 
 - `BLOCK < |F|` The block size must be smaller than the field size.
-- `BLOCK > NREQ` The block size must be larger than the number of columns requested.
 - `BLOCK = NREQ + WR`
-
-- `BLOCK >= 2 * (NREQ + QR) + (NREQ + WR) - 2`
 - `WR >= QR`.
-- `BLOCK >= 2 * (NREQ + WR) - 1`.
+- `DBLOCK = 2 * (NREQ + WR) - 1`.
+- `NCOL = DBLOCK + ceil (BLOCK / rate)`. 
 - `QR >= NREQ` (and thus `WR >= NREQ`) to avoid wasting too much space.
 
 ## Ligero commitment
@@ -178,9 +177,11 @@ This tableau matrix is constructed row-by-row by applying the extend procedure t
     The first step can be performed by selecting DBLOCK-1 random
     field elements, and then setting element of the specified range to be the additive inverse of the sum of elements from NREQ...NREQ + WR - 1.
 1)  The third IQD row is defined as 
-        ZQ = RANDOM[DBLOCK]
+
+        ZQ = RANDOM[DBLOCK] subject to
         ZQ[NREQ ... NREQ + WR - 1] = 0
         extend(ZQ, DBLOCK, NCOL)
+        
     by first selecting DBLOCK random field elements, and then setting the
     portion coresponding to the witness values to 0 and then applying extend.
         
@@ -233,7 +234,9 @@ def commit(W[], lqc[]) {
 
     return M.build_tree();
 }
+```
 
+```
 def layout_zk_rows(T) {
     T[0][0..NCOL] = extend(random_row(BLOCK), BLOCK, NCOL);
 
@@ -273,15 +276,15 @@ def layout_quadratic_rows(T, w, lqc[]) {
       qz[0..NREQ] = random_row(NREQ)
 
       FOR 0 <= j < BLOCK  DO
-        IF (j + i * Q < NQ)
+        IF (j + i * QR < NQ)
           assert( W[ lqc[j].x ] * W[ lqc[j].x ] == W[ lqc[j].z ] )
           qx[NREQ + j] = W[ lqc[j].x ]
           qy[NREQ + j] = W[ lqc[j].y ]
           qz[NREQ + j] = W[ lqc[j].z ] 
 
-      T[IQ + i * NQT    ][0..NCOL] = extend(qx, BLOCK, NCOL)
-      T[IQ + i * NQT + 1][0..NCOL] = extend(qy, BLOCK, NCOL)
-      T[IQ + i * NQT + 2][0..NCOL] = extend(qz, BLOCK, NCOL)
+      T[IQ + i][0..NCOL] = extend(qx, BLOCK, NCOL)
+      T[IQ + NQT + i][0..NCOL] = extend(qy, BLOCK, NCOL)
+      T[IQ + (2 * NQT) + i][0..NCOL] = extend(qz, BLOCK, NCOL)
 }
 ```
 
@@ -289,7 +292,7 @@ def layout_quadratic_rows(T, w, lqc[]) {
 This section specifies how a Ligero proof for a given sequence of linear constraints and quadratic constraints on the committed witness vector `W` is constructed. The proof consists of a low-degree test on the tableau, a linearity test, and a quadratic constraint test.
 
 ### Low-degree test
-In the low-degree test, the verifier sends a challenge vector consisting of `NROW` field elements, `u[0..NROW]`.  This challenge is generated via the Fiat-Shamir transform. The prover computes the sum of `u[i]*T[i]` where `T[i]` is the i-th row of the tableau, and returns the first BLOCK elements of the result. The verifier applies the `extend` method to this response, and then verifies that the extended row is consistent with the positions of the Merkle tree that the verifier will later request from the Prover.
+In the low-degree test, the verifier sends a challenge vector consisting of `NROW` field elements, `u[0..NROW]`.  This challenge is generated via the Fiat-Shamir transform. The prover computes the sum of `u[i]*T[i]` where `T[i]` is the i-th row of the tableau, and returns the first `BLOCK` elements of the result. The verifier applies the `extend` method to this response, and then verifies that the extended row is consistent with the positions of the Merkle tree that the verifier will later request from the Prover.
 
 The Prover's task is therefore to compute a summation. For efficiency, set `u[0]=1` because this first row corresponds to a random row meant to ``pad" the witnesses for zero-knowledge.
 
@@ -350,9 +353,9 @@ Input:
 Output:
 - A: a vector of size WR x NROW that contains the combined 
      witness constraints.
-     The first NW * W positions correspond to coefficients
+     The first WR * NWROW positions correspond to coefficients
      for the linear constraints on witnesses.
-     The next 3*NQ positions correspond to coefficients
+     The next 3*NQT positions correspond to coefficients
      for the quadratic constraints.
 
 def inner_product_vector(A, linear, alpha_l, lqc, alpha_q) {
@@ -365,9 +368,9 @@ def inner_product_vector(A, linear, alpha_l, lqc, alpha_q) {
     A[ linear[i].w ] += alpha_l[ linear[i].c ] * linear[i].k
 
   // pointers to terms for quadratic constraints
-  a_x = NW * W
-  a_y = NW * W + (NQ * W)
-  a_z = NW * W + 2 * (NQ * W)
+  a_x = WR * NWROW
+  a_y = WR * NWROW + (NQT * WR)
+  a_z = WR * NWROW + 2 * (NQT * WR)
 
   FOR 0 <= i < NQT DO
     FOR 0 <= j < QR DO
