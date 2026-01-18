@@ -316,13 +316,13 @@ def prove(transcript, digest, linear[], lqc[])  {
       ldt[0..BLOCK] += u[i] * T[i][0..BLOCK]
     }
 
-    alpha_l = transcript.generate_challenge([NL]);
-    alpha_q = transcript.generate_challenge([NQ,3]);
+    alpha_l = transcript.generate_challenge([NL])
+    alpha_q = transcript.generate_challenge([NQ,3])
 
-    A = inner_product_vector(linear, alpha_l, lqc, alpha_q);
+    A = inner_product_vector(linear, alpha_l, lqc, alpha_q)
 
     dot = dot_proof(A);
-    uquad = transcript.generate_quad()
+    uquad = transcript.generate_challenge([NQT])
 
     qpr = quadratic_proof(lqc, uquad)
 
@@ -412,7 +412,7 @@ def quadratic_proof(lqc, uquad) {
     iqz = iqy + NQT
 
     FOR 0 <= i < NQT 
-      // y += u_quad[i] * (z[i] - x[i] * y[i])
+      // y += uquad[i] * (z[i] - x[i] * y[i])
 
       tmp = T[iqz + i][0..DBLOCK]
 
@@ -422,7 +422,7 @@ def quadratic_proof(lqc, uquad) {
                               T[iqy][0..DBLOCK]))
 
       // y += u_quad[i] * tmp
-      axpy(DBLOCK, y[0..DBLOCK], u_quad[0..DBLOCK], tmp[0..DBLOCK])
+      axpy(DBLOCK, y[0..DBLOCK], uquad[i], tmp[0..DBLOCK])
     }
 
     // sanity check: the Witness part of Y is zero
