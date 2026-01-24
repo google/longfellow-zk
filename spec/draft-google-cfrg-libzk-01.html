@@ -2329,13 +2329,13 @@ def layout_zk_rows(T) {
       ldt[0..BLOCK] += u[i] * T[i][0..BLOCK]
     }
 
-    alpha_l = transcript.generate_challenge([NL]);
-    alpha_q = transcript.generate_challenge([NQ,3]);
+    alpha_l = transcript.generate_challenge([NL])
+    alpha_q = transcript.generate_challenge([NQ,3])
 
-    A = inner_product_vector(linear, alpha_l, lqc, alpha_q);
+    A = inner_product_vector(linear, alpha_l, lqc, alpha_q)
 
     dot = dot_proof(A);
-    uquad = transcript.generate_quad()
+    uquad = transcript.generate_challenge([NQT])
 
     qpr = quadratic_proof(lqc, uquad)
 
@@ -2425,7 +2425,7 @@ def quadratic_proof(lqc, uquad) {
     iqz = iqy + NQT
 
     FOR 0 &lt;= i &lt; NQT
-      // y += u_quad[i] * (z[i] - x[i] * y[i])
+      // y += uquad[i] * (z[i] - x[i] * y[i])
 
       tmp = T[iqz + i][0..DBLOCK]
 
@@ -2435,7 +2435,7 @@ def quadratic_proof(lqc, uquad) {
                               T[iqy][0..DBLOCK]))
 
       // y += u_quad[i] * tmp
-      axpy(DBLOCK, y[0..DBLOCK], u_quad[0..DBLOCK], tmp[0..DBLOCK])
+      axpy(DBLOCK, y[0..DBLOCK], uquad[i], tmp[0..DBLOCK])
     }
 
     // sanity check: the Witness part of Y is zero
@@ -3380,17 +3380,17 @@ typedef Delta uint;
 <a href="#section-10" class="section-number selfRef">10. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
       </h2>
 <dl class="references">
-<dt id="RFC4086">[RFC4086]</dt>
-      <dd>
-<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="RFC2119">[RFC2119]</dt>
       <dd>
 <span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC6919">[RFC6919]</dt>
-    <dd>
+      <dd>
 <span class="refAuthor">Barnes, R.</span>, <span class="refAuthor">Kent, S.</span>, and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"Further Key Words for Use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">RFC 6919</span>, <span class="seriesInfo">DOI 10.17487/RFC6919</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6919">https://www.rfc-editor.org/info/rfc6919</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC4086">[RFC4086]</dt>
+    <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
@@ -3399,21 +3399,17 @@ typedef Delta uint;
 <a href="#section-11" class="section-number selfRef">11. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
       </h2>
 <dl class="references">
-<dt id="additivefft">[additivefft]</dt>
-      <dd>
-<span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="krs">[krs]</dt>
       <dd>
 <span class="refAuthor">Khovratovich, D.</span>, <span class="refAuthor">Rothblum, R. D.</span>, and <span class="refAuthor">L. Soukhanov</span>, <span class="refTitle">"How to Prove False Statements: Practical Attacks on Fiat-Shamir"</span>, <time datetime="2025" class="refDate">2025</time>, <span>&lt;<a href="https://eprint.iacr.org/2025/118">https://eprint.iacr.org/2025/118</a>&gt;</span>. </dd>
 <dd class="break"></dd>
-<dt id="rbr">[rbr]</dt>
-      <dd>
-<span class="refAuthor">Canetti, R.</span>, <span class="refAuthor">Chen, Y.</span>, <span class="refAuthor">Holmgren, J.</span>, <span class="refAuthor">Lombardi, A.</span>, <span class="refAuthor">Rothblum, G.</span>, and <span class="refAuthor">R. Rothblum</span>, <span class="refTitle">"Fiat-Shamir From Simpler Assumptions"</span>, <time datetime="2018" class="refDate">2018</time>, <span>&lt;<a href="https://eprint.iacr.org/2018/1004">https://eprint.iacr.org/2018/1004</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="RFC6234">[RFC6234]</dt>
       <dd>
 <span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">T. Hansen</span>, <span class="refTitle">"US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)"</span>, <span class="seriesInfo">RFC 6234</span>, <span class="seriesInfo">DOI 10.17487/RFC6234</span>, <time datetime="2011-05" class="refDate">May 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6234">https://www.rfc-editor.org/info/rfc6234</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="rbr">[rbr]</dt>
+      <dd>
+<span class="refAuthor">Canetti, R.</span>, <span class="refAuthor">Chen, Y.</span>, <span class="refAuthor">Holmgren, J.</span>, <span class="refAuthor">Lombardi, A.</span>, <span class="refAuthor">Rothblum, G.</span>, and <span class="refAuthor">R. Rothblum</span>, <span class="refTitle">"Fiat-Shamir From Simpler Assumptions"</span>, <time datetime="2018" class="refDate">2018</time>, <span>&lt;<a href="https://eprint.iacr.org/2018/1004">https://eprint.iacr.org/2018/1004</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="ligero">[ligero]</dt>
       <dd>
@@ -3424,8 +3420,12 @@ typedef Delta uint;
 <span class="refAuthor">Goldwasser, S.</span>, <span class="refAuthor">Micali, S.</span>, and <span class="refAuthor">C. Rackoff</span>, <span class="refTitle">"THE KNOWLEDGE COMPLEXITY OF INTERACTIVE PROOF SYSTEMS"</span>, <time datetime="1989" class="refDate">1989</time>. </dd>
 <dd class="break"></dd>
 <dt id="longfellow">[longfellow]</dt>
-    <dd>
+      <dd>
 <span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="additivefft">[additivefft]</dt>
+    <dd>
+<span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
