@@ -24,7 +24,7 @@
     pycountry 24.6.1
     PyYAML 6.0.3
     requests 2.32.5
-    wcwidth 0.2.14
+    wcwidth 0.3.3
 -->
 <link href="libzk.xml" rel="alternate" type="application/rfc+xml">
 <link href="#copyright" rel="license">
@@ -1219,7 +1219,7 @@ li > p:last-of-type:only-child {
 </tr></thead>
 <tfoot><tr>
 <td class="left">Frigo &amp; shelat</td>
-<td class="center">Expires 18 July 2026</td>
+<td class="center">Expires 28 July 2026</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1232,12 +1232,12 @@ li > p:last-of-type:only-child {
 <dd class="internet-draft">draft-google-cfrg-libzk-01</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-01-14" class="published">14 January 2026</time>
+<time datetime="2026-01-24" class="published">24 January 2026</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2026-07-18">18 July 2026</time></dd>
+<dd class="expires"><time datetime="2026-07-28">28 July 2026</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1275,7 +1275,7 @@ li > p:last-of-type:only-child {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 18 July 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 28 July 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1519,16 +1519,19 @@ li > p:last-of-type:only-child {
                 <p id="section-toc.1-1.13.2.2.1"><a href="#appendix-B.2" class="auto internal xref">B.2</a>.  <a href="#name-test-vectors-for-fiat-shami" class="internal xref">Test Vectors for Fiat-Shamir</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2.2.1">
-                    <p id="section-toc.1-1.13.2.2.2.1.1"><a href="#appendix-B.2.1" class="auto internal xref">B.2.1</a>.  <a href="#name-vector-1-writeall" class="internal xref">Vector 1: WriteAll</a></p>
+                    <p id="section-toc.1-1.13.2.2.2.1.1"><a href="#appendix-B.2.1" class="auto internal xref">B.2.1</a>.  <a href="#name-vector-1-writebytes" class="internal xref">Vector 1: WriteBytes</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2.2.2">
-                    <p id="section-toc.1-1.13.2.2.2.2.1"><a href="#appendix-B.2.2" class="auto internal xref">B.2.2</a>.  <a href="#name-vector-2-writebytearray" class="internal xref">Vector 2: WriteByteArray</a></p>
+                    <p id="section-toc.1-1.13.2.2.2.2.1"><a href="#appendix-B.2.2" class="auto internal xref">B.2.2</a>.  <a href="#name-vector-2-writefieldelement" class="internal xref">Vector 2: WriteFieldElement</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2.2.3">
-                    <p id="section-toc.1-1.13.2.2.2.3.1"><a href="#appendix-B.2.3" class="auto internal xref">B.2.3</a>.  <a href="#name-vector-3-writefieldelement" class="internal xref">Vector 3: WriteFieldElement</a></p>
+                    <p id="section-toc.1-1.13.2.2.2.3.1"><a href="#appendix-B.2.3" class="auto internal xref">B.2.3</a>.  <a href="#name-vector-3-writefieldelementa" class="internal xref">Vector 3: WriteFieldElementArray</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2.2.4">
-                    <p id="section-toc.1-1.13.2.2.2.4.1"><a href="#appendix-B.2.4" class="auto internal xref">B.2.4</a>.  <a href="#name-vector-4-writefieldelementa" class="internal xref">Vector 4: WriteFieldElementArray</a></p>
+                    <p id="section-toc.1-1.13.2.2.2.4.1"><a href="#appendix-B.2.4" class="auto internal xref">B.2.4</a>.  <a href="#name-vector-4-nat" class="internal xref">Vector 4: Nat</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2.2.5">
+                    <p id="section-toc.1-1.13.2.2.2.5.1"><a href="#appendix-B.2.5" class="auto internal xref">B.2.5</a>.  <a href="#name-vector-5-choice" class="internal xref">Vector 5: Choice</a></p>
 </li>
                 </ul>
 </li>
@@ -1653,7 +1656,7 @@ that are used in the main protocol.<a href="#section-2.2-1" class="pilcrow">¶</
 <p id="section-2.2.1-2">As there are several algorithms for efficiently performing the extend operation, the implementor can choose a suitable one.  In some cases, the brute force method of using Lagrange interpolation formulas to compute each output point independently may suffice.  One can employ a convolution to implement the <code>extend</code> operation, and in some cases, either the Number Theoretic Transform or Nussbaumer's algorithm can be used to efficiently compute a convolution.<a href="#section-2.2.1-2" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="extend-method-in-field-gf-2-k">
+<div id="gf2k">
 <section id="section-2.2.2">
           <h4 id="name-extend-method-in-field-gf-2">
 <a href="#section-2.2.2" class="section-number selfRef">2.2.2. </a><a href="#name-extend-method-in-field-gf-2" class="section-name selfRef">Extend method in Field GF 2<sup>k</sup></a>
@@ -1717,7 +1720,7 @@ session identifier nonce. This process is handled by the encapsulating
 protocol---for example, the transcript that is used for key
 exchange for a session can be used as the session identifier as it
 is guaranteed to be unique.
-The <code>session_id</code> string should be exactly 32 bytes and it is appended to the end of <code>tr</code>.
+The <code>session_id</code> byte string is appended to the end of <code>tr</code> following the append conventions.
 This method must be called exactly once before any other method on the <code>transcript</code> object is invoked.<a href="#section-3.1.1-2.1.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
@@ -1736,19 +1739,21 @@ the Prover's messages.<a href="#section-3.1.2-1" class="pilcrow">¶</a></p>
 the end of the <code>tr</code> string that is maintained by the transcript.<a href="#section-3.1.2-2.1.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
-<p id="section-3.1.2-3">There are three types of messages that can be appended to the transcript: a field element, an array of bytes, or an array of field elements.<br>
-* To append a field element, first the byte designator <code>0x1</code> is appended to <code>tr</code>, and then the canonical byte serialization of the field element is appended to <code>tr</code>.<a href="#section-3.1.2-3" class="pilcrow">¶</a></p>
+<p id="section-3.1.2-3">There are three types of messages that can be appended to the transcript: a field element, an array of bytes, or an array of field elements.<a href="#section-3.1.2-3" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-3.1.2-4.1">
-              <p id="section-3.1.2-4.1.1">To append an array of bytes, first the byte designator <code>0x2</code> is
-appended, an 8-byte little-endian encoding of the number of bytes in
-the array is appended, and then the bytes of the array are appended to <code>tr</code>.<a href="#section-3.1.2-4.1.1" class="pilcrow">¶</a></p>
+              <p id="section-3.1.2-4.1.1">To append a field element, first the byte designator <code>0x1</code> is appended to <code>tr</code>, and then the canonical byte serialization of the field element is appended to <code>tr</code>.<a href="#section-3.1.2-4.1.1" class="pilcrow">¶</a></p>
 </li>
             <li class="normal" id="section-3.1.2-4.2">
-              <p id="section-3.1.2-4.2.1">To append an array of field elements, the byte designator <code>0x3</code> is
+              <p id="section-3.1.2-4.2.1">To append an array of bytes, first the byte designator <code>0x2</code> is
+appended, an 8-byte little-endian encoding of the number of bytes in
+the array is appended, and then the bytes of the array are appended to <code>tr</code>.<a href="#section-3.1.2-4.2.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-3.1.2-4.3">
+              <p id="section-3.1.2-4.3.1">To append an array of field elements, the byte designator <code>0x3</code> is
 appended, an 8-byte little-endian encoding of the number of field
 elements is appended, and finally, all of the field elements in array
-order are serialized and appended to <code>tr</code>.<a href="#section-3.1.2-4.2.1" class="pilcrow">¶</a></p>
+order are serialized and appended to <code>tr</code>.<a href="#section-3.1.2-4.3.1" class="pilcrow">¶</a></p>
 </li>
           </ul>
 </section>
@@ -1758,9 +1763,8 @@ order are serialized and appended to <code>tr</code>.<a href="#section-3.1.2-4.2
           <h4 id="name-special-rules-for-the-first">
 <a href="#section-3.1.3" class="section-number selfRef">3.1.3. </a><a href="#name-special-rules-for-the-first" class="section-name selfRef">Special rules for the first message</a>
           </h4>
-<p id="section-3.1.3-1">The <code>write</code> method for the first prover message incorporates
-additional steps that enhance the correlation-intractability property
-of the oracle.  To process the Prover's first message:<a href="#section-3.1.3-1" class="pilcrow">¶</a></p>
+<p id="section-3.1.3-1">When used in the Longfellow system, the <code>write</code> method for the first prover message incorporates
+additional steps that enhance the correlation-intractability property of the oracle.  To process the Prover's first message:<a href="#section-3.1.3-1" class="pilcrow">¶</a></p>
 <ol start="1" type="1" class="normal type-1" id="section-3.1.3-2">
 <li id="section-3.1.3-2.1">
               <p id="section-3.1.3-2.1.1">The Prover message is appended to <code>tr</code>. Specifically, the length of the message, as per the above convention, is appended, and then the bytes of the message are appended.<a href="#section-3.1.3-2.1.1" class="pilcrow">¶</a></p>
@@ -1798,8 +1802,7 @@ following the conventions described above.<a href="#section-3.1.3-4" class="pilc
 <p id="section-3.2-1">To produce the verifier's challenge message, the transcript object internally maintains a Fiat-Shamir Pseudo-random Function (FSPRF) object that generates a stream of pseudo-random bytes.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
 <p id="section-3.2-2">Each invocation of <code>write</code> defines an FSPRF object <code>fs</code> as follows.
 First, the append operations described above for each type of <code>write</code> are performed, resulting in a new <code>tr</code> string.
-Next, a seed is generated by applying the function <code>H</code> to the (entire) string <code>tr</code>. This seed is then used to define the
-FSPRF object.<a href="#section-3.2-2" class="pilcrow">¶</a></p>
+Next, a seed is generated by applying the function <code>H</code> to the (entire) string <code>tr</code>. This seed is then used to define the FSPRF object.<a href="#section-3.2-2" class="pilcrow">¶</a></p>
 <p id="section-3.2-3">The FSPRF object is defined to produce an infinite stream of bytes that can be used to sample all of the verifier's challenges in this round. The stream is organized in blocks of 16 bytes each,
 numbered consecutively starting at 0.  Block <code>i</code> contains<a href="#section-3.2-3" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-3.2-4">
@@ -1831,15 +1834,35 @@ pseudo-random integers via rejection sampling as follows:<a href="#section-3.3-2
 <ul class="normal">
 <li class="normal" id="section-3.3-3.1">
             <p id="section-3.3-3.1.1"><code>transcript.generate_nat(m)</code> generates a random natural between <code>0</code> and
-<code>m-1</code> inclusive, as follows.<a href="#section-3.3-3.1.1" class="pilcrow">¶</a></p>
-<p id="section-3.3-3.1.2">Let <code>l</code> be minimal such that <code>2^l &gt;= m</code>.  Let <code>nbytes = ceil(l / 8)</code>.
-Let <code>b = fs.bytes(nbytes)</code>.  Interpret bytes <code>b</code> as a little-endian integer <code>k</code>.  Let <code>r = k mod 2^l</code>, i.e., mask off the high <code>8 * nbytes - l</code> bits of <code>k</code>.  If <code>r &lt; m</code> return <code>r</code>, otherwise start over.<a href="#section-3.3-3.1.2" class="pilcrow">¶</a></p>
-</li>
-          <li class="normal" id="section-3.3-3.2">
-            <p id="section-3.3-3.2.1"><code>transcript.generate_nats_wo_replacement(m, n)</code> generates a list of <code>n</code> different, random natural numbers between <code>0</code> and <code>m - 1</code> inclusive.  There are many equivalent algorithms to perform this step.  The following approach requires only <code>n</code> calls to the <code>generate_nat</code> method.<a href="#section-3.3-3.2.1" class="pilcrow">¶</a></p>
+<code>m-1</code> inclusive, as follows. This method is defined when <code>m &gt; 1</code>.<a href="#section-3.3-3.1.1" class="pilcrow">¶</a></p>
+<p id="section-3.3-3.1.2">Let <code>l</code> be minimal such that <code>2^l &gt; m</code>.  Let <code>nbytes = ceil(l / 8)</code>.
+Let <code>b = fs.bytes(nbytes)</code>.  Interpret bytes <code>b</code> as a little-endian integer <code>k</code>.<br>
+Pick <code>mask</code> to be the minimal bitmask such that <code>(n &amp; mask) == n</code> and set <code>r = k &amp; mask</code>.
+If <code>r &lt; m</code> return <code>r</code>, otherwise start over.<a href="#section-3.3-3.1.2" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <div class="alignLeft art-text artwork" id="section-3.3-4">
+<pre>    def generate_nat(self, m):
+        assert m &gt; 0, "m must be &gt; 0"
+
+        l = m.bit_length()
+        nbytes = math.ceil(l / 8)
+        mask = (1 &lt;&lt; l) - 1
+        fs = self._get_fs()
+        while True:
+            b = fs.bytes(nbytes)
+            k = int.from_bytes(b, 'little')
+            r = k &amp; mask
+            if r &lt; m:
+                return r
+</pre><a href="#section-3.3-4" class="pilcrow">¶</a>
+</div>
+<ul class="normal">
+<li class="normal" id="section-3.3-5.1">
+            <p id="section-3.3-5.1.1"><code>transcript.generate_nats_wo_replacement(m, n)</code> generates a list of <code>n</code> different, random natural numbers between <code>0</code> and <code>m - 1</code> inclusive.  There are many equivalent algorithms to perform this step.  The following approach requires only <code>n</code> calls to the <code>generate_nat</code> method.<a href="#section-3.3-5.1.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<div class="alignLeft art-text artwork" id="section-3.3-6">
 <pre>        def generate_nats_wo_replacement(m, n):
             # assert(m &gt; n)
             A = list(range(0, m))
@@ -1847,21 +1870,21 @@ Let <code>b = fs.bytes(nbytes)</code>.  Interpret bytes <code>b</code> as a litt
                 j = i + generate_nat(m - i)
                 A[i], A[j] = A[j], A[i]
             return A[:n]
-</pre><a href="#section-3.3-4" class="pilcrow">¶</a>
+</pre><a href="#section-3.3-6" class="pilcrow">¶</a>
 </div>
 <ul class="normal">
-<li class="normal" id="section-3.3-5.1">
-            <p id="section-3.3-5.1.1"><code>transcript.generate_field_element(F)</code> generates a field element.<a href="#section-3.3-5.1.1" class="pilcrow">¶</a></p>
-<p id="section-3.3-5.1.2">If the field <code>F</code> is <code>Z / (p)</code>, return <code>generate_nat(fs, p)</code> interpreted as a field element.<a href="#section-3.3-5.1.2" class="pilcrow">¶</a></p>
-<p id="section-3.3-5.1.3">If the field is <code>GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)</code>, obtain <code>b = fs.bytes(16)</code> and interpret the 128 bits of <code>b</code> as a little-endian polynomial.<a href="#section-3.3-5.1.3" class="pilcrow">¶</a></p>
+<li class="normal" id="section-3.3-7.1">
+            <p id="section-3.3-7.1.1"><code>transcript.generate_field_element(F)</code> generates a field element.<a href="#section-3.3-7.1.1" class="pilcrow">¶</a></p>
+<p id="section-3.3-7.1.2">If the field <code>F</code> is <code>Z / (p)</code>, return <code>generate_nat(fs, p)</code> interpreted as a field element.<a href="#section-3.3-7.1.2" class="pilcrow">¶</a></p>
+<p id="section-3.3-7.1.3">If the field is <code>GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)</code>, obtain <code>b = fs.bytes(16)</code> and interpret the 128 bits of <code>b</code> as a little-endian polynomial.  If the field is the sub-field of the above generated by the element <code>g=x^{(2^{128}-1) / (2^{16}-1)}</code>, then obtain <code>b = fs.bytes(2)</code>. Let <code>b_i</code> represent the <code>i</code>th bit of <code>b</code> in little-endian and return the element <code>\sum_i b_i * \beta_i</code> where <code>\beta_i = g^i</code> as defined above in <a href="#gf2k" class="auto internal xref">Section 2.2.2</a>.<a href="#section-3.3-7.1.3" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-3.3-6"> This document does not specify the generation of a field element for other binary fields, but extensions SHOULD follow a similar pattern.<a href="#section-3.3-6" class="pilcrow">¶</a></p>
+<p id="section-3.3-8">This document does not specify the generation of a field element for other binary fields, but extensions SHOULD follow a similar pattern.<a href="#section-3.3-8" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-3.3-7.1">
-            <p id="section-3.3-7.1.1"><code>a = transcript.generate_challenge(F, n)</code> generates an array of <code>n</code>
+<li class="normal" id="section-3.3-9.1">
+            <p id="section-3.3-9.1.1"><code>a = transcript.generate_challenge(F, n)</code> generates an array of <code>n</code>
 field elements in the straightforward way: for <code>0 &lt;= i &lt; n</code>
-in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>.<a href="#section-3.3-7.1.1" class="pilcrow">¶</a></p>
+in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>.<a href="#section-3.3-9.1.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <div id="optimizations">
@@ -1895,20 +1918,22 @@ in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>
 <a href="#section-4.1.1" class="section-number selfRef">4.1.1. </a><a href="#name-constructing-a-merkle-tree-" class="section-name selfRef">Constructing a Merkle tree from <code>n</code> digests</a>
           </h4>
 <div class="alignLeft art-text artwork" id="section-4.1.1-1">
-<pre>struct {
-   Digest a[2 * n]
-} MerkleTree
+<pre>class MerkleTree:
+    def __init__(self, n):
+        self.n = n
+        self.a = [b''] * (2 * n)
 
-def set_leaf(M, pos, leaf) {
-  assert(pos &lt; M.n)
-  M.a[pos + n] = leaf
-}
+    def set_leaf(self, pos, leaf):
+        assert 0 &lt;= pos &lt; self.n, f"{pos} is out of bounds"
+        self.a[pos + self.n] = leaf
 
-def build_tree(M) {
-  FOR M.n &lt; i &lt;= 1 DO
-    M.a[i] = hash(M.a[2 * i] || M.a[2 * i + 1])
-  return M.a[1]
-}
+    def build_tree(self):
+        for i in range(self.n - 1, 0, -1):
+            left = self.a[2 * i]
+            right = self.a[2 * i + 1]s
+            self.a[i] = hash(left + right)
+
+        return self.a[1]
 </pre><a href="#section-4.1.1-1" class="pilcrow">¶</a>
 </div>
 </section>
@@ -1922,33 +1947,35 @@ def build_tree(M) {
 <p id="section-4.1.2-2">To address these inefficiencies, this section explains how to produce a batch proof of inclusion for <code>k</code> leaves. The main idea is to start from the requested set of leaves and build all of the implied internal nodes given the leaves. For example, if sibling leaves are included, then their parent is implied, and the parent need not be included in the compressed proof.  Then it suffices to revisit the same tree and include the necessary siblings along all of the Merkle paths.  It is assumed that the verifier already has the leaf digests that are at the indicies, and thus the proof only contains the necessary internal nodes of the Merkle tree that are used to verify the claim.<a href="#section-4.1.2-2" class="pilcrow">¶</a></p>
 <p id="section-4.1.2-3">It is important in this formulation to treat the input digests as a sequence, i.e. with a given order. Both the prover and verifier of this batch proof must use the same order of the <code>requested_leaves</code> array.<a href="#section-4.1.2-3" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.1.2-4">
-<pre>def compressed_proof(M, requested_leaves[], n) {
-  marked = mark_tree(requested_leaves, n)
-  FOR n &lt; i &lt;= 1 DO
-    IF (marked[i]) {
-      child = 2 * i
-      IF (marked[child]) {
-        child += 1
-      }
-      IF (!marked[child]) {
-        proof.append(M.a[child])
-      }
-    }
-  return proof
-}
+<pre>    def mark_tree(self, requested_leaves):
+        marked = [False] * (2 * self.n)
 
-def mark_tree(requested_leaves[], n) {
-  bool marked[2 * n]   // initialized to false
+        for i in requested_leaves:
+            assert 0 &lt;= i &lt; self.n, f"invalid requested index {i}"
+            marked[i + self.n] = True
 
-  for(index i : requested_leaves)
-    marked[i + n] = true
+        for i in range(self.n - 1, 0, -1):
+            marked[i] = marked[2 * i] or marked[2 * i + 1]
 
-  FOR n &lt; i &lt;= 1 DO
-    // mark parent if child is marked
-    marked[i] = marked[2 * i] || marked[2 * i + 1];
+        return marked
 
-  return marked
-}
+    def compressed_proof(self, requested_leaves):
+        proof = []
+        marked = self.mark_tree(requested_leaves)
+        for i in range(self.n - 1, 0, -1):
+            if marked[i]:
+                child = 2 * i
+
+                # If the left child is marked, we need the right child.
+                if marked[child]:
+                    child += 1
+
+                # If the identified child/sibling is NOT marked,
+                # add its hash to the proof so the verifier can calculate the parent.
+                if not marked[child]:
+                    proof.append(self.a[child])
+
+        return proof
 </pre><a href="#section-4.1.2-4" class="pilcrow">¶</a>
 </div>
 </section>
@@ -1958,41 +1985,44 @@ def mark_tree(requested_leaves[], n) {
           <h4 id="name-verifying-a-proof-of-inclus">
 <a href="#section-4.1.3" class="section-number selfRef">4.1.3. </a><a href="#name-verifying-a-proof-of-inclus" class="section-name selfRef">Verifying a proof of inclusion</a>
           </h4>
-<p id="section-4.1.3-1">This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment <code>root</code> defines an <code>n</code>-leaf Merkle tree that contains <code>k</code> digests s[0],..s[k-1] at corresponding indicies i[0],...i[k-1]."  The strategy of this verification procedure is to deduce which nodes are needed along the <code>k</code> verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the <code>root</code> digest. As an optimization, the <code>defined[]</code> array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of <code>k=0</code> digests is defined to fail. It is assumed that the <code>indicies[]</code> array does not contain duplicates.<a href="#section-4.1.3-1" class="pilcrow">¶</a></p>
+<p id="section-4.1.3-1">This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment <code>root</code> defines an <code>n</code>-leaf Merkle tree that contains <code>k</code> digests <code>s[0], ..., s[k-1]</code> at corresponding indices <code>i[0], ..., i[k-1]</code>."  The strategy of this verification procedure is to deduce which nodes are needed along the <code>k</code> verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the <code>root</code> digest. As an optimization, the <code>defined[]</code> array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of <code>k=0</code> digests is defined to fail. It is assumed that the <code>indices[]</code> array does not contain duplicates.<a href="#section-4.1.3-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.1.3-2">
-<pre>def verify_merkle(root, n, k,  s[], indicies[], proof[]) {
-  tmp = []
-  defined = []
+<pre>    def verify_merkle(self, root, n, k, s, indices, proof):
+        tmp = [None] * (2 * n)
+        defined = [False] * (2 * n)
 
-  proof_index = 0
-  marked = mark_tree(indicies, n)
-  FOR n &lt; i &lt;= 1 DO
-    if (marked[i]) {
-      child = 2 * i
-      if (marked[child]) {
-        child += 1
-      }
-      if (!marked[child]) {
-        if proof_index &gt; |proof| {
-          return false
-        }
-        tmp[child] = proof[proof_index++]
-        defined[child] = true
-      }
-    }
+        proof_index = 0
 
-  FOR 0 &lt;= i &lt; k DO
-    tmp[indicies[i] + n] = s[i]
-    defined[indicies[i] + n] = true
+        if n != self.n: return False
 
-  FOR n &lt; j &lt;= 1 DO
-    if defined[2 * i] &amp;&amp; defined[2 * i + 1] {
-      tmp[i] = hash(tmp[2 * i] || tmp[2 * i + 1])
-      defined[i] = true
-    }
+        marked = self.mark_tree(indices)
 
-  return defined[1] &amp;&amp; tmp[1] = root
-}
+        for i in range(n - 1, 0, -1):
+            if marked[i]:
+                child = 2 * i
+                if marked[child]:
+                    child += 1
+
+                if not marked[child]:
+                    if proof_index &gt;= len(proof):
+                        return False
+                    tmp[child] = proof[proof_index]
+                    proof_index += 1
+                    defined[child] = True
+
+        for i in range(k):
+            pos = indices[i] + n
+            tmp[pos] = s[i]
+            defined[pos] = True
+
+        for i in range(n - 1, 0, -1):
+            if defined[2 * i] and defined[2 * i + 1]:
+                left = tmp[2 * i]
+                right = tmp[2 * i + 1]
+                tmp[i] = hash(left + right)
+                defined[i] = True
+
+        return defined[1] and (tmp[1] == root)
 </pre><a href="#section-4.1.3-2" class="pilcrow">¶</a>
 </div>
 </section>
@@ -2277,7 +2307,7 @@ def layout_zk_rows(T) {
           <h4 id="name-selection-of-challenge-indi">
 <a href="#section-4.4.3" class="section-number selfRef">4.4.3. </a><a href="#name-selection-of-challenge-indi" class="section-name selfRef">Selection of challenge indicies</a>
           </h4>
-<p id="section-4.4.3-1">The last step of the prove method is for the verifier to select a subset of unique indicies (i.e., they are sampled without replacement) from the range <code>DBLOCK...NCOL</code> and request that the prover open these columns of tableau <code>T</code>. These opened columns are then used to verify consistency with the previous messages sent by the prover.<a href="#section-4.4.3-1" class="pilcrow">¶</a></p>
+<p id="section-4.4.3-1">The last step of the prove method is for the verifier to select a subset of unique indices (i.e., they are sampled without replacement) from the range <code>DBLOCK...NCOL</code> and request that the prover open these columns of tableau <code>T</code>. These opened columns are then used to verify consistency with the previous messages sent by the prover.<a href="#section-4.4.3-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="ligero-prover-procedure">
@@ -2285,11 +2315,13 @@ def layout_zk_rows(T) {
           <h4 id="name-ligero-prover-procedure">
 <a href="#section-4.4.4" class="section-number selfRef">4.4.4. </a><a href="#name-ligero-prover-procedure" class="section-name selfRef">Ligero Prover procedure</a>
           </h4>
-<div class="alignLeft art-text artwork" id="section-4.4.4-1">
-<pre>def prove(transcript, digest, linear[], lqc[])  {
+<p id="section-4.4.4-1">The <code>context</code> argument is application-dependent and includes information about the theorem statement that is proven.<a href="#section-4.4.4-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.4.4-2">
+<pre>def prove(transcript, context, linear[], lqc[])  {
+
+    transcript.write(context)
 
     u = transcript.generate_challenge([BLOCK]);
-    transcript.write(digest)
 
     ldt[0..BLOCK] = T[ILDT][0..BLOCK]
 
@@ -2319,9 +2351,9 @@ def layout_zk_rows(T) {
 
     return (ldt, dot, qpr, columns, mt_proof)
   }
-</pre><a href="#section-4.4.4-1" class="pilcrow">¶</a>
+</pre><a href="#section-4.4.4-2" class="pilcrow">¶</a>
 </div>
-<div class="alignLeft art-text artwork" id="section-4.4.4-2">
+<div class="alignLeft art-text artwork" id="section-4.4.4-3">
 <pre>Input:
 - linear: array of (w,c,k) triples specifying the linear constraints
 - alpha_l: array of challenges for the linear constraints
@@ -2422,7 +2454,7 @@ def requested_columns(challenge_indicies, offset) {
 }
 
 
-</pre><a href="#section-4.4.4-2" class="pilcrow">¶</a>
+</pre><a href="#section-4.4.4-3" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -3348,17 +3380,17 @@ typedef Delta uint;
 <a href="#section-10" class="section-number selfRef">10. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
       </h2>
 <dl class="references">
+<dt id="RFC4086">[RFC4086]</dt>
+      <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="RFC2119">[RFC2119]</dt>
       <dd>
 <span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC6919">[RFC6919]</dt>
-      <dd>
-<span class="refAuthor">Barnes, R.</span>, <span class="refAuthor">Kent, S.</span>, and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"Further Key Words for Use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">RFC 6919</span>, <span class="seriesInfo">DOI 10.17487/RFC6919</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6919">https://www.rfc-editor.org/info/rfc6919</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="RFC4086">[RFC4086]</dt>
     <dd>
-<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
+<span class="refAuthor">Barnes, R.</span>, <span class="refAuthor">Kent, S.</span>, and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"Further Key Words for Use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">RFC 6919</span>, <span class="seriesInfo">DOI 10.17487/RFC6919</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6919">https://www.rfc-editor.org/info/rfc6919</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
@@ -3367,10 +3399,6 @@ typedef Delta uint;
 <a href="#section-11" class="section-number selfRef">11. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
       </h2>
 <dl class="references">
-<dt id="ligero">[ligero]</dt>
-      <dd>
-<span class="refAuthor">Ames, S.</span>, <span class="refAuthor">Hazay, C.</span>, <span class="refAuthor">Ishai, Y.</span>, and <span class="refAuthor">M. Venkitasubramaniam</span>, <span class="refTitle">"Ligero: Lightweight Sublinear Arguments Without a Trusted Setup"</span>, <time datetime="2022" class="refDate">2022</time>, <span>&lt;<a href="https://eprint.iacr.org/2022/1608">https://eprint.iacr.org/2022/1608</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="additivefft">[additivefft]</dt>
       <dd>
 <span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
@@ -3379,21 +3407,25 @@ typedef Delta uint;
       <dd>
 <span class="refAuthor">Khovratovich, D.</span>, <span class="refAuthor">Rothblum, R. D.</span>, and <span class="refAuthor">L. Soukhanov</span>, <span class="refTitle">"How to Prove False Statements: Practical Attacks on Fiat-Shamir"</span>, <time datetime="2025" class="refDate">2025</time>, <span>&lt;<a href="https://eprint.iacr.org/2025/118">https://eprint.iacr.org/2025/118</a>&gt;</span>. </dd>
 <dd class="break"></dd>
+<dt id="rbr">[rbr]</dt>
+      <dd>
+<span class="refAuthor">Canetti, R.</span>, <span class="refAuthor">Chen, Y.</span>, <span class="refAuthor">Holmgren, J.</span>, <span class="refAuthor">Lombardi, A.</span>, <span class="refAuthor">Rothblum, G.</span>, and <span class="refAuthor">R. Rothblum</span>, <span class="refTitle">"Fiat-Shamir From Simpler Assumptions"</span>, <time datetime="2018" class="refDate">2018</time>, <span>&lt;<a href="https://eprint.iacr.org/2018/1004">https://eprint.iacr.org/2018/1004</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="RFC6234">[RFC6234]</dt>
       <dd>
 <span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">T. Hansen</span>, <span class="refTitle">"US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)"</span>, <span class="seriesInfo">RFC 6234</span>, <span class="seriesInfo">DOI 10.17487/RFC6234</span>, <time datetime="2011-05" class="refDate">May 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6234">https://www.rfc-editor.org/info/rfc6234</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ligero">[ligero]</dt>
+      <dd>
+<span class="refAuthor">Ames, S.</span>, <span class="refAuthor">Hazay, C.</span>, <span class="refAuthor">Ishai, Y.</span>, and <span class="refAuthor">M. Venkitasubramaniam</span>, <span class="refTitle">"Ligero: Lightweight Sublinear Arguments Without a Trusted Setup"</span>, <time datetime="2022" class="refDate">2022</time>, <span>&lt;<a href="https://eprint.iacr.org/2022/1608">https://eprint.iacr.org/2022/1608</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="GMR">[GMR]</dt>
       <dd>
 <span class="refAuthor">Goldwasser, S.</span>, <span class="refAuthor">Micali, S.</span>, and <span class="refAuthor">C. Rackoff</span>, <span class="refTitle">"THE KNOWLEDGE COMPLEXITY OF INTERACTIVE PROOF SYSTEMS"</span>, <time datetime="1989" class="refDate">1989</time>. </dd>
 <dd class="break"></dd>
 <dt id="longfellow">[longfellow]</dt>
-      <dd>
-<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="rbr">[rbr]</dt>
     <dd>
-<span class="refAuthor">Canetti, R.</span>, <span class="refAuthor">Chen, Y.</span>, <span class="refAuthor">Holmgren, J.</span>, <span class="refAuthor">Lombardi, A.</span>, <span class="refAuthor">Rothblum, G.</span>, and <span class="refAuthor">R. Rothblum</span>, <span class="refTitle">"Fiat-Shamir From Simpler Assumptions"</span>, <time datetime="2018" class="refDate">2018</time>, <span>&lt;<a href="https://eprint.iacr.org/2018/1004">https://eprint.iacr.org/2018/1004</a>&gt;</span>. </dd>
+<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
@@ -3454,251 +3486,235 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
 <a href="#appendix-B.2" class="section-number selfRef">B.2. </a><a href="#name-test-vectors-for-fiat-shami" class="section-name selfRef">Test Vectors for Fiat-Shamir</a>
         </h3>
 <p id="appendix-B.2-1">Let <code>p=115792089237316195423570985008687907853269984665640564039457584007908834671663</code> and <code>Fp</code> be the 4-word field defined by <code>p</code>.<a href="#appendix-B.2-1" class="pilcrow">¶</a></p>
-<div id="vector-1-writeall">
+<div id="vector-1-writebytes">
 <section id="appendix-B.2.1">
-          <h4 id="name-vector-1-writeall">
-<a href="#appendix-B.2.1" class="section-number selfRef">B.2.1. </a><a href="#name-vector-1-writeall" class="section-name selfRef">Vector 1: WriteAll</a>
+          <h4 id="name-vector-1-writebytes">
+<a href="#appendix-B.2.1" class="section-number selfRef">B.2.1. </a><a href="#name-vector-1-writebytes" class="section-name selfRef">Vector 1: WriteBytes</a>
           </h4>
 <ul class="normal">
 <li class="normal" id="appendix-B.2.1-1.1">
-              <p id="appendix-B.2.1-1.1.1">Description: Using <code>Fp</code>, the test steps are to (a) initialize the transcript object with the 4-byte string <code>test</code>, (b) write an array of bytes of size 100 that contains the integers 0, 1, 2, ..., 99, write the field element '7', write the 2-long array of field elements <code>[8, 9]</code>, and
-finally (c) generate 16 field elements.  The field elements should be:<a href="#appendix-B.2.1-1.1.1" class="pilcrow">¶</a></p>
+              <p id="appendix-B.2.1-1.1.1">Description: Using <code>Fp</code>, the test steps are to (a) initialize the transcript object with the 4-byte string <code>test</code>; (b) write an array of bytes of size 100 that contains the integers 0, 1, 2, ..., 99;  (c) generate 16 field elements:<a href="#appendix-B.2.1-1.1.1" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-B.2.1-1.1.2.1">
-                  <p id="appendix-B.2.1-1.1.2.1.1">0x9c9d62aa71f49f996a3579631f28cfb58d47177e58245b260571738893d2d156<a href="#appendix-B.2.1-1.1.2.1.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.1.1">0x8b297f0bffd583c6c6b6796385d5fd20a08665733b833970ebdd1054bbbc1b14<a href="#appendix-B.2.1-1.1.2.1.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.2">
-                  <p id="appendix-B.2.1-1.1.2.2.1">0xada427bb3f99541766d3d542587307bc5d84e3fde9ae328568797bac1499b446<a href="#appendix-B.2.1-1.1.2.2.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.2.1">0x0667c08ad7f38efec5f30dc8aa4f20d749cdcf96d63a770f9810ac5c0ca8dcb1<a href="#appendix-B.2.1-1.1.2.2.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.3">
-                  <p id="appendix-B.2.1-1.1.2.3.1">0x77f02b641fbd89b6d6d9d4a0f941bae6eafabee54a70e654b4546a543c15e5bd<a href="#appendix-B.2.1-1.1.2.3.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.3.1">0xc8037fc12d4da00b5dc7597e3042f33f72a06f970cb71fb6b103ebb5419d8a6b<a href="#appendix-B.2.1-1.1.2.3.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.4">
-                  <p id="appendix-B.2.1-1.1.2.4.1">0x6ac559513811b95584af9ce3ca73cea07739199ef44163072695c212ab6f7964<a href="#appendix-B.2.1-1.1.2.4.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.4.1">0xfbbcfa1eac48728fbfdacc1c21e2f78119457e0846337e46140e38e62856c4c5<a href="#appendix-B.2.1-1.1.2.4.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.5">
-                  <p id="appendix-B.2.1-1.1.2.5.1">0x6edf6128a50daf1c03fc67d720ee529a4a01d8e594d0eaa1b5189eb0df898ca4<a href="#appendix-B.2.1-1.1.2.5.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.5.1">0x5358ae603691cc759faeb572fb6642654ea1c3dbc8f81d00276dd8c4df95aa58<a href="#appendix-B.2.1-1.1.2.5.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.6">
-                  <p id="appendix-B.2.1-1.1.2.6.1">0x0c1212524eac26560099c197d2412c840992b5a7c3a39341d36a1fec62e9bc55<a href="#appendix-B.2.1-1.1.2.6.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.6.1">0x5266158c3c895dede5a23b6ce85a9f564b8059ebfcd1741f54497ec58189873e<a href="#appendix-B.2.1-1.1.2.6.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.7">
-                  <p id="appendix-B.2.1-1.1.2.7.1">0x0bba75f82ad1e76b9398ed1fffcc52d2bf413c31e691ff7134b0a33c0de1a236<a href="#appendix-B.2.1-1.1.2.7.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.7.1">0x3ecea4b2343c007fc32f2aff40dc7320945f101ecae5d52494db21ad326e9739<a href="#appendix-B.2.1-1.1.2.7.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.8">
-                  <p id="appendix-B.2.1-1.1.2.8.1">0xe8a3426744c4e2101c254f8b174383deb33e9537a30375e8fe652a02254c4df4<a href="#appendix-B.2.1-1.1.2.8.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.8.1">0x6462dd575e6b874118607212feec7ce5417ae3bf0f2e86604596f35d48bbaea2<a href="#appendix-B.2.1-1.1.2.8.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.9">
-                  <p id="appendix-B.2.1-1.1.2.9.1">0xf7c7bafe0efc325b9e7e579294c0c370b3e17466d91c22b215b7e73544b6bf50<a href="#appendix-B.2.1-1.1.2.9.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.9.1">0x6d56c703c369edea3595db6b958241580ae9b4a76fead961413ed9e9e5852dcd<a href="#appendix-B.2.1-1.1.2.9.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.10">
-                  <p id="appendix-B.2.1-1.1.2.10.1">0xa1eaac6e545f28bab1579911c7ea000b7c4cf42202eb3ba3d304eaecfc79b8b8<a href="#appendix-B.2.1-1.1.2.10.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.10.1">0x6d31073cee650212a71b7b13e9f951e00ef3b14a008a79dd95047b26a4a83d06<a href="#appendix-B.2.1-1.1.2.10.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.11">
-                  <p id="appendix-B.2.1-1.1.2.11.1">0x3fcd8c478cdca3ca9a37b8ec44386c32db658a51cc740d4fec99129c7cc65ad5<a href="#appendix-B.2.1-1.1.2.11.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.11.1">0x1b9e2a6666da63c43e52227d91a8a7f0bd5311f63c2e3a18839133375639e6cb<a href="#appendix-B.2.1-1.1.2.11.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.12">
-                  <p id="appendix-B.2.1-1.1.2.12.1">0xf7c454d8385b4d8c13a4c37a00d63f0db4d39939759397073b501f32556c8418<a href="#appendix-B.2.1-1.1.2.12.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.12.1">0x332ea49dd23dd4745631ecbb15696192b1fa127256baf7a0483fd27db6f09a48<a href="#appendix-B.2.1-1.1.2.12.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.13">
-                  <p id="appendix-B.2.1-1.1.2.13.1">0x28912d46813691ed86163864eb723017ce07fdf45881a0b96234b2813b557e08<a href="#appendix-B.2.1-1.1.2.13.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.13.1">0x43e735927ccbdc4d5ce912675d638d6d3dc8eef3def34504304e938846f157d6<a href="#appendix-B.2.1-1.1.2.13.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.14">
-                  <p id="appendix-B.2.1-1.1.2.14.1">0x5ec633319eaaf202af7207d544251ebcd205dc29415506eabae29770f6f16455<a href="#appendix-B.2.1-1.1.2.14.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.14.1">0xdc4a8868ae75e733a7257a8589230392a98d78594836dfccd01304742b5b3ad5<a href="#appendix-B.2.1-1.1.2.14.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.15">
-                  <p id="appendix-B.2.1-1.1.2.15.1">0xdaeb005a647c61dbbf9328317ac1e40b1f467dc343da1d175899a774f8cb87a3<a href="#appendix-B.2.1-1.1.2.15.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.15.1">0x976353931711c634f2691e507b119fd7f6e653d419a2620676122db08db18765<a href="#appendix-B.2.1-1.1.2.15.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.1-1.1.2.16">
-                  <p id="appendix-B.2.1-1.1.2.16.1">0xb3cb99cde603369ce86e4c030f94566b6d023aa4269fc8983e40bd08de5c7fbd<a href="#appendix-B.2.1-1.1.2.16.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.1-1.1.2.16.1">0x332729ab436dca654866a9382deaee0add6fb7e90a80261f1488e56598e8bc99<a href="#appendix-B.2.1-1.1.2.16.1" class="pilcrow">¶</a></p>
 </li>
               </ul>
 </li>
           </ul>
 </section>
 </div>
-<div id="vector-2-writebytearray">
+<div id="vector-2-writefieldelement">
 <section id="appendix-B.2.2">
-          <h4 id="name-vector-2-writebytearray">
-<a href="#appendix-B.2.2" class="section-number selfRef">B.2.2. </a><a href="#name-vector-2-writebytearray" class="section-name selfRef">Vector 2: WriteByteArray</a>
+          <h4 id="name-vector-2-writefieldelement">
+<a href="#appendix-B.2.2" class="section-number selfRef">B.2.2. </a><a href="#name-vector-2-writefieldelement" class="section-name selfRef">Vector 2: WriteFieldElement</a>
           </h4>
 <ul class="normal">
 <li class="normal" id="appendix-B.2.2-1.1">
-              <p id="appendix-B.2.2-1.1.1">Using <code>Fp</code>, the test steps are to (a) initialize the transcript object with the 4-byte string <code>test</code>, (b) write an array of bytes of size 100 that contains the integers 0, 1, 2, ..., 99, and finally (c) generate 16 field elements:<a href="#appendix-B.2.2-1.1.1" class="pilcrow">¶</a></p>
+              <p id="appendix-B.2.2-1.1.1">Starting from the state at the end of Vector 1, (a) write the field element '7' in Fp; (b) generate 16 field elements<a href="#appendix-B.2.2-1.1.1" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-B.2.2-1.1.2.1">
-                  <p id="appendix-B.2.2-1.1.2.1.1">0x8b297f0bffd583c6c6b6796385d5fd20a08665733b833970ebdd1054bbbc1b14<a href="#appendix-B.2.2-1.1.2.1.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.1.1">0x609db3e9a8f548df038519fa46cef23eb8c6553d3c1f698604e60a51613a738e<a href="#appendix-B.2.2-1.1.2.1.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.2">
-                  <p id="appendix-B.2.2-1.1.2.2.1">0x0667c08ad7f38efec5f30dc8aa4f20d749cdcf96d63a770f9810ac5c0ca8dcb1<a href="#appendix-B.2.2-1.1.2.2.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.2.1">0x1cb69cb31999eb88e83c7586aac53f5e3286b084b0cf9e43619b48df01e0a310<a href="#appendix-B.2.2-1.1.2.2.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.3">
-                  <p id="appendix-B.2.2-1.1.2.3.1">0xc8037fc12d4da00b5dc7597e3042f33f72a06f970cb71fb6b103ebb5419d8a6b<a href="#appendix-B.2.2-1.1.2.3.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.3.1">0x3bf36e3ddc690a1b12b417628c115959b373d056c90c42dc2417baf46f538868<a href="#appendix-B.2.2-1.1.2.3.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.4">
-                  <p id="appendix-B.2.2-1.1.2.4.1">0xfbbcfa1eac48728fbfdacc1c21e2f78119457e0846337e46140e38e62856c4c5<a href="#appendix-B.2.2-1.1.2.4.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.4.1">0xe336594f29dcda52e48896517b5cdb2d062ffd861ab02db5f8ca197aacc635f6<a href="#appendix-B.2.2-1.1.2.4.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.5">
-                  <p id="appendix-B.2.2-1.1.2.5.1">0x5358ae603691cc759faeb572fb6642654ea1c3dbc8f81d00276dd8c4df95aa58<a href="#appendix-B.2.2-1.1.2.5.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.5.1">0xc1f396a8bad16bb0f57da6d380402a25b571bd4691226d11449a741440e325c8<a href="#appendix-B.2.2-1.1.2.5.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.6">
-                  <p id="appendix-B.2.2-1.1.2.6.1">0x5266158c3c895dede5a23b6ce85a9f564b8059ebfcd1741f54497ec58189873e<a href="#appendix-B.2.2-1.1.2.6.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.6.1">0x5195336ec73751de066e3a8939b40c3c5555f1a513486dfc50dcf4c2d47e6ff2<a href="#appendix-B.2.2-1.1.2.6.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.7">
-                  <p id="appendix-B.2.2-1.1.2.7.1">0x3ecea4b2343c007fc32f2aff40dc7320945f101ecae5d52494db21ad326e9739<a href="#appendix-B.2.2-1.1.2.7.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.7.1">0x8dcf872f3ded2b7ed1d1ee9a2b125bedc6eacd3c09b3a4a5286d8fc2fc3a6634<a href="#appendix-B.2.2-1.1.2.7.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.8">
-                  <p id="appendix-B.2.2-1.1.2.8.1">0x6462dd575e6b874118607212feec7ce5417ae3bf0f2e86604596f35d48bbaea2<a href="#appendix-B.2.2-1.1.2.8.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.8.1">0x950dd2ef7be25eab686a6688497962ee4ad521da12b9ff3d8e56ad9435885b12<a href="#appendix-B.2.2-1.1.2.8.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.9">
-                  <p id="appendix-B.2.2-1.1.2.9.1">0x6d56c703c369edea3595db6b958241580ae9b4a76fead961413ed9e9e5852dcd<a href="#appendix-B.2.2-1.1.2.9.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.9.1">0xe14389d1d8448678cac33fdbc9aab20dba019e75149d170dd2f353891cd4b84f<a href="#appendix-B.2.2-1.1.2.9.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.10">
-                  <p id="appendix-B.2.2-1.1.2.10.1">0x6d31073cee650212a71b7b13e9f951e00ef3b14a008a79dd95047b26a4a83d06<a href="#appendix-B.2.2-1.1.2.10.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.10.1">0xe84906c09cd6423865baf64e48027cc598d52bdb90b17524c87ea892e53b5200<a href="#appendix-B.2.2-1.1.2.10.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.11">
-                  <p id="appendix-B.2.2-1.1.2.11.1">0x1b9e2a6666da63c43e52227d91a8a7f0bd5311f63c2e3a18839133375639e6cb<a href="#appendix-B.2.2-1.1.2.11.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.11.1">0x493cea587f1ec5622c04221cd6e5a41c26c1c1c24c0375f7aaa367d9678d83bc<a href="#appendix-B.2.2-1.1.2.11.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.12">
-                  <p id="appendix-B.2.2-1.1.2.12.1">0x332ea49dd23dd4745631ecbb15696192b1fa127256baf7a0483fd27db6f09a48<a href="#appendix-B.2.2-1.1.2.12.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.12.1">0x5aca0010aced30bcb3b84a7f10ea39c4269ab7c92fcb6cff52958d8921ef2cc5<a href="#appendix-B.2.2-1.1.2.12.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.13">
-                  <p id="appendix-B.2.2-1.1.2.13.1">0x43e735927ccbdc4d5ce912675d638d6d3dc8eef3def34504304e938846f157d6<a href="#appendix-B.2.2-1.1.2.13.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.13.1">0x4498fa8340f41467c0fa813bd0ca83ef6e1c4b85c7b1168a94339fd9e8296139<a href="#appendix-B.2.2-1.1.2.13.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.14">
-                  <p id="appendix-B.2.2-1.1.2.14.1">0xdc4a8868ae75e733a7257a8589230392a98d78594836dfccd01304742b5b3ad5<a href="#appendix-B.2.2-1.1.2.14.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.14.1">0xf9a95b738a8e775421b1baa503abbeed2d283b236ebba25e1954b3c993d30a3d<a href="#appendix-B.2.2-1.1.2.14.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.15">
-                  <p id="appendix-B.2.2-1.1.2.15.1">0x976353931711c634f2691e507b119fd7f6e653d419a2620676122db08db18765<a href="#appendix-B.2.2-1.1.2.15.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.15.1">0x98178711d03a0b1204ebb56b37bd3a2724dfb08e4dc925609391768b126d21f2<a href="#appendix-B.2.2-1.1.2.15.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.2-1.1.2.16">
-                  <p id="appendix-B.2.2-1.1.2.16.1">0x332729ab436dca654866a9382deaee0add6fb7e90a80261f1488e56598e8bc99<a href="#appendix-B.2.2-1.1.2.16.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.2-1.1.2.16.1">0x79251f49534f5c4b10b798b2dbf6e80a3b07593f616ce6a9617ccc61040aac78<a href="#appendix-B.2.2-1.1.2.16.1" class="pilcrow">¶</a></p>
 </li>
               </ul>
 </li>
           </ul>
 </section>
 </div>
-<div id="vector-3-writefieldelement">
+<div id="vector-3-writefieldelementarray">
 <section id="appendix-B.2.3">
-          <h4 id="name-vector-3-writefieldelement">
-<a href="#appendix-B.2.3" class="section-number selfRef">B.2.3. </a><a href="#name-vector-3-writefieldelement" class="section-name selfRef">Vector 3: WriteFieldElement</a>
+          <h4 id="name-vector-3-writefieldelementa">
+<a href="#appendix-B.2.3" class="section-number selfRef">B.2.3. </a><a href="#name-vector-3-writefieldelementa" class="section-name selfRef">Vector 3: WriteFieldElementArray</a>
           </h4>
 <ul class="normal">
 <li class="normal" id="appendix-B.2.3-1.1">
-              <p id="appendix-B.2.3-1.1.1">Using <code>Fp</code>, the test steps are to (a) initialize the transcript object with the 4-byte string <code>test</code>, (b) write the field element '7'
-and finally (c) generate 16 field elements<a href="#appendix-B.2.3-1.1.1" class="pilcrow">¶</a></p>
+              <p id="appendix-B.2.3-1.1.1">Starting from the state at the end of Vector 2, (a) write the 2-long array of field elements <code>[8, 9]</code>; (b) generate 16 field elements:<a href="#appendix-B.2.3-1.1.1" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-B.2.3-1.1.2.1">
-                  <p id="appendix-B.2.3-1.1.2.1.1">0x79dbf7dcaadb98df53c37f79a27d83ce183df6ac0e09d9b9c94d90bdc397267e<a href="#appendix-B.2.3-1.1.2.1.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.1.1">0xae1a921288590205fc24543303ff527476359b8db4a983b2886a133b02f3217e<a href="#appendix-B.2.3-1.1.2.1.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.2">
-                  <p id="appendix-B.2.3-1.1.2.2.1">0x6e1310e73726e68e7dc2d187cb88482f4230bc9347c90e040bbf50db2ed969b7<a href="#appendix-B.2.3-1.1.2.2.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.2.1">0x8c5d52a04b295f9fdb45ab66100fa00ca32c9634aa87cbbdb2bc3e1912459feb<a href="#appendix-B.2.3-1.1.2.2.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.3">
-                  <p id="appendix-B.2.3-1.1.2.3.1">0xf6045a731e0734126c6ebd450c2f6d4a25ff181fa669a2ba9a27cf3c89099f94<a href="#appendix-B.2.3-1.1.2.3.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.3.1">0x12f82963b5b242156f6e9eb756eddee7652b60c7d6394403f7bd995e0b9bcd9c<a href="#appendix-B.2.3-1.1.2.3.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.4">
-                  <p id="appendix-B.2.3-1.1.2.4.1">0x3ea763e44d31e2affa8756106d6d756fd214287070b74ac75736096dad6ddc5a<a href="#appendix-B.2.3-1.1.2.4.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.4.1">0x880aa50b049b3939055deb7933749d338bb3fb5f64a9adf95019e6cfc232995c<a href="#appendix-B.2.3-1.1.2.4.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.5">
-                  <p id="appendix-B.2.3-1.1.2.5.1">0xafc7ef2406665ebe9591ee90b61606811ff86a836d2656e3326638f3de6de79f<a href="#appendix-B.2.3-1.1.2.5.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.5.1">0xf8558f693f0fa6df20a37147a898fb4c678831f566d80113bbe2cdcd18285da2<a href="#appendix-B.2.3-1.1.2.5.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.6">
-                  <p id="appendix-B.2.3-1.1.2.6.1">0x756ea3b644ef82b92ec05b2d0247c108841e524d170d0c8444662e435c592031<a href="#appendix-B.2.3-1.1.2.6.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.6.1">0xbbcc8d9b46f88bc8c6cec0ad2d5e49508b7db91d548548eddc61800de1329e1c<a href="#appendix-B.2.3-1.1.2.6.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.7">
-                  <p id="appendix-B.2.3-1.1.2.7.1">0xa3309c8b0effdbe00dc7e32069751e5d2ea42c57bd5edda4a926eebfe544defb<a href="#appendix-B.2.3-1.1.2.7.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.7.1">0x479a17244398caae8155a73438a22583df7de10a8a2e12ad53ddd3bc7305fac9<a href="#appendix-B.2.3-1.1.2.7.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.8">
-                  <p id="appendix-B.2.3-1.1.2.8.1">0xb5892b1d967bba61faf40df6326c2d6c3d9bd0de196292278d5872a6a0cd8dfe<a href="#appendix-B.2.3-1.1.2.8.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.8.1">0x9ba1917f1227932250288a843f64b4e7b7f47a5fbc16c111f6e1f76235ccf38c<a href="#appendix-B.2.3-1.1.2.8.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.9">
-                  <p id="appendix-B.2.3-1.1.2.9.1">0x4402a2bbca75741b36e5576960abe050f8a7ba2a40708d4c399311054ad98a10<a href="#appendix-B.2.3-1.1.2.9.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.9.1">0xd1582138045d1636fb7f677c9e8a4a4143ce2b2bb54fb4f49fb0ad1fee5df6b4<a href="#appendix-B.2.3-1.1.2.9.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.10">
-                  <p id="appendix-B.2.3-1.1.2.10.1">0xa7618dc260c840a7e7a73cff97e3aac3a9ef43b308e67cd205c0f744a64a8781<a href="#appendix-B.2.3-1.1.2.10.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.10.1">0x5331e5b8508f79c017a8dfbbb805f3f8c5e3e4bc417e44849b9212439646331<a href="#appendix-B.2.3-1.1.2.10.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.11">
-                  <p id="appendix-B.2.3-1.1.2.11.1">0xf88ac012402776fef8b47a12157b36e237fc7a58ed807b9d416c3ac07e20c104<a href="#appendix-B.2.3-1.1.2.11.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.11.1">0xb6b95862194ca52dcaa9ee651b7fc5b708f43feae108bb9a7f95213f4d069048<a href="#appendix-B.2.3-1.1.2.11.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.12">
-                  <p id="appendix-B.2.3-1.1.2.12.1">0x08e3b0abae0dff1be9e610db25468905aaa7e88175367f815e69a3a515edba1a<a href="#appendix-B.2.3-1.1.2.12.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.12.1">0xe86b1602f0a54c4e237867ebaf05e7581464fd238e50f6ed9c3cea63909c8e60<a href="#appendix-B.2.3-1.1.2.12.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.13">
-                  <p id="appendix-B.2.3-1.1.2.13.1">0x1ecc211d37a4de8a310f1f3cc434112d105ae875300739c5485626820575c7f5<a href="#appendix-B.2.3-1.1.2.13.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.13.1">0xb7280439f3b21b113ff29cefe39292d5e2d137709c3d3cec36473a0f97a24e62<a href="#appendix-B.2.3-1.1.2.13.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.14">
-                  <p id="appendix-B.2.3-1.1.2.14.1">0xf2940f2aa7e29ee971c13af8d22f78d2464874fd76f049616fffb6dc76e043cd<a href="#appendix-B.2.3-1.1.2.14.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.14.1">0xbeaa5e08257d232506fb3e46c6daa29e0859c34c7d0cd673bc6706ee261ae059<a href="#appendix-B.2.3-1.1.2.14.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.15">
-                  <p id="appendix-B.2.3-1.1.2.15.1">0xb15df6859bb1b5145717aa346f395798625ca0af8ff6aaa31cdacab4a3891da5<a href="#appendix-B.2.3-1.1.2.15.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.15.1">0x691ead55728cd087a1952b22b6628ba4e26fbefc8debeec5e6fbc3a16f637be<a href="#appendix-B.2.3-1.1.2.15.1" class="pilcrow">¶</a></p>
 </li>
                 <li class="normal" id="appendix-B.2.3-1.1.2.16">
-                  <p id="appendix-B.2.3-1.1.2.16.1">0xbd9b4e85d27ff6e6e7983891e177eb25e8a6a5ecf3e1fd04e4f08c520eff6e7b<a href="#appendix-B.2.3-1.1.2.16.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.3-1.1.2.16.1">0x47dc31f6d8bc9c44290781176df3e4b95ac8793a4a42fa5859c564d92d6d5af5<a href="#appendix-B.2.3-1.1.2.16.1" class="pilcrow">¶</a></p>
 </li>
               </ul>
 </li>
           </ul>
 </section>
 </div>
-<div id="vector-4-writefieldelementarray">
+<div id="vector-4-nat">
 <section id="appendix-B.2.4">
-          <h4 id="name-vector-4-writefieldelementa">
-<a href="#appendix-B.2.4" class="section-number selfRef">B.2.4. </a><a href="#name-vector-4-writefieldelementa" class="section-name selfRef">Vector 4: WriteFieldElementArray</a>
+          <h4 id="name-vector-4-nat">
+<a href="#appendix-B.2.4" class="section-number selfRef">B.2.4. </a><a href="#name-vector-4-nat" class="section-name selfRef">Vector 4: Nat</a>
           </h4>
 <ul class="normal">
 <li class="normal" id="appendix-B.2.4-1.1">
-              <p id="appendix-B.2.4-1.1.1">Description: Using <code>Fp</code>, the test steps are to (a) initialize the transcript object with the 4-byte string <code>test</code>, (b) write the 2-long array of field elements <code>[8, 9]</code>
-and finally (c) generate 16 field elements:<a href="#appendix-B.2.4-1.1.1" class="pilcrow">¶</a></p>
+              <p id="appendix-B.2.4-1.1.1">Starting from the state at the end of Vector 3, (a) write the 4-byte string "nats"; (b) call <code>generate_nat</code> with the following list of parameters: <code>[1, 1, 1, 2, 2, 2, 7, 7,7, 7, 32, 32, 32, 32, 256, 256, 256, 256, 1000, 10000, 60000, 65535, 100000, 100000]</code>. The result of each call should correspond to the list of results:<a href="#appendix-B.2.4-1.1.1" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="appendix-B.2.4-1.1.2.1">
-                  <p id="appendix-B.2.4-1.1.2.1.1">0xdceeffa746fa8d6733d54e90d107f219e8c54ccf95bcd038f5dc0be89d756f1c<a href="#appendix-B.2.4-1.1.2.1.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.2.4-1.1.2.1.1"><code>[0, 0, 0, 0, 0, 0, 3, 0, 4, 5, 10, 30, 27, 22, 100, 189, 3, 92, 999, 3105, 40886, 51590, 56367, 10678]</code><a href="#appendix-B.2.4-1.1.2.1.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.2">
-                  <p id="appendix-B.2.4-1.1.2.2.1">0x4e92ffec4e426b8d78b04c4b73b3b1649e154cb73f929ae5835af23a7784c3da<a href="#appendix-B.2.4-1.1.2.2.1" class="pilcrow">¶</a></p>
+              </ul>
 </li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.3">
-                  <p id="appendix-B.2.4-1.1.2.3.1">0xd529ca59cb04d8015924c31148130a3b37093fa1d67b894d0dacaad68f1f3bf2<a href="#appendix-B.2.4-1.1.2.3.1" class="pilcrow">¶</a></p>
+          </ul>
+</section>
+</div>
+<div id="vector-5-choice">
+<section id="appendix-B.2.5">
+          <h4 id="name-vector-5-choice">
+<a href="#appendix-B.2.5" class="section-number selfRef">B.2.5. </a><a href="#name-vector-5-choice" class="section-name selfRef">Vector 5: Choice</a>
+          </h4>
+<ul class="normal">
+<li class="normal" id="appendix-B.2.5-1.1">
+              <p id="appendix-B.2.5-1.1.1">Starting from the state at the end of Vector 4, (a) write the 6-byte string "choice"; (b) perform the following calls to <code>generate_natgenerate_nats_wo_replacement</code><a href="#appendix-B.2.5-1.1.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-B.2.5-1.1.2.1">
+                  <p id="appendix-B.2.5-1.1.2.1.1"><code>m=31, k=20</code>:  <code>[10, 29, 30, 11, 4, 15, 16, 28, 19, 21, 25, 18, 17, 3, 5, 23, 24, 22, 6, 1]</code><a href="#appendix-B.2.5-1.1.2.1.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.4">
-                  <p id="appendix-B.2.4-1.1.2.4.1">0xc830d695e0a3f69e5bd7df4298b2c3a5c345bba6de89edfbc3d1255640823c77<a href="#appendix-B.2.4-1.1.2.4.1" class="pilcrow">¶</a></p>
+                <li class="normal" id="appendix-B.2.5-1.1.2.2">
+                  <p id="appendix-B.2.5-1.1.2.2.1"><code>m=32, k=20</code>: <code>[3, 17, 18, 8, 30, 7, 14, 19, 25, 23, 12, 4, 31, 16, 0, 6, 20, 27, 11, 10]</code><a href="#appendix-B.2.5-1.1.2.2.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.5">
-                  <p id="appendix-B.2.4-1.1.2.5.1">0x589ab4ce35561d8a717557ea47aa8fc8a318ae79c1a78dcfca89a77b64c3bffe<a href="#appendix-B.2.4-1.1.2.5.1" class="pilcrow">¶</a></p>
+                <li class="normal" id="appendix-B.2.5-1.1.2.3">
+                  <p id="appendix-B.2.5-1.1.2.3.1"><code>m=63, k=20</code>: <code>[9, 56, 61, 45, 35, 53, 51, 3, 39, 32, 31, 6, 59, 58, 54, 22, 27, 62, 55, 19]</code><a href="#appendix-B.2.5-1.1.2.3.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.6">
-                  <p id="appendix-B.2.4-1.1.2.6.1">0xba9c43ed7fa666b9d2b5c2f13eca365ac0a8bfb3eaf66e739b3e4afae9bce824<a href="#appendix-B.2.4-1.1.2.6.1" class="pilcrow">¶</a></p>
+                <li class="normal" id="appendix-B.2.5-1.1.2.4">
+                  <p id="appendix-B.2.5-1.1.2.4.1"><code>m=64, k=20</code>: <code>[12, 52, 39, 17, 51, 38, 58, 2, 28, 27, 46, 63, 61, 50, 40, 55, 47, 13, 56, 32]</code><a href="#appendix-B.2.5-1.1.2.4.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.7">
-                  <p id="appendix-B.2.4-1.1.2.7.1">0x970c4fb3d48f76d1ee27c8e12d5c81632c736ecc12436c115a15f76ce6a01cbc<a href="#appendix-B.2.4-1.1.2.7.1" class="pilcrow">¶</a></p>
+                <li class="normal" id="appendix-B.2.5-1.1.2.5">
+                  <p id="appendix-B.2.5-1.1.2.5.1"><code>m=1000, k=20</code>: <code>[157, 668, 572, 138, 913, 994, 797, 249, 440, 723, 489, 241, 383, 108, 710, 341, 406, 585, 42, 692]</code><a href="#appendix-B.2.5-1.1.2.5.1" class="pilcrow">¶</a></p>
 </li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.8">
-                  <p id="appendix-B.2.4-1.1.2.8.1">0x1fd18d8cc8ee9ed717d4da6da5ef2779a8c7e5cc44d10aa4c8e71f4064a310c4<a href="#appendix-B.2.4-1.1.2.8.1" class="pilcrow">¶</a></p>
-</li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.9">
-                  <p id="appendix-B.2.4-1.1.2.9.1">0x23ef27bc299da254427d8cade2256c0078f1a820a267784c663bf14b1ab643d5<a href="#appendix-B.2.4-1.1.2.9.1" class="pilcrow">¶</a></p>
-</li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.10">
-                  <p id="appendix-B.2.4-1.1.2.10.1">0xe11c54a3a5c75dda77bbece74f9a0fa58e915f927027921b4189a29296f773fd<a href="#appendix-B.2.4-1.1.2.10.1" class="pilcrow">¶</a></p>
-</li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.11">
-                  <p id="appendix-B.2.4-1.1.2.11.1">0x54c8300bfa2a9fc98f8e975c0fe3dd93c8f19b0466aa490762c5653a7ed1798f<a href="#appendix-B.2.4-1.1.2.11.1" class="pilcrow">¶</a></p>
-</li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.12">
-                  <p id="appendix-B.2.4-1.1.2.12.1">0x87df7994955345d30ac9a84c7bfdc00f9ec5fa54620a47eb43df05ea9e7fcd89<a href="#appendix-B.2.4-1.1.2.12.1" class="pilcrow">¶</a></p>
-</li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.13">
-                  <p id="appendix-B.2.4-1.1.2.13.1">0x3dfdc0ad656f225fdf105b3f226fd6117a3c63be174114a4c30fa7ed6e98537a<a href="#appendix-B.2.4-1.1.2.13.1" class="pilcrow">¶</a></p>
-</li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.14">
-                  <p id="appendix-B.2.4-1.1.2.14.1">0x77e46ff1c83ed47d4845e13f5660e27b319b85073e1621e2a40d92f7c2ab298e<a href="#appendix-B.2.4-1.1.2.14.1" class="pilcrow">¶</a></p>
-</li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.15">
-                  <p id="appendix-B.2.4-1.1.2.15.1">0x19a19a13fb10140fbd6e76c252e4339e4e306b1f7d4d1d2f275525eb3b367b9c<a href="#appendix-B.2.4-1.1.2.15.1" class="pilcrow">¶</a></p>
-</li>
-                <li class="normal" id="appendix-B.2.4-1.1.2.16">
-                  <p id="appendix-B.2.4-1.1.2.16.1">0x95beabd1f934fba041db42142d731f1e5b54cc92ec64cb7d61c01cef85a8b300<a href="#appendix-B.2.4-1.1.2.16.1" class="pilcrow">¶</a></p>
+                <li class="normal" id="appendix-B.2.5-1.1.2.6">
+                  <p id="appendix-B.2.5-1.1.2.6.1"><code>m=65535, k=20</code>: <code>[40745, 48408, 17108, 44500, 53993, 10008, 24910, 52200, 61265, 54989, 41237, 25958, 28697, 61187, 34729, 3525, 9005, 38627, 9724, 12169]</code><a href="#appendix-B.2.5-1.1.2.6.1" class="pilcrow">¶</a></p>
 </li>
               </ul>
 </li>
