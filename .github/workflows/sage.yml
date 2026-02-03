@@ -1,0 +1,25 @@
+name: Test Sage implementation
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+
+jobs:
+  sage:
+    name: Test Sage
+    runs-on: ubuntu-latest
+    container:
+      image: sagemath/sagemath:latest
+      options: --user root
+    steps:
+    - name: Install dependencies
+      run: sage --pip install pycryptodome
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Run tests
+      working-directory: docs/specs/code
+      run: |
+        sage --python fs.py
+        sage --python merkle.py
