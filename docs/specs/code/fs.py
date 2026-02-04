@@ -1,7 +1,7 @@
 #
 # Runs in sage if the pycryptodome package is installed in the environment.
 #   `sage --pip install pycryptodome`
-# In sage, use load("fs.py") to run this test
+# To run this test in sage, run `sage --python fs.py`
 #
 from Crypto.Cipher import AES
 
