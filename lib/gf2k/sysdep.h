@@ -84,7 +84,7 @@ static inline std::array<uint64_t, 2> uint64x2_of_gf2_128(gf2_128_elt_t x) {
 }
 
 static inline gf2_128_elt_t gf2_128_of_uint64x2(
-    const std::array<uint64_t, 2> &x) {
+    const std::array<uint64_t, 2>& x) {
   return gf2_128_elt_t{static_cast<poly64_t>(x[0]),
                        static_cast<poly64_t>(x[1])};
 }
@@ -137,7 +137,7 @@ static inline std::array<uint64_t, 2> uint64x2_of_gf2_128(gf2_128_elt_t x) {
 }
 
 static inline gf2_128_elt_t gf2_128_of_uint64x2(
-    const std::array<uint64_t, 2> &x) {
+    const std::array<uint64_t, 2>& x) {
   return gf2_128_elt_t{static_cast<poly64_t>(x[0]),
                        static_cast<poly64_t>(x[1])};
 }
@@ -247,7 +247,83 @@ static inline gf2_128_elt_t gf2_128_mul(gf2_128_elt_t x, gf2_128_elt_t y) {
 
 }  // namespace proofs
 #else
-#error "unimplemented gf2k/sysdep.h"
+
+// Generic implementation assuming a 64x64->64 integer multiplier.
+struct gf2_128_elt_t {
+  uint64_t l[2];
+};
+
+static inline std::array<uint64_t, 2> uint64x2_of_gf2_128(gf2_128_elt_t x) {
+  return std::array<uint64_t, 2>{x.l[0], x.l[1]};
+}
+
+static inline gf2_128_elt_t gf2_128_of_uint64x2(
+    const std::array<uint64_t, 2>& x) {
+  return gf2_128_elt_t{x[0], x[1]};
+}
+
+static inline gf2_128_elt_t gf2_128_add(gf2_128_elt_t x, gf2_128_elt_t y) {
+  return gf2_128_elt_t{x.l[0] ^ y.l[0], x.l[1] ^ y.l[1]};
+}
+
+// 64x64->64 bit GF(2)[X] multiplication via Kronecker
+// substitution.  Modeled after the Highway library
+// https://github.com/google/highway/blob/master/hwy/ops/generic_ops-inl.h
+// and the ghash implementation in BearSSL.
+static inline uint64_t clmul64_lo(uint64_t x, uint64_t y) {
+  uint64_t m0 = 0x1111111111111111ull, m1 = 0x2222222222222222ull,
+           m2 = 0x4444444444444444ull, m3 = 0x8888888888888888ull;
+  uint64_t x0 = x & m0, x1 = x & m1, x2 = x & m2, x3 = x & m3;
+  uint64_t y0 = y & m0, y1 = y & m1, y2 = y & m2, y3 = y & m3;
+  uint64_t z0 = (x0 * y0) ^ (x1 * y3) ^ (x2 * y2) ^ (x3 * y1);
+  uint64_t z1 = (x0 * y1) ^ (x1 * y0) ^ (x2 * y3) ^ (x3 * y2);
+  uint64_t z2 = (x0 * y2) ^ (x1 * y1) ^ (x2 * y0) ^ (x3 * y3);
+  uint64_t z3 = (x0 * y3) ^ (x1 * y2) ^ (x2 * y1) ^ (x3 * y0);
+  return (z0 & m0) | (z1 & m1) | (z2 & m2) | (z3 & m3);
+}
+
+static inline uint64_t bitrev64(uint64_t n) {
+  n = ((n >> 1) & 0x5555555555555555ull) | ((n & 0x5555555555555555ull) << 1);
+  n = ((n >> 2) & 0x3333333333333333ull) | ((n & 0x3333333333333333ull) << 2);
+  n = ((n >> 4) & 0x0f0f0f0f0f0f0f0full) | ((n & 0x0f0f0f0f0f0f0f0full) << 4);
+  n = ((n >> 8) & 0x00ff00ff00ff00ffull) | ((n & 0x00ff00ff00ff00ffull) << 8);
+  n = ((n >> 16) & 0x0000ffff0000ffffull) | ((n & 0x0000ffff0000ffffull) << 16);
+  return (n << 32) | (n >> 32);
+}
+
+static inline uint64_t clmul64_hi(uint64_t x, uint64_t y) {
+  return bitrev64(clmul64_lo(bitrev64(x), bitrev64(y))) >> 1;
+}
+
+// 64x64 -> 128
+static inline gf2_128_elt_t clmul64(uint64_t x, uint64_t y) {
+  return gf2_128_elt_t{clmul64_lo(x, y), clmul64_hi(x, y)};
+}
+
+// return (t0 + x^64 * t1)
+static inline gf2_128_elt_t gf2_128_reduce(gf2_128_elt_t t0, gf2_128_elt_t t1) {
+  uint64_t a = t1.l[1];
+  t0.l[0] ^= a;
+  t0.l[0] ^= a << 1;
+  t0.l[1] ^= a >> 63;
+  t0.l[0] ^= a << 2;
+  t0.l[1] ^= a >> 62;
+  t0.l[0] ^= a << 7;
+  t0.l[1] ^= a >> 57;
+  t0.l[1] ^= t1.l[0];
+  return t0;
+}
+static inline gf2_128_elt_t gf2_128_mul(gf2_128_elt_t x, gf2_128_elt_t y) {
+  // karatsuba
+  gf2_128_elt_t t0 = clmul64(x.l[0], y.l[0]);
+  gf2_128_elt_t t2 = clmul64(x.l[1], y.l[1]);
+  gf2_128_elt_t t1 = clmul64(x.l[0] ^ x.l[1], y.l[0] ^ y.l[1]);
+  t1 = gf2_128_add(t1, gf2_128_add(t0, t2));
+  t1 = gf2_128_reduce(t1, t2);
+  t0 = gf2_128_reduce(t0, t1);
+  return t0;
+}
+
 #endif
 
 #endif  // PRIVACY_PROOFS_ZK_LIB_GF2K_SYSDEP_H_

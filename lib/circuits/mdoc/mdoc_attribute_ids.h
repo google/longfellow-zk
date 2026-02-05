@@ -29,20 +29,21 @@ constexpr const char* kAAMVANamespace = "org.iso.18013.5.1.aamva";
 constexpr const char* kEUAVNamespace = "eu.europa.ec.av.1";
 constexpr const char* kEUDIPIDNamespace = "eu.europa.ec.eudi.pid.1";
 constexpr const char* kISO23220Namespace = "org.iso.23220.1";
-constexpr const char* kISO23220PhotoIDNamespace =
-    "org.iso.23220.photoID.1";
+constexpr const char* kISO23220PhotoIDNamespace = "org.iso.23220.photoID.1";
 constexpr const char* kISO23220DTCNamespace = "org.iso.23220.dtc.1";
+constexpr const char* kAadhaarNamespace = "in.gov.uidai.aadhaar.1";
 
 constexpr const char* kSupportedNamespaces[] = {
-    kMDLNamespace,        kAAMVANamespace,    kEUAVNamespace,
-    kEUDIPIDNamespace,    kISO23220Namespace, kISO23220PhotoIDNamespace,
-    kISO23220DTCNamespace};
+    kMDLNamespace,         kAAMVANamespace,    kEUAVNamespace,
+    kEUDIPIDNamespace,     kISO23220Namespace, kISO23220PhotoIDNamespace,
+    kISO23220DTCNamespace, kAadhaarNamespace};
 
 constexpr const char* kIDPassDocType = "com.google.wallet.idcard.1";
 constexpr const char* kMDLDocType = "org.iso.18013.5.1.mDL";
 constexpr const char* kEUAVDocType = "eu.europa.ec.av.1";
 constexpr const char* kEUDIPIDDocType = "eu.europa.ec.eudi.pid.1";
 constexpr const char* kISO23220PhotoIDDocType = "org.iso.23220.photoID.1";
+constexpr const char* kAadhaarDocType = "in.gov.uidai.aadhaar.1";
 
 // Extracted from
 // https://github.com/ISOWG10/ISO-18013/blob/main/Working%20Documents/Working%20Draft%20WG%2010_N2549_ISO-IEC%2018013-5-%20Personal%20identification%20%E2%80%94%20ISO-compliant%20driving%20licence%20%E2%80%94%20Part%205-%20Mobile%20driving%20lic.pdf
@@ -261,6 +262,48 @@ constexpr MdocAttribute kMdocAttributes[] = {
     {"age_over_65", kEUAVNamespace},
     {"age_over_67", kEUAVNamespace},
     {"portrait", kEUAVNamespace},
+
+    // Aadhaar attributes
+    {"credential_issuing_date", kAadhaarNamespace},
+    {"enrolment_date", kAadhaarNamespace},
+    {"enrolment_number", kAadhaarNamespace},
+    {"is_nri", kAadhaarNamespace},
+    {"resident_image", kAadhaarNamespace},
+    {"resident_name", kAadhaarNamespace},
+    {"local_resident_name", kAadhaarNamespace},
+    {"age_above18", kAadhaarNamespace},
+    {"age_above60", kAadhaarNamespace},
+    {"age_above75", kAadhaarNamespace},
+    {"dob", kAadhaarNamespace},
+    {"gender", kAadhaarNamespace},
+    {"building", kAadhaarNamespace},
+    {"local_building", kAadhaarNamespace},
+    {"locality", kAadhaarNamespace},
+    {"local_locality", kAadhaarNamespace},
+    {"street", kAadhaarNamespace},
+    {"local_street", kAadhaarNamespace},
+    {"landmark", kAadhaarNamespace},
+    {"local_landmark", kAadhaarNamespace},
+    {"vtc", kAadhaarNamespace},
+    {"local_vtc", kAadhaarNamespace},
+    {"sub_district", kAadhaarNamespace},
+    {"local_sub_district", kAadhaarNamespace},
+    {"district", kAadhaarNamespace},
+    {"local_district", kAadhaarNamespace},
+    {"state", kAadhaarNamespace},
+    {"local_state", kAadhaarNamespace},
+    {"po_name", kAadhaarNamespace},
+    {"local_po_name", kAadhaarNamespace},
+    {"pincode", kAadhaarNamespace},
+    {"address", kAadhaarNamespace},
+    {"local_address", kAadhaarNamespace},
+    {"mobile", kAadhaarNamespace},
+    {"masked_mobile", kAadhaarNamespace},
+    {"email", kAadhaarNamespace},
+    {"masked_email", kAadhaarNamespace},
+    {"masked_uid", kAadhaarNamespace},
+    {"aadhaar_type", kAadhaarNamespace},
+    {"expires_on", kAadhaarNamespace},
 };
 
 }  // namespace proofs
