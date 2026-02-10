@@ -15,5 +15,10 @@
 add_library(util OBJECT log.cc crypto.cc)
 target_link_libraries(util crypto zstd)
 
+# Link Security framework on macOS when using Secure Enclave RNG
+if(CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin" AND USE_SECURE_ENCLAVE_RNG)
+  target_link_libraries(util ${SECURITY_FRAMEWORK})
+endif()
+
 proofs_add_tests(ceildiv_test)
 

@@ -25,7 +25,9 @@
 
 namespace proofs {
 
-// SecureRandomEngine is a RandomEngine that uses openssl.
+// SecureRandomEngine is a RandomEngine that uses cryptographically secure random number generation.
+// On macOS with SECURE_ENCLAVE_RNG enabled, uses Apple's Secure Enclave.
+// Otherwise, falls back to OpenSSL's RAND_bytes.
 class SecureRandomEngine : public RandomEngine {
  public:
   SecureRandomEngine() = default;

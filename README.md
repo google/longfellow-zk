@@ -51,6 +51,22 @@ Ensure that Xcode command line tools such as `clang` and `cmake` are installed.
 $ brew install googletest google-benchmark zstd
 ```
 
+#### Apple Secure Enclave Support (Optional)
+On macOS with Apple silicon, you can enable hardware-backed random number generation using Apple's Secure Enclave:
+
+```
+$ CXX=clang++ cmake -D CMAKE_BUILD_TYPE=Release -D USE_SECURE_ENCLAVE_RNG=ON -S lib -B clang-build-release --install-prefix ${PWD}/install
+```
+
+This provides hardware-level security for all cryptographic random number generation used in zero-knowledge proof construction. When enabled, you can verify Secure Enclave usage:
+
+```cpp
+#include "util/crypto.h"
+if (proofs::is_secure_enclave_active()) {
+    // All rand_bytes() calls use Apple Secure Enclave
+}
+```
+
 ## Building manually
 
 First run the cmake initialization step
