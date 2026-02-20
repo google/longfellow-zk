@@ -24,5 +24,6 @@ jobs:
     - name: Run tests
       working-directory: docs/specs/code
       run: |
+        sage --python fields.py
         sage --python fs.py
         sage --python merkle.py
