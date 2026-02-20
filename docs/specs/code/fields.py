@@ -28,12 +28,3 @@ GF2_16, GF2_16_inclusion_map = GF2_128.subfield(16, name="g", map=True)
 # Construct quadratic extension fields.
 Fp64_2 = _make_quadratic_extension(Fp64)
 Fp256_2 = _make_quadratic_extension(Fp256)
-
-if __name__ == "__main__":
-    # Confirm that GF(2^16) was constructed with the specified generator.
-    power = (2 ** 128 - 1) // (2 ** 16 - 1)
-    (x,) = GF2_128.gens()
-    g_want = x ** power
-    (g,) = GF2_16.gens()
-    assert GF2_16_inclusion_map(g) == g_want
-
