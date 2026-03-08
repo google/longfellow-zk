@@ -112,6 +112,40 @@ class ParsedMdoc {
   // These are the exact bytes which produce the hash that is signed.
   std::vector<uint8_t> tagged_mso_bytes_;
 
+  size_t doc_len_;
+
+  // Helper function to dynamically extract a specific CBOR elementValue from a parsed mdoc's
+  // IssuerSignedItemBytes tagged attributes. This isolates callers from version-specific CBOR key ordering.
+  bool extract_cbor_value(const char* expected_id, const uint8_t** out_val, size_t* out_len) const {
+    size_t expected_id_len = strlen(expected_id);
+    for (const auto &attr : attributes_) {
+      // `attr.tag_ind` points to the start of the `IssuerSignedItemBytes` tag
+      CborDoc itemDoc;
+      size_t pos = 0;
+      const uint8_t *p_item = &attr.doc[attr.tag_ind];
+      CborDoc tagDoc;
+      
+      // Safely parse the tagged CBOR item
+      if (tagDoc.decode(p_item, doc_len_ - attr.tag_ind, pos, 0) && tagDoc.children_.size() > 0) {
+        CborDoc &bstr = tagDoc.children_[0]; // inner byte string
+        CborDoc innerMap;
+        size_t inner_pos = 0;
+        if (innerMap.decode(&p_item[bstr.u_.string.pos], bstr.u_.string.len, inner_pos, 0)) {
+          size_t di = 0;
+          auto ev = innerMap.lookup(&p_item[bstr.u_.string.pos], 12, (const uint8_t *)"elementValue", di);
+          if (ev != nullptr) {
+            if (attr.id_len == expected_id_len && memcmp(&attr.doc[attr.id_ind], expected_id, expected_id_len) == 0) {
+              *out_val = &p_item[bstr.u_.string.pos + ev[1].position()];
+              *out_len = ev[1].length();
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   /*
     Parses a byte representation of the "DeviceResponse" string from a phone.
     This contains all of the information needed to respond to an mdoc verifier.
@@ -127,6 +161,7 @@ class ParsedMdoc {
   */
   MdocProverErrorCode parse_device_response(size_t len,
                                             const uint8_t resp[/* len */]) {
+    doc_len_ = len;
     size_t np = 0;
     // When this object falls out of scope, all parsing objects will be
     // garbage collected.
@@ -644,6 +679,13 @@ class MdocHashWitness {
 
   FlatSHA256Witness::BlockWitness bw_[kMaxSHABlocks];
 
+  uint8_t ppid_inner_nb_;
+  uint8_t ppid_outer_nb_;
+  uint8_t ppid_seed_[32];
+  uint8_t ppid_inner_padded_m_[9 * 64];
+  FlatSHA256Witness::BlockWitness ppid_inner_bw_[10];
+  FlatSHA256Witness::BlockWitness ppid_outer_bw_[2];
+
   ParsedMdoc pm_;
 
   explicit MdocHashWitness(size_t num_attr, const EC& ec, const Field& Fn)
@@ -720,6 +762,22 @@ class MdocHashWitness {
         fill_salted_attr(filler, attr_sh_[ai]);
       }
     }
+
+    if (version >= 8) {
+      filler.push_back(ppid_inner_nb_, 8, fn_);
+      for (size_t i = 0; i < 32; ++i) {
+          filler.push_back(ppid_seed_[i], 8, fn_);
+      }
+      for (size_t i = 0; i < 9 * 64; ++i) {
+          filler.push_back(ppid_inner_padded_m_[i], 8, fn_);
+      }
+      for (size_t i = 0; i < 10; ++i) {
+          fill_sha(filler, ppid_inner_bw_[i]);
+      }
+      for (size_t i = 0; i < 2; ++i) {
+          fill_sha(filler, ppid_outer_bw_[i]);
+      }
+    }
   }
 
   size_t max_shablocks(size_t version) const {
@@ -782,7 +840,15 @@ class MdocHashWitness {
       atw_[i].resize(2);
       bool found = false;
       for (auto fa : pm_.attributes_) {
-        if (fa == attrs[i]) {
+        bool is_match = (fa == attrs[i]);
+        if (version >= 8 && !is_match) {
+            // Alias match: if the user requested "pairwise_pseudonym" but the MSO holds "pseudonym_seed"
+            if (attrs[i].id_len == 18 && memcmp(attrs[i].id, "pairwise_pseudonym", 18) == 0 &&
+                fa.id_len == 14 && memcmp(&fa.doc[fa.id_ind], "pseudonym_seed", 14) == 0) {
+                is_match = true;
+            }
+        }
+        if (is_match) {
           FlatSHA256Witness::transform_and_witness_message(
               fa.tag_len, &fa.doc[fa.tag_ind], 2, attr_n_[i],
               &attr_bytes_[i][0], &atw_[i][0]);
@@ -855,6 +921,87 @@ class MdocHashWitness {
         return MDOC_PROVER_ATTRIBUTE_NOT_FOUND;
       }
     }
+
+    memset(ppid_inner_padded_m_, 0, sizeof(ppid_inner_padded_m_));
+    memset(ppid_inner_bw_, 0, sizeof(ppid_inner_bw_));
+    memset(ppid_outer_bw_, 0, sizeof(ppid_outer_bw_));
+    ppid_inner_nb_ = 0;
+    ppid_outer_nb_ = 2; // Outer hash always takes exactly 2 blocks due to fixed 96 byte length
+
+    if (version >= 8) {
+        uint8_t hmac_key[64] = {0};
+        const uint8_t* v_id = nullptr;
+        const uint8_t* p_ctx = nullptr;
+        bool found = false;
+        for (size_t i = 0; i < attrs_len; ++i) {
+            std::string attr_name((const char*)attrs[i].id, attrs[i].id_len);
+            if (attr_name == "pairwise_pseudonym") {
+                v_id = attrs[i].verifier_id;
+                p_ctx = attrs[i].ppid_context;
+                // The pseudonym seed is 32 bytes and encoded as a cbor bytestring.
+                // The attribute value is at &mdoc[pm_.t_mso_.pos + 5 + attr_ev_[i].offset]
+                // but we extract it from fa.doc using the parsed attribute list logic.
+                for (auto fa : pm_.attributes_) {
+                    bool is_match = (fa == attrs[i]);
+                    if (!is_match && attrs[i].id_len == 18 && memcmp(attrs[i].id, "pairwise_pseudonym", 18) == 0 &&
+                        fa.id_len == 14 && memcmp(&fa.doc[fa.id_ind], "pseudonym_seed", 14) == 0) {
+                        is_match = true;
+                    }
+
+                    if (is_match) {
+                        // Extract 32 bytes from offset + 14
+                        // fa.val_ind points to the 'e' in "elementValue".
+                        // "+ 12" skips the 12 character string.
+                        // "+ 2" skips the CBOR bytestring prefix (0x58 0x20).
+                        size_t key_pos = fa.val_ind + 14;
+                        if (key_pos + 32 <= len) {
+                            memcpy(hmac_key, &fa.doc[key_pos], 32);
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+        memcpy(ppid_seed_, hmac_key, 32);
+        
+        // Construct HMAC Data (Exactly 64 bytes)
+        std::vector<uint8_t> hmac_data;
+        if (v_id) hmac_data.insert(hmac_data.end(), v_id, v_id + 32);
+        else hmac_data.insert(hmac_data.end(), 32, 0);
+        
+        if (p_ctx) hmac_data.insert(hmac_data.end(), p_ctx, p_ctx + 32);
+        else hmac_data.insert(hmac_data.end(), 32, 0);
+
+        std::vector<uint8_t> inner_full_data;
+        std::vector<uint8_t> padded_hmac_key(64, 0);
+        memcpy(padded_hmac_key.data(), hmac_key, 32);
+
+        for(size_t i = 0; i < 64; ++i) inner_full_data.push_back(padded_hmac_key[i] ^ 0x36); // k_ipad
+        inner_full_data.insert(inner_full_data.end(), hmac_data.begin(), hmac_data.end());
+
+        uint8_t inner_padded_full[64 * 3] = {0};
+        FlatSHA256Witness::transform_and_witness_message(inner_full_data.size(), inner_full_data.data(), 3, ppid_inner_nb_, inner_padded_full, ppid_inner_bw_);
+        
+        // ppid_inner_padded_m_ receives the padding AFTER the 64 byte K_ipad, so we skip the first 64 bytes
+        memcpy(ppid_inner_padded_m_, inner_padded_full + 64, 2 * 64);
+
+        // Extract inner hash
+        uint32_t inner_hash[8];
+        for (size_t i = 0; i < 8; ++i) inner_hash[i] = ppid_inner_bw_[ppid_inner_nb_ - 1].h1[i];
+        
+        std::vector<uint8_t> outer_full_data;
+        for (size_t i = 0; i < 64; ++i) outer_full_data.push_back(padded_hmac_key[i] ^ 0x5c); // k_opad
+        for (size_t i = 0; i < 8; ++i) {
+            outer_full_data.push_back((inner_hash[i] >> 24) & 0xff);
+            outer_full_data.push_back((inner_hash[i] >> 16) & 0xff);
+            outer_full_data.push_back((inner_hash[i] >> 8) & 0xff);
+            outer_full_data.push_back(inner_hash[i] & 0xff);
+        }
+        uint8_t outer_padded_full[64 * 2] = {0};
+        FlatSHA256Witness::transform_and_witness_message(outer_full_data.size(), outer_full_data.data(), 2, ppid_outer_nb_, outer_padded_full, ppid_outer_bw_);
+    }
+
     return MDOC_PROVER_SUCCESS;
   }
 };

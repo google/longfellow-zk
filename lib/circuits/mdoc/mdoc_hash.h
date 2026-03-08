@@ -25,6 +25,7 @@
 #include "circuits/logic/routing.h"
 #include "circuits/mdoc/mdoc_constants.h"
 #include "circuits/sha/flatsha256_circuit.h"
+#include "circuits/sha/hmac_circuit.h"
 
 namespace proofs {
 
@@ -54,6 +55,8 @@ class MdocHash {
                                     BitPlucker<LogicCircuit, kSHAPluckerBits>>;
   using ShaBlockWitness = typename Flatsha::BlockWitness;
   using sha_packed_v32 = typename Flatsha::packed_v32;
+  
+  using Hmac = HMAC_Circuit<LogicCircuit, BitPlucker<LogicCircuit, kSHAPluckerBits>>;
 
  public:
   // These structures mimic the similarly named structures in Witness, but
@@ -138,11 +141,16 @@ class MdocHash {
       for (size_t i = 0; i < num_attr; ++i) {
         attr_sha_[i].resize(2);
       }
-
       attrb_.resize(num_attr);
     }
 
-    void input(const LogicCircuit& lc) {
+    v8 ppid_inner_nb_;
+    v8 ppid_seed_[32];
+    v8 ppid_inner_padded_m_[9 * 64]; // max 513 bytes padding
+    ShaBlockWitness ppid_inner_bw_[10];
+    ShaBlockWitness ppid_outer_bw_[2];
+
+    void input(const LogicCircuit& lc, size_t version = 7) {
       nb_ = lc.template vinput<8>();
 
       // sha input init =========================
@@ -171,16 +179,67 @@ class MdocHash {
         attr_ev_[ai].input(lc);
         salted_hashes_[ai].input(lc);
       }
+
+      if (version >= 8) {
+        ppid_inner_nb_ = lc.template vinput<8>();
+        for (size_t i = 0; i < 32; ++i) {
+          ppid_seed_[i] = lc.template vinput<8>();
+        }
+        for (size_t i = 0; i < 9 * 64; ++i) {
+          ppid_inner_padded_m_[i] = lc.template vinput<8>();
+        }
+        for (size_t i = 0; i < 10; ++i) {
+          ppid_inner_bw_[i].input(lc);
+        }
+        for (size_t i = 0; i < 2; ++i) {
+          ppid_outer_bw_[i].input(lc);
+        }
+      }
     }
   };
 
   explicit MdocHash(const LogicCircuit& lc)
-      : lc_(lc), sha_(lc), r_(lc), cb_(lc) {}
+      : lc_(lc), sha_(lc), r_(lc), cb_(lc), hmac_(lc, sha_) {}
 
   void assert_valid_hash_mdoc(OpenedAttribute oa[/* NUM_ATTR */],
                               const v8 now[/*20*/], const v256& e,
                               const v256& dpkx, const v256& dpky,
-                              const Witness& vw) const {
+                              const Witness& vw, size_t version,
+                              const v8 verifier_id[32],
+                              const v8 ppid_context[32]) const {
+    v256 hmac_out_v256;
+    if (version >= 8) {
+        // Construct data = verifier_id || context (32 bytes + 32 bytes = 64 bytes)
+        v8 hmac_data[64];
+        for (size_t i = 0; i < 32; ++i) {
+            hmac_data[i] = verifier_id[i];
+            hmac_data[32 + i] = ppid_context[i];
+        }
+        
+        // Verify that the prover's inner_padded_m starts with hmac_data
+        auto true_cond = lc_.template vbit<1>(1);
+        for (size_t k = 0; k < 64; ++k) {
+            auto match = lc_.eq(8, hmac_data[k].data(), vw.ppid_inner_padded_m_[k].data());
+            lc_.assert_implies(true_cond.data(), match);
+        }
+
+        // Compute HMAC(seed, hmac_data, total_len)
+        v8 padded_key[64];
+        auto zero8 = lc_.template vbit<8>(0);
+        for(size_t i = 0; i < 32; ++i) padded_key[i] = vw.ppid_seed_[i];
+        for(size_t i = 32; i < 64; ++i) padded_key[i] = zero8;
+
+        // Since the data is exactly 64 bytes, the padded length for the inner SHA
+        // requires 128 bytes of data (64 byte K_ipad + 64 byte payload)
+        // Pad for 1024 bits: + 0x80, + 0s, + (0x0400 length). That takes 64 more bytes.
+        // Total padded inner message = 192 bytes = 3 blocks.
+        // The padded part after the first 64 bytes is provided via vw.ppid_inner_padded_m_
+        hmac_out_v256 = hmac_.compute_hmac(padded_key, 3, vw.ppid_inner_nb_, vw.ppid_inner_padded_m_, vw.ppid_inner_bw_, vw.ppid_outer_bw_);
+    } else {
+        auto zero1 = lc_.template vbit<1>(0)[0];
+        for (size_t i = 0; i < 256; ++i) hmac_out_v256[i] = zero1;
+    }
+
     auto preimage = construct_signature_preimage(vw);
     lc_.vassert_is_bit(vw.nb_);
     lc_.vleq(vw.nb_, kMaxSHABlocks);
@@ -279,7 +338,7 @@ class MdocHash {
 
       // 5. Check the attribute is well-formed and matches the public argument.
       assert_attribute(128, vw.attrb_[ai].data(), vw.salted_hashes_[ai], oa[ai],
-                       salted_len);
+                       salted_len, version, hmac_out_v256, vw);
     }
   }
 
@@ -390,7 +449,8 @@ class MdocHash {
   // assert_attribute checks that the bytes in buf correspond to a valid
   // cbor structure that encodes the OpenedAttribute oa.
   void assert_attribute(size_t max, const v8 buf[/*max*/], const SaltedHash& sh,
-                        const OpenedAttribute& oa, const v64 salted_len) const {
+                        const OpenedAttribute& oa, const v64 salted_len,
+                        size_t version, const v256& hmac_out, const Witness& vw) const {
     // Perform a cbor parsing of the buffer, which is expected to be
     // a 4-element key-value array consisting of keys digestId, random,
     // elementIdentifier, and elementValue. Then perform a check on the
@@ -449,32 +509,113 @@ class MdocHash {
     format_element(want_ei, MAX_EI, ei_bytes, sizeof(ei_bytes), oa.attr, 32);
     format_element(want_ev, MAX_EV, ev_bytes, sizeof(ev_bytes), oa.v1, 64);
 
+    // Check if this is a pseudonym_seed attribute (in MSO) but requested as pairwise_pseudonym
+    auto is_ppid = lc_.template vbit<1>(0);
+    // The public requested attribute (oa.attr) must match pairwise_pseudonym for this to be valid.
+    if (version >= 8) {
+      uint8_t ppid_id[] = {'p', 'a', 'i', 'r', 'w', 'i', 's', 'e', '_', 'p', 's', 'e', 'u', 'd', 'o', 'n', 'y', 'm'};
+      auto ppid_match = lc_.template vbit<1>(1)[0];
+      
+      // Check the text string prefix byte (0x60 + 18 = 0x72)
+      auto expected_prefix = lc_.template vbit<8>(0x72);
+      auto e_prefix = lc_.eq(8, oa.attr[0].data(), expected_prefix.data());
+      ppid_match = lc_.land(&ppid_match, e_prefix);
+      
+      for (size_t j = 0; j < sizeof(ppid_id); ++j) {
+        auto ppid_curr_byte = lc_.template vbit<8>(ppid_id[j]);
+        auto e = lc_.eq(8, oa.attr[j + 1].data(), ppid_curr_byte.data());
+        ppid_match = lc_.land(&ppid_match, e);
+      }
+      // Also check the public length (1 byte key length + 17 bytes key + 1 byte value length + 18 bytes value = 37)
+      auto expected_len = lc_.template vbit<8>(1 + 17 + 1 + sizeof(ppid_id));
+      auto e2 = lc_.eq(8, expected_len.data(), oa.len.data());
+      ppid_match = lc_.land(&ppid_match, e2);
+      is_ppid[0] = ppid_match;
+    }
+    
+    // In the MSO, the elementIdentifier is "pseudonym_seed". We should check that got[] matches this.
+    v8 want_seed_str[32];
+    for (size_t i = 0; i < 32; i++) want_seed_str[i] = lc_.template vbit<8>(0);
+    uint8_t seed_id[] = {0x60 + 14, 'p', 's', 'e', 'u', 'd', 'o', 'n', 'y', 'm', '_', 's', 'e', 'e', 'd'};
+    for (size_t i = 0; i < sizeof(seed_id); ++i) want_seed_str[i] = lc_.template vbit<8>(seed_id[i]);
+    
+    v8 want_seed_ei[MAX_EI];
+    format_element(want_seed_ei, MAX_EI, ei_bytes, sizeof(ei_bytes), want_seed_str, 32);
+    
+    // Convert 256v hmac_out to v8 array for comparison.
+    v8 hmac_out_bytes[32];
+    for (size_t i = 0; i < 32; ++i) {
+        for (size_t bit = 0; bit < 8; ++bit) { 
+             // FlatSHA256 unpacks so that hmac_out[255] is MSB of first byte
+             size_t j = 8 * (31 - i) + bit;
+             hmac_out_bytes[i][bit] = hmac_out[j];
+        }
+    }
+
+    // Calculate actual expected length based on whether we are handling a PPID attribute.
+    // We need to bypass the public `pairwise_pseudonym` length if the attribute is actually the seed.
+    auto expected_len = oa.len;
+    if (version >= 8) {
+        auto ppid_expected_id_len = lc_.template vbit<8>(33); // 1 + 17 + 1 + 14
+        lc_.vmux(is_ppid[0], expected_len, ppid_expected_id_len, oa.len);
+    }
+
     // "elementIdentifier" checks the full cbor key-value, because it is public.
     mux_offset(2, shift, len, sh);
     r_.shift(shift, MAX_BUF, got, max, buf, zz, 3);
     for (size_t j = 0; j < MAX_EI; ++j) {
-      auto ll = lc_.vlt(j, oa.len);
+      auto ll = lc_.vlt(j, expected_len);
       for (size_t i = 0; i < 8; ++i) {
         auto same = lc_.eq(1, &got[j][i], &want_ei[j][i]);
-        lc_.assert_implies(&ll, same);
+        if (version >= 8) {
+           auto same_seed = lc_.eq(1, &got[j][i], &want_seed_ei[j][i]);
+           auto same_ppid_aware = lc_.mux(&is_ppid[0], &same_seed, same);
+           lc_.assert_implies(&ll, same_ppid_aware);
+        } else {
+           lc_.assert_implies(&ll, same);
+        }
       }
     }
     v8 tmp;
     std::copy(len.begin(), len.begin() + 8, tmp.begin());  // cast vind into v8.
-    lc_.vassert_eq(&tmp, oa.len);
+    
+    lc_.vassert_eq(&tmp, expected_len);
+
+    auto expected_vlen = oa.vlen;
+    if (version >= 8) {
+        auto ppid_expected_val_len = lc_.template vbit<8>(47); // 1 + 12 + 2 + 32
+        lc_.vmux(is_ppid[0], expected_vlen, ppid_expected_val_len, oa.vlen);
+    }
 
     // "elementValue" checks the full cbor key-value, because it is public.
     mux_offset(3, shift, len, sh);
     r_.shift(shift, MAX_BUF, got, max, buf, zz, 3);
+    
     for (size_t j = 0; j < MAX_EV; ++j) {
-      auto ll = lc_.vlt(j, oa.vlen);
+      auto ll = lc_.vlt(j, expected_vlen);
       for (size_t i = 0; i < 8; ++i) {
         auto same = lc_.eq(1, &got[j][i], &want_ev[j][i]);
-        lc_.assert_implies(&ll, same);
+        
+        if (version >= 8) {
+           auto bit_1 = lc_.bit(1);
+           auto same_ppid_aware = lc_.mux(&is_ppid[0], &bit_1, same);
+           lc_.assert_implies(&ll, same_ppid_aware);
+        } else {
+           lc_.assert_implies(&ll, same);
+        }
       }
     }
+    
+    if (version >= 8) {
+        for (size_t k = 0; k < 32; ++k) {
+            auto is_valid_hmac = lc_.eq(8, &oa.v1[k + 2][0], &hmac_out_bytes[k][0]); // +2 to skip 0x58 0x20
+            lc_.assert_implies(&is_ppid[0], is_valid_hmac);
+        }
+    }
+
     std::copy(len.begin(), len.begin() + 8, tmp.begin());  // cast vind into v8.
-    lc_.vassert_eq(&tmp, oa.vlen);
+    
+    lc_.vassert_eq(&tmp, expected_vlen);
   }
 
   void mux_offset(size_t slot, vind& shift, vind& len,
@@ -547,6 +688,7 @@ class MdocHash {
   Flatsha sha_;
   Routing<LogicCircuit> r_;
   CborByteDecoder<LogicCircuit> cb_;
+  Hmac hmac_;
 };
 }  // namespace proofs
 

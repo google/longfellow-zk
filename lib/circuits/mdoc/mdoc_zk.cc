@@ -59,7 +59,11 @@
 // ex: numAttrs = 1, this function returns (1*768 + 8) + 161
 size_t getHashMacIndex(size_t numAttrs, size_t version) {
   // The length of the attribute field that is added in version 4.
-  return numAttrs * 8 * (96 + (version < 7 ? 1 : 2)) + 160 + 1;
+  size_t idx = numAttrs * 8 * (96 + (version < 7 ? 1 : 2)) + 160 + 1;
+  if (version >= 8) {
+      idx += 8 * 64; // 32 bytes verifier_id + 32 bytes ppid_context = 64 bytes = 512 bits
+  }
+  return idx;
 }
 
 namespace proofs {
@@ -184,6 +188,27 @@ bool fill_public_inputs(DenseFiller<Fp256Base> &sig_filler,
       MDOC_PROVER_SUCCESS) {
     return false;
   }
+  
+  if (version >= 8) {
+    const uint8_t kDummyBytes[32] = {0};
+    const uint8_t* v_id = kDummyBytes;
+    const uint8_t* p_ctx = kDummyBytes;
+
+    for (size_t i = 0; i < attrs_len; ++i) {
+      if (attrs[i].id_len == 18 && memcmp(attrs[i].id, "pairwise_pseudonym", 18) == 0) {
+        v_id = attrs[i].verifier_id;
+        p_ctx = attrs[i].ppid_context;
+        break;
+      }
+    }
+
+    for (size_t i = 0; i < 32; ++i) {
+        hash_filler.push_back(v_id[i], 8, Fs);
+    }
+    for (size_t i = 0; i < 32; ++i) {
+        hash_filler.push_back(p_ctx[i], 8, Fs);
+    }
+  }
 
   for (size_t i = 0; i < 6; ++i) { /* 6 mac + 1 av */
     fill_gf2k<f_128, f_128>(macs[i], hash_filler, Fs);
@@ -226,6 +251,27 @@ MdocProverErrorCode fill_witness(
       fill_attributes(fill_s, attrs, attrs_len, now, Fs, version);
   if (err != MDOC_PROVER_SUCCESS) {
     return err;
+  }
+  
+  if (version >= 8) {
+    const uint8_t kDummyBytes[32] = {0};
+    const uint8_t* v_id = kDummyBytes;
+    const uint8_t* p_ctx = kDummyBytes;
+
+    for (size_t i = 0; i < attrs_len; ++i) {
+      if (attrs[i].id_len == 18 && memcmp(attrs[i].id, "pairwise_pseudonym", 18) == 0) {
+        v_id = attrs[i].verifier_id;
+        p_ctx = attrs[i].ppid_context;
+        break;
+      }
+    }
+
+    for (size_t i = 0; i < 32; ++i) {
+        fill_s.push_back(v_id[i], 8, Fs);
+    }
+    for (size_t i = 0; i < 32; ++i) {
+        fill_s.push_back(p_ctx[i], 8, Fs);
+    }
   }
 
   // init mac+av to 0

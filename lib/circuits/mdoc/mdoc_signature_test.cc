@@ -185,6 +185,28 @@ TEST(mdoc, mdoc_issuer_list_valid) {
   }
 }
 
+TEST(mdoc, mdoc_signature_test_vector_26) {
+  using MdocSw = MdocSignatureWitness<P256, Fp256Scalar>;
+  using Elt = Fp256Base::Elt;
+
+  set_log_level(INFO);
+  GF2_128<> gf;
+  MdocSw sw(p256, p256_scalar, gf);
+
+  const size_t t_ind = 26;
+  const uint8_t* mdoc = mdoc_tests[t_ind].mdoc;
+  Elt pkX = p256_base.of_string(mdoc_tests[t_ind].pkx);
+  Elt pkY = p256_base.of_string(mdoc_tests[t_ind].pky);
+  
+  EXPECT_TRUE(p256.is_on_curve(pkX, pkY));
+  
+  MdocProverErrorCode ok = sw.compute_witness(
+      pkX, pkY, mdoc, mdoc_tests[t_ind].mdoc_size,
+      mdoc_tests[t_ind].transcript, mdoc_tests[t_ind].transcript_size);
+
+  EXPECT_EQ(ok, MDOC_PROVER_SUCCESS);
+}
+
 TEST(mdoc, mdoc_signature_test_with_issuer_list) {
   using MdocSw = MdocSignatureWitness<P256, Fp256Scalar>;
   using Elt = Fp256Base::Elt;
@@ -356,6 +378,13 @@ void mdoc_hash_run(const typename Field::Elt& omega, uint64_t omega_order,
       now[i] = LC.template vinput<8>();
     }
 
+    v8 verifier_id_len = LC.template vinput<8>();
+    v8 ppid_context_len = LC.template vinput<8>();
+    v8 verifier_id[32];
+    v8 ppid_context[32];
+    for (size_t i = 0; i < 32; ++i) verifier_id[i] = LC.template vinput<8>();
+    for (size_t i = 0; i < 32; ++i) ppid_context[i] = LC.template vinput<8>();
+
     Q.private_input();
     v256 e = LC.template vinput<256>();
     v256 dpkx = LC.template vinput<256>();
@@ -364,7 +393,7 @@ void mdoc_hash_run(const typename Field::Elt& omega, uint64_t omega_order,
     typename MdocHash::Witness vwc(attrs.size());
     vwc.input(LC);
 
-    mdoc_hash.assert_valid_hash_mdoc(oa.data(), now, e, dpkx, dpky, vwc);
+    mdoc_hash.assert_valid_hash_mdoc(oa.data(), now, e, dpkx, dpky, vwc, false, verifier_id, ppid_context);
 
     CIRCUIT = Q.mkcircuit(/*nc=*/1);
     dump_info("mdoc hash and parse", Q);
@@ -399,6 +428,16 @@ void mdoc_hash_run(const typename Field::Elt& omega, uint64_t omega_order,
   }
   fill_bit_string(filler, mdoc_tests[t_ind].now, 20, 20, F);
   fill_bit_string(pub_filler, mdoc_tests[t_ind].now, 20, 20, F);
+
+  filler.push_back(0, 8, F);
+  pub_filler.push_back(0, 8, F);
+  filler.push_back(0, 8, F);
+  pub_filler.push_back(0, 8, F);
+  uint8_t zeros[32] = {0};
+  fill_bit_string(filler, zeros, 32, 32, F);
+  fill_bit_string(pub_filler, zeros, 32, 32, F);
+  fill_bit_string(filler, zeros, 32, 32, F);
+  fill_bit_string(pub_filler, zeros, 32, 32, F);
 
   // Private inputs
   uint8_t buf[Fp256Base::kBytes];

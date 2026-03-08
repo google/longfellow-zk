@@ -43,6 +43,19 @@ extern "C" {
 // }
 
 const ZkSpecStruct kZkSpecs[kNumZkSpecs] = {
+    // Circuits produced 2026-03-05 (Version 8 - Supports PPID)
+    {"longfellow-libzk-v1",
+     "dd284984bd51a2e070277f07c73abb20bee973e20083d23d234db026b8e28530", 1, 8,
+     4607, 2945},
+    {"longfellow-libzk-v1",
+     "d454ec95cde8d3cc3aa546330e898acd8ab8eb13dad04c628df3dfe1c0b9e83e", 2, 8,
+     4685, 2945},
+    {"longfellow-libzk-v1",
+     "51daaab447c0b211c5316b3f3fc3694ad998e1dd5d27af238f19d9782771e6b8", 3, 8,
+     4715, 2945},
+    {"longfellow-libzk-v1",
+     "c72b65a6a525d8b29a24d7f14e778080ffbb1b888ceec83fa44b6c13157f7de7", 4, 8,
+     4787, 2945},
     // Circuits produced 2026-01-09
     {"longfellow-libzk-v1",
      "8d079211715200ff06c5109639245502bfe94aa869908d31176aae4016182121", 1, 7,

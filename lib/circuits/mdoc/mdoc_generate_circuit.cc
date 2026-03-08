@@ -136,9 +136,18 @@ CircuitGenerationErrorCode generate_circuit(const ZkSpecStruct* zk_spec,
     for (size_t ai = 0; ai < number_of_attributes; ++ai) {
       oa[ai].input(lc);
     }
+    
     v8 now[20];
     for (size_t i = 0; i < 20; ++i) {
       now[i] = lc.template vinput<8>();
+    }
+
+    // PPID inputs
+    v8 verifier_id[32];
+    v8 ppid_context[32];
+    if (zk_spec->version >= 8) {
+      for (size_t i = 0; i < 32; ++i) verifier_id[i] = lc.template vinput<8>();
+      for (size_t i = 0; i < 32; ++i) ppid_context[i] = lc.template vinput<8>();
     }
 
     MACTag mac[7]; /* 3 macs + av */
@@ -153,7 +162,7 @@ CircuitGenerationErrorCode generate_circuit(const ZkSpecStruct* zk_spec,
 
     // Allocate this large object on heap.
     auto w = std::make_unique<MdocHash::Witness>(number_of_attributes);
-    w->input(lc);
+    w->input(lc, zk_spec->version);
 
     Q.begin_full_field();
     MACWitness macw[3]; /* MACs for e, dpkx, dpky */
@@ -161,7 +170,9 @@ CircuitGenerationErrorCode generate_circuit(const ZkSpecStruct* zk_spec,
       macw[i].input(lc);
     }
 
-    mdoc_h.assert_valid_hash_mdoc(oa.data(), now, e, dpkx, dpky, *w);
+    mdoc_h.assert_valid_hash_mdoc(oa.data(), now, e, dpkx, dpky, *w, 
+                                  zk_spec->version,
+                                  verifier_id, ppid_context);
 
     MACTag a_v = mac[6];
     mac_check.verify_mac(&mac[0], a_v, e, macw[0]);

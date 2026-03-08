@@ -119,6 +119,7 @@ constexpr MdocAttribute kMdocAttributes[] = {
     {"family_name_national_character", kMDLNamespace},
     {"given_name_national_character", kMDLNamespace},
     {"signature_usual_mark", kMDLNamespace},
+    {"pairwise_pseudonym", kMDLNamespace},
 
     {"name_suffix", kAAMVANamespace},
     {"organ_donor", kAAMVANamespace},
@@ -146,6 +147,7 @@ constexpr MdocAttribute kMdocAttributes[] = {
     {"CDL_non_domiciled.v2", kAAMVANamespace},
     {"DHS_compliance_text", kAAMVANamespace},
     {"DHS_temporary_lawful_status", kAAMVANamespace},
+    {"pairwise_pseudonym", kAAMVANamespace},
 
     {"family_name", kEUDIPIDNamespace},
     {"given_name", kEUDIPIDNamespace},
@@ -182,6 +184,7 @@ constexpr MdocAttribute kMdocAttributes[] = {
     {"portrait", kEUDIPIDNamespace},
     {"email_address", kEUDIPIDNamespace},
     {"mobile_phone_number", kEUDIPIDNamespace},
+    {"pairwise_pseudonym", kEUDIPIDNamespace},
 
     {"family_name_unicode", kISO23220Namespace},
     {"given_name_unicode", kISO23220Namespace},
@@ -216,6 +219,7 @@ constexpr MdocAttribute kMdocAttributes[] = {
     {"issuing_subdivision", kISO23220Namespace},
     {"family_name_latin1", kISO23220Namespace},
     {"given_name_latin1", kISO23220Namespace},
+    {"pairwise_pseudonym", kISO23220Namespace},
 
     {"person_id", kISO23220PhotoIDNamespace},
     {"birth_country", kISO23220PhotoIDNamespace},

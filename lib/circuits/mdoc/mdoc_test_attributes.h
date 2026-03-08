@@ -45,6 +45,15 @@ static const RequestedAttribute not_over_18 = {
     .id_len = 11,
     .cbor_value_len = 1};
 
+static const RequestedAttribute eudi_age_over_18 = {
+    .namespace_id = {'e', 'u', '.', 'e', 'u', 'r', 'o', 'p', 'a', '.', 'e', 'c',
+                     '.', 'e', 'u', 'd', 'i', '.', 'p', 'i', 'd', '.', '1'},
+    .id = {'a', 'g', 'e', '_', 'o', 'v', 'e', 'r', '_', '1', '8'},
+    .cbor_value = {0xf5},
+    .namespace_len = 23,
+    .id_len = 11,
+    .cbor_value_len = 1};
+
 static const RequestedAttribute age_birth_year = {
     .namespace_id = {'o', 'r', 'g', '.', 'i', 's', 'o', '.', '1', '8', '0', '1',
                      '3', '.', '5', '.', '1'},
@@ -140,6 +149,15 @@ static const RequestedAttribute aamva_name_suffix_mr = {
     .namespace_len = 21,
     .id_len = 11,
     .cbor_value_len = 4};
+
+static const RequestedAttribute eudi_pairwise_pseudonym = {
+    .namespace_id = {'e', 'u', '.', 'e', 'u', 'r', 'o', 'p', 'a', '.', 'e', 'c',
+                     '.', 'e', 'u', 'd', 'i', '.', 'p', 'i', 'd', '.', '1'},
+    .id = {'p', 'a', 'i', 'r', 'w', 'i', 's', 'e', '_', 'p', 's', 'e', 'u', 'd', 'o', 'n', 'y', 'm'},
+    .cbor_value = {0x58, 0x20, 0xd8, 0xe7, 0xc5, 0xb2, 0x1e, 0x7f, 0x24, 0x95, 0x69, 0x24, 0x28, 0xac, 0xc3, 0xbd, 0x61, 0xe9, 0xbc, 0xda, 0x01, 0x31, 0x0d, 0x03, 0xd3, 0x60, 0xb6, 0x41, 0xd9, 0x62, 0x8a, 0xd6, 0xdb, 0x05},
+    .namespace_len = 23,
+    .id_len = 18,
+    .cbor_value_len = 34};
 
 static const RequestedAttribute aamva_dhs_compliance = {
     .namespace_id = {'o', 'r', 'g', '.', 'i', 's', 'o', '.', '1', '8', '0',

@@ -1,0 +1,8 @@
+clang-build-release/
+.cache/
+compile_commands.json
+
+# Auto-generated Assistant Artifacts
+build_and_test.md
+plan.md
+walkthrough.md

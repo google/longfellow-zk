@@ -24,10 +24,12 @@
 
 #include "circuits/mdoc/mdoc_examples.h"
 #include "circuits/mdoc/mdoc_test_attributes.h"
+#include "circuits/mdoc/mdoc_witness.h"
 #include "random/secure_random_engine.h"
 #include "util/log.h"
 #include "benchmark/benchmark.h"
 #include "gtest/gtest.h"
+#include <openssl/hmac.h>
 
 namespace proofs {
 namespace {
@@ -102,6 +104,62 @@ uint8_t* MdocZKTest::circuit1_ = nullptr;
 uint8_t* MdocZKTest::circuit2_ = nullptr;
 size_t MdocZKTest::circuit_len1_ = 0;
 size_t MdocZKTest::circuit_len2_ = 0;
+
+// used in the pseudonym tests as an input into the pseudonym generation
+const uint8_t kVerifierId[32] = {
+    0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x72, 0x40, 0x63, 0x6c, 0x69,
+    0x65, 0x6e, 0x74, 0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x2e,
+    0x63, 0x6f, 0x6d, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+// used in the pseudonym tests as an input into the pseudonym generation
+const uint8_t kPpidContext[32] = {
+    0x73, 0x6f, 0x6d, 0x65, 0x5f, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+// used in the pseudonym tests to prepare the public outputs
+void SetupPpidTestOutputs(const uint8_t* mdoc_data, size_t mdoc_size, RequestedAttribute public_outputs[2]) {
+  ParsedMdoc pm;
+  EXPECT_EQ(pm.parse_device_response(mdoc_size, mdoc_data), MDOC_PROVER_SUCCESS);
+
+  const uint8_t *seed_val = nullptr;
+  const uint8_t *over_18_val = nullptr;
+  size_t over_18_len = 0;
+  size_t seed_len = 0;
+
+  // extract the pseudonym seed and age_over_18 from the mdoc itself
+  EXPECT_TRUE(pm.extract_cbor_value("pseudonym_seed", &seed_val, &seed_len));
+  EXPECT_TRUE(pm.extract_cbor_value("age_over_18", &over_18_val, &over_18_len));
+
+  // compute the pseudonym as HMAC(seed, verifier_id || context) and store it
+  // in hmac_out
+  uint8_t seed[32];
+  memcpy(seed, seed_val, 32);
+
+  uint8_t hmac_data[64];
+  memcpy(hmac_data, kVerifierId, 32);
+  memcpy(hmac_data + 32, kPpidContext, 32);
+
+  uint8_t hmac_out[32];
+  unsigned int hmac_len = 32;
+  HMAC(EVP_sha256(), seed, 32, hmac_data, 64, hmac_out, &hmac_len);
+
+  // populate the public outputs with the age_over_18 and the computed pseudonym
+  // also include the verifier id and context for the pseudonym
+  public_outputs[0] = test::eudi_age_over_18;
+  memcpy(public_outputs[0].cbor_value, over_18_val, over_18_len);
+  public_outputs[0].cbor_value_len = over_18_len;
+
+  public_outputs[1] = test::eudi_pairwise_pseudonym;
+  public_outputs[1].cbor_value[0] = 0x58; // CBOR byte string (32 bytes)
+  public_outputs[1].cbor_value[1] = 0x20;
+  memcpy(&public_outputs[1].cbor_value[2], hmac_out, 32);
+  public_outputs[1].cbor_value_len = 34;
+  memcpy(public_outputs[1].verifier_id, kVerifierId, 32);
+  memcpy(public_outputs[1].ppid_context, kPpidContext, 32);
+}
 
 typedef struct {
   const char* test_name;
@@ -513,6 +571,83 @@ TEST_F(MdocZKTest, attr_mismatch) {
   free(zkproof);
 }
 
+TEST_F(MdocZKTest, ppid_generation_circuit) {
+  set_log_level(INFO);
+  constexpr int num_attrs = 2;
+  const ZkSpecStruct& zk_spec = kZkSpecs[1]; // 2-attr circuit
+  const struct MdocTests *test = &mdoc_tests[26]; // mdoc with a pseudonym seed
+
+  // =====================================================================
+  // WALLET
+  // =====================================================================
+  // The wallet reads the over_18 and pseudonym_seed from its local mdoc
+  // and prepares the public_outputs array (copying the over_18 attribute,
+  // and calculating the HMAC for the pairwise_pseudonym). The public_outputs
+  // also contain the verifier_id and ppid_context, for the verifier to check.
+  RequestedAttribute public_outputs[num_attrs];
+  SetupPpidTestOutputs(test->mdoc, test->mdoc_size, public_outputs);
+
+  size_t proof_len;
+  uint8_t *zkproof = nullptr;
+
+  // Wallet calls the prover
+  {
+    MdocProverErrorCode ret = run_mdoc_prover(
+        circuit2_, circuit_len2_, test->mdoc, test->mdoc_size,
+        test->pkx.as_pointer, test->pky.as_pointer, test->transcript,
+        test->transcript_size, public_outputs, num_attrs,
+        (const char *)test->now, &zkproof, &proof_len, &zk_spec);
+    EXPECT_EQ(ret, MDOC_PROVER_SUCCESS);
+  }
+
+  // =====================================================================
+  // VERIFIER
+  // =====================================================================
+  // The verifier receives the public outputs and the zkproof
+  // from the wallet. It verifies the proof.
+  {
+    MdocVerifierErrorCode ret = run_mdoc_verifier(
+        circuit2_, circuit_len2_, test->pkx.as_pointer, test->pky.as_pointer,
+        test->transcript, test->transcript_size, public_outputs, num_attrs,
+        (const char *)test->now, zkproof, proof_len, test->doc_type, &zk_spec);
+    EXPECT_EQ(ret, MDOC_VERIFIER_SUCCESS);
+  }
+
+  // Final check that the public outputs are what we expect.
+
+  // Expected over_18 should be 0xf5 (CBOR True)
+  EXPECT_EQ(public_outputs[0].cbor_value_len, 1);
+  EXPECT_EQ(public_outputs[0].cbor_value[0], 0xf5);
+
+  // Independently verify the HMAC value
+  // Note: in a real implementation, the verifier doesn't know the seed,
+  // it just uses the PPID value directly for its purposes. But for this test,
+  // we are verifying the prover's math and output.
+  EXPECT_EQ(public_outputs[1].cbor_value_len, 34);
+  EXPECT_EQ(public_outputs[1].cbor_value[0], 0x58);
+  EXPECT_EQ(public_outputs[1].cbor_value[1], 0x20);
+
+  // We check it against an independently generated HMAC using the hardcoded
+  // seed from the test vector
+  const uint8_t expected_seed[32] = {
+      0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0x00, 0x11,
+      0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0x00, 0x11, 0x22,
+      0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0x00, 0x11, 0x22};
+  uint8_t expected_hmac_out[32];
+  unsigned int expected_hmac_len = 32;
+
+  int expected_hmac_data_size = 64;
+  uint8_t expected_hmac_data[64];
+  memcpy(expected_hmac_data, kVerifierId, 32);
+  memcpy(expected_hmac_data + 32, kPpidContext, 32);
+  HMAC(EVP_sha256(), expected_seed, 32, expected_hmac_data, 64, expected_hmac_out,
+       &expected_hmac_len);
+
+  EXPECT_EQ(memcmp(&public_outputs[1].cbor_value[2], expected_hmac_out, 32), 0);
+
+  free(zkproof);
+}
+
 TEST_F(MdocZKTest, bad_proofs) {
   set_log_level(ERROR);
   constexpr int num_attrs = 1;
@@ -715,6 +850,204 @@ void BM_MdocVerifier(benchmark::State& state) {
   }
 
   free(zkproof);
+}
+
+TEST_F(MdocZKTest, ppid_generation_bad_seed) {
+  set_log_level(INFO);
+  constexpr int num_attrs = 2;
+  const ZkSpecStruct& zk_spec = kZkSpecs[1];
+  const struct MdocTests *test = &mdoc_tests[26];
+
+  const uint8_t verifier_id[32] = {
+    0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x72, 0x40, 0x63, 0x6c, 0x69,
+    0x65, 0x6e, 0x74, 0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x2e,
+    0x63, 0x6f, 0x6d, 0x00, 0x00, 0x00, 0x00, 0x00
+  };
+  const uint8_t ppid_context[32] = {
+    0x73, 0x6f, 0x6d, 0x65, 0x5f, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  };
+
+  // switch a byte in the seed, breaking the signature on the mdoc
+  std::vector<uint8_t> bad_mdoc(test->mdoc, test->mdoc + test->mdoc_size);
+  const uint8_t target[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+  auto it = std::search(bad_mdoc.begin(), bad_mdoc.end(), target, target + sizeof(target));
+  EXPECT_NE(it, bad_mdoc.end());
+  if (it != bad_mdoc.end()) {
+    *it = 0x22;
+  }
+
+  ParsedMdoc pm;
+  EXPECT_EQ(pm.parse_device_response(bad_mdoc.size(), bad_mdoc.data()), MDOC_PROVER_SUCCESS);
+
+  const uint8_t *seed_val = nullptr;
+  const uint8_t *over_18_val = nullptr;
+  size_t over_18_len = 0;
+  size_t seed_len = 0;
+
+  EXPECT_TRUE(pm.extract_cbor_value("pseudonym_seed", &seed_val, &seed_len));
+  EXPECT_TRUE(pm.extract_cbor_value("age_over_18", &over_18_val, &over_18_len));
+
+  uint8_t seed[32];
+  memcpy(seed, seed_val, 32);
+
+  uint8_t hmac_data[64];
+  memcpy(hmac_data, verifier_id, 32);
+  memcpy(hmac_data + 32, ppid_context, 32);
+
+  uint8_t hmac_out[32];
+  unsigned int hmac_len = 32;
+  HMAC(EVP_sha256(), seed, 32, hmac_data, 64, hmac_out, &hmac_len);
+
+  RequestedAttribute public_outputs[num_attrs];
+
+  public_outputs[0] = test::eudi_age_over_18;
+  memcpy(public_outputs[0].cbor_value, over_18_val, over_18_len);
+  public_outputs[0].cbor_value_len = over_18_len;
+
+  public_outputs[1] = test::eudi_pairwise_pseudonym;
+  public_outputs[1].cbor_value[0] = 0x58; // CBOR byte string (32 bytes)
+  public_outputs[1].cbor_value[1] = 0x20;
+  memcpy(&public_outputs[1].cbor_value[2], hmac_out, 32);
+  public_outputs[1].cbor_value_len = 34;
+  memcpy(public_outputs[1].verifier_id, verifier_id, 32);
+  memcpy(public_outputs[1].ppid_context, ppid_context, 32);
+
+  size_t proof_len;
+  uint8_t *zkproof = nullptr;
+
+  MdocProverErrorCode ret = run_mdoc_prover(
+      circuit2_, circuit_len2_, bad_mdoc.data(), bad_mdoc.size(),
+      test->pkx.as_pointer, test->pky.as_pointer, test->transcript,
+      test->transcript_size, public_outputs, num_attrs,
+      (const char *)test->now, &zkproof, &proof_len, &zk_spec);
+  EXPECT_NE(ret, MDOC_PROVER_SUCCESS);
+  
+  if (zkproof != nullptr) free(zkproof);
+}
+
+TEST_F(MdocZKTest, ppid_generation_bad_public_output_before_prover) {
+  set_log_level(INFO);
+  constexpr int num_attrs = 2;
+  const ZkSpecStruct& zk_spec = kZkSpecs[1];
+  const struct MdocTests *test = &mdoc_tests[26];
+
+  RequestedAttribute public_outputs[num_attrs];
+  SetupPpidTestOutputs(test->mdoc, test->mdoc_size, public_outputs);
+
+  // Modify the HMAC output passed to the prover
+  public_outputs[1].cbor_value[2] ^= 1;
+
+  size_t proof_len;
+  uint8_t *zkproof = nullptr;
+
+  MdocProverErrorCode ret = run_mdoc_prover(
+      circuit2_, circuit_len2_, test->mdoc, test->mdoc_size,
+      test->pkx.as_pointer, test->pky.as_pointer, test->transcript,
+      test->transcript_size, public_outputs, num_attrs,
+      (const char *)test->now, &zkproof, &proof_len, &zk_spec);
+  EXPECT_NE(ret, MDOC_PROVER_SUCCESS);
+  
+  if (zkproof != nullptr) free(zkproof);
+}
+
+TEST_F(MdocZKTest, ppid_generation_bad_public_output_after_prover) {
+  set_log_level(INFO);
+  constexpr int num_attrs = 2;
+  const ZkSpecStruct& zk_spec = kZkSpecs[1];
+  const struct MdocTests *test = &mdoc_tests[26];
+
+  RequestedAttribute public_outputs[num_attrs];
+  SetupPpidTestOutputs(test->mdoc, test->mdoc_size, public_outputs);
+
+  size_t proof_len;
+  uint8_t *zkproof = nullptr;
+
+  MdocProverErrorCode ret = run_mdoc_prover(
+      circuit2_, circuit_len2_, test->mdoc, test->mdoc_size,
+      test->pkx.as_pointer, test->pky.as_pointer, test->transcript,
+      test->transcript_size, public_outputs, num_attrs,
+      (const char *)test->now, &zkproof, &proof_len, &zk_spec);
+  EXPECT_EQ(ret, MDOC_PROVER_SUCCESS);
+  
+  // Modify the HMAC output passed to the verifier
+  // (simulating a malicious wallet trying to assert a different PPID)
+  public_outputs[1].cbor_value[2] ^= 1;
+
+  MdocVerifierErrorCode retv = run_mdoc_verifier(
+      circuit2_, circuit_len2_, test->pkx.as_pointer, test->pky.as_pointer,
+      test->transcript, test->transcript_size, public_outputs, num_attrs,
+      (const char *)test->now, zkproof, proof_len, test->doc_type, &zk_spec);
+  EXPECT_NE(retv, MDOC_VERIFIER_SUCCESS);
+
+  if (zkproof != nullptr) free(zkproof);
+}
+
+TEST_F(MdocZKTest, ppid_generation_bad_verifier_id) {
+  set_log_level(INFO);
+  constexpr int num_attrs = 2;
+  const ZkSpecStruct& zk_spec = kZkSpecs[1];
+  const struct MdocTests *test = &mdoc_tests[26];
+
+  RequestedAttribute public_outputs[num_attrs];
+  SetupPpidTestOutputs(test->mdoc, test->mdoc_size, public_outputs);
+
+  size_t proof_len;
+  uint8_t *zkproof = nullptr;
+
+  MdocProverErrorCode ret = run_mdoc_prover(
+      circuit2_, circuit_len2_, test->mdoc, test->mdoc_size,
+      test->pkx.as_pointer, test->pky.as_pointer, test->transcript,
+      test->transcript_size, public_outputs, num_attrs,
+      (const char *)test->now, &zkproof, &proof_len, &zk_spec);
+  EXPECT_EQ(ret, MDOC_PROVER_SUCCESS);
+
+  // Modify verifier ID
+  // (simulating the case where the verifier ID seen by the wallet doesn't
+  // match the verifier ID used by the verifier)
+  public_outputs[1].verifier_id[0] ^= 1;
+
+  MdocVerifierErrorCode retv = run_mdoc_verifier(
+      circuit2_, circuit_len2_, test->pkx.as_pointer, test->pky.as_pointer,
+      test->transcript, test->transcript_size, public_outputs, num_attrs,
+      (const char *)test->now, zkproof, proof_len, test->doc_type, &zk_spec);
+  EXPECT_NE(retv, MDOC_VERIFIER_SUCCESS);
+
+  if (zkproof != nullptr) free(zkproof);
+}
+
+TEST_F(MdocZKTest, ppid_generation_bad_context) {
+  set_log_level(INFO);
+  constexpr int num_attrs = 2;
+  const ZkSpecStruct& zk_spec = kZkSpecs[1];
+  const struct MdocTests *test = &mdoc_tests[26];
+
+  RequestedAttribute public_outputs[num_attrs];
+  SetupPpidTestOutputs(test->mdoc, test->mdoc_size, public_outputs);
+
+  size_t proof_len;
+  uint8_t *zkproof = nullptr;
+
+  MdocProverErrorCode ret = run_mdoc_prover(
+      circuit2_, circuit_len2_, test->mdoc, test->mdoc_size,
+      test->pkx.as_pointer, test->pky.as_pointer, test->transcript,
+      test->transcript_size, public_outputs, num_attrs,
+      (const char *)test->now, &zkproof, &proof_len, &zk_spec);
+  EXPECT_EQ(ret, MDOC_PROVER_SUCCESS);
+
+  // Modify context
+  // (simulating the case where the context seen by the wallet doesn't match
+  // the context used by the verifier)
+  public_outputs[1].ppid_context[0] ^= 1;
+
+  MdocVerifierErrorCode retv = run_mdoc_verifier(
+      circuit2_, circuit_len2_, test->pkx.as_pointer, test->pky.as_pointer,
+      test->transcript, test->transcript_size, public_outputs, num_attrs,
+      (const char *)test->now, zkproof, proof_len, test->doc_type, &zk_spec);
+  EXPECT_NE(retv, MDOC_VERIFIER_SUCCESS);
+
+  if (zkproof != nullptr) free(zkproof);
 }
 
 BENCHMARK(BM_MdocVerifier);

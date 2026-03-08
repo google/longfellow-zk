@@ -44,6 +44,10 @@ typedef struct {
   uint8_t id[32];
   uint8_t cbor_value[64];
   size_t namespace_len, id_len, cbor_value_len;
+  
+  // PPID-specific bindings (optional, set to 0 if unused)
+  uint8_t verifier_id[32];
+  uint8_t ppid_context[32];
 } RequestedAttribute;
 
 // Return codes for the run_mdoc_prover method.
@@ -163,7 +167,7 @@ MdocProverErrorCode run_mdoc_prover(
     const char* now, /* time formatted as "2023-11-02T09:00:00Z" */
     uint8_t** prf, size_t* proof_len, const ZkSpecStruct* zk_spec_version);
 
-// The run_mdoc2_verifier method accepts a byte representation of the circuit,
+// The run_mdoc_verifier method accepts a byte representation of the circuit,
 // the public key of the issuer, the transcript, an array of RequestedAttribute
 // that represents claims that you want to verify, and a 20-char representation
 // of the time, as well as the proof and its length.
@@ -191,7 +195,7 @@ CircuitGenerationErrorCode generate_circuit(const ZkSpecStruct* zk_spec_version,
 int circuit_id(uint8_t id[/*kSHA256DigestSize*/], const uint8_t* bcp,
                size_t bcsz, const ZkSpecStruct* zk_spec);
 
-enum { kNumZkSpecs = 12 };
+enum { kNumZkSpecs = 16 };
 // This is a hardcoded list of all the ZK specifications supported by this
 // library. Every time a new breaking change is introduced in either the circuit
 // format or its interpretation, a new version must be added here.
