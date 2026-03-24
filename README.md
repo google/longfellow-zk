@@ -1,5 +1,13 @@
 # Longfellow ZK
 
+## FORK API CHANGE
+MdocProverErrorCode run_mdoc_prover(
+    ..., uint8_t* arena_buf, size_t arena_buf_size);
+
+Pass a pre-allocated buffer and all internal allocations use it
+Pass nullptr, 0 for default heap behavior (backward-compat overload provided for C++)
+Upstream is null_memory_resource() — exhaustion throws std::bad_alloc rather than falling back to malloc
+
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![eprint](https://img.shields.io/badge/eprint-2024%2F2010-blue)](https://eprint.iacr.org/2024/2010)
 [![IETF Draft](https://img.shields.io/badge/IETF%20Draft-draft--google--cfrg--libzk-lightgrey)](https://datatracker.ietf.org/doc/draft-google-cfrg-libzk/)

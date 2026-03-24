@@ -21,9 +21,11 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <memory_resource>
 #include <vector>
 
 #include "algebra/blas.h"
+#include "util/arena.h"
 #include "merkle/merkle_commitment.h"
 #include "merkle/merkle_tree.h"
 #include "util/ceildiv.h"
@@ -322,11 +324,11 @@ struct LigeroProof {
         nrow(p->nrow),
         nreq(p->nreq),
         mc_pathlen(p->mc_pathlen),
-        y_ldt(p->block),
-        y_dot(p->dblock),
-        y_quad_0(p->r),
-        y_quad_2(p->dblock - p->block),
-        req(p->nrow * p->nreq),
+        y_ldt(p->block, Elt{}, current_resource()),
+        y_dot(p->dblock, Elt{}, current_resource()),
+        y_quad_0(p->r, Elt{}, current_resource()),
+        y_quad_2(p->dblock - p->block, Elt{}, current_resource()),
+        req(p->nrow * p->nreq, Elt{}, current_resource()),
         merkle(p->nreq) {}
 
   // The proof stores a copy of all parameters relevant to the proof.
@@ -338,12 +340,12 @@ struct LigeroProof {
   size_t nreq;
   size_t mc_pathlen;
 
-  std::vector<Elt> y_ldt;     // [block]
-  std::vector<Elt> y_dot;     // [dblock]
-  std::vector<Elt> y_quad_0;  // [r] first part of y_quad.
+  std::pmr::vector<Elt> y_ldt;     // [block]
+  std::pmr::vector<Elt> y_dot;     // [dblock]
+  std::pmr::vector<Elt> y_quad_0;  // [r] first part of y_quad.
   // The middle part [w] of y_quad is zero and not transmitted.
-  std::vector<Elt> y_quad_2;  // [dblock - block] last part of y_quad
-  std::vector<Elt> req;       // [nrow, nreq]
+  std::pmr::vector<Elt> y_quad_2;  // [dblock - block] last part of y_quad
+  std::pmr::vector<Elt> req;       // [nrow, nreq]
   MerkleProof merkle;
 
   Elt &req_at(size_t i, size_t j) { return req[i * nreq + j]; }

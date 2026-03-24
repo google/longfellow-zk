@@ -21,9 +21,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <memory_resource>
 #include <vector>
 
 #include "algebra/convolution.h"
+#include "util/arena.h"
 #include "algebra/fp2.h"
 #include "algebra/reed_solomon.h"
 #include "arrays/dense.h"
@@ -397,11 +399,18 @@ MdocProverErrorCode run_mdoc_prover(
     const uint8_t *transcript, size_t tr_len, /* session transcript */
     const RequestedAttribute *attrs, size_t attrs_len,
     const char *now, /* time formatted as "2023-11-02T09:00:00Z" */
-    uint8_t **prf, size_t *proof_len, const ZkSpecStruct *zk_spec) {
+    uint8_t **prf, size_t *proof_len, const ZkSpecStruct *zk_spec,
+    uint8_t *arena_buf, size_t arena_buf_size) {
   if (bcp == nullptr || mdoc == nullptr || pkx == nullptr || pky == nullptr ||
       transcript == nullptr || attrs == nullptr || now == nullptr ||
       prf == nullptr || proof_len == nullptr || zk_spec == nullptr) {
     return MDOC_PROVER_NULL_INPUT;
+  }
+
+  // Install arena allocator if a buffer was provided.
+  std::unique_ptr<proofs::ArenaGuard> arena;
+  if (arena_buf != nullptr && arena_buf_size > 0) {
+    arena = std::make_unique<proofs::ArenaGuard>(arena_buf, arena_buf_size);
   }
 
   Elt pkX, pkY;
@@ -420,7 +429,7 @@ MdocProverErrorCode run_mdoc_prover(
   const f_128 Fs;
 
   size_t len = kCircuitSizeMax;
-  std::vector<uint8_t> bytes(len);
+  std::pmr::vector<uint8_t> bytes(len, uint8_t{0}, proofs::current_resource());
   size_t full_size = decompress(bytes, bcp, bcsz);
 
   if (full_size == 0) {
@@ -510,7 +519,7 @@ MdocProverErrorCode run_mdoc_prover(
 
   // Serialize proof to bytes.
   // [6 mac values] [docType] [hash proof] [sig proof]
-  std::vector<uint8_t> buf;
+  std::pmr::vector<uint8_t> buf(proofs::current_resource());
   // This sum will not overflow based on constraints of circuit & proof size.
   size_t tt = 6 * f_128::kBytes + h_zk.size() + sig_zk.size();
   buf.reserve(tt);

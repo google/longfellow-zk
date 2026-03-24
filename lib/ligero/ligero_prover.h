@@ -19,9 +19,11 @@
 
 #include <algorithm>
 #include <array>
+#include <memory_resource>
 #include <vector>
 
 #include "algebra/blas.h"
+#include "util/arena.h"
 #include "ligero/ligero_param.h"
 #include "ligero/ligero_transcript.h"
 #include "merkle/merkle_commitment.h"
@@ -37,7 +39,9 @@ class LigeroProver {
 
  public:
   explicit LigeroProver(const LigeroParam<Field> &p)
-      : p_(p), mc_(p.block_enc - p.dblock), tableau_(p.nrow * p.block_enc) {}
+      : p_(p),
+        mc_(p.block_enc - p.dblock),
+        tableau_(p.nrow * p.block_enc, Elt{}, current_resource()) {}
 
   // The SUBFIELD_BOUNDARY parameter is kind of a hack.
   //
@@ -94,7 +98,7 @@ class LigeroProver {
     }
 
     {
-      std::vector<Elt> u_ldt(p_.nwqrow);
+      std::pmr::vector<Elt> u_ldt(p_.nwqrow, Elt{}, current_resource());
 
       // V -> P
       LigeroTranscript<Field>::gen_uldt(&u_ldt[0], p_, ts, F);
@@ -102,9 +106,10 @@ class LigeroProver {
     }
 
     {
-      std::vector<Elt> alphal(nl);
-      std::vector<std::array<Elt, 3>> alphaq(p_.nq);
-      std::vector<Elt> A(p_.nwqrow * p_.w);
+      std::pmr::vector<Elt> alphal(nl, Elt{}, current_resource());
+      std::pmr::vector<std::array<Elt, 3>> alphaq(p_.nq, std::array<Elt, 3>{},
+                                                   current_resource());
+      std::pmr::vector<Elt> A(p_.nwqrow * p_.w, Elt{}, current_resource());
 
       // V -> P
       LigeroTranscript<Field>::gen_alphal(nl, &alphal[0], ts, F);
@@ -117,7 +122,7 @@ class LigeroProver {
     }
 
     {
-      std::vector<Elt> u_quad(p_.nqtriples);
+      std::pmr::vector<Elt> u_quad(p_.nqtriples, Elt{}, current_resource());
 
       // V -> P
       LigeroTranscript<Field>::gen_uquad(&u_quad[0], p_, ts, F);
@@ -133,7 +138,7 @@ class LigeroProver {
     }
 
     {
-      std::vector<size_t> idx(p_.nreq);
+      std::pmr::vector<size_t> idx(p_.nreq, size_t{0}, current_resource());
       // V -> P
       LigeroTranscript<Field>::gen_idx(&idx[0], p_, ts, F);
 
@@ -292,7 +297,7 @@ class LigeroProver {
     // IDOT blinding row with coefficient 1
     Blas<Field>::copy(p_.dblock, y, 1, &tableau_at(p_.idot, 0), 1);
 
-    std::vector<Elt> Aext(p_.dblock);
+    std::pmr::vector<Elt> Aext(p_.dblock, Elt{}, current_resource());
     for (size_t i = 0; i < p_.nwqrow; ++i) {
       LigeroCommon<Field>::layout_Aext(&Aext[0], p_, i, &A[0], F);
       interpA->interpolate(&Aext[0]);
@@ -305,8 +310,8 @@ class LigeroProver {
 
   void quadratic_proof(Elt y0[/*r*/], Elt y2[/*dblock - block*/],
                        const Elt u_quad[/*nqtriples*/], const Field &F) {
-    std::vector<Elt> y(p_.dblock);
-    std::vector<Elt> tmp(p_.dblock);
+    std::pmr::vector<Elt> y(p_.dblock, Elt{}, current_resource());
+    std::pmr::vector<Elt> tmp(p_.dblock, Elt{}, current_resource());
 
     // IQUAD blinding row with coefficient 1
     Blas<Field>::copy(p_.dblock, &y[0], 1, &tableau_at(p_.iquad, 0), 1);
@@ -347,7 +352,7 @@ class LigeroProver {
 
   const LigeroParam<Field> p_; /* safer to make copy */
   MerkleCommitment mc_;
-  std::vector<Elt> tableau_ /*[nrow, block_enc]*/;
+  std::pmr::vector<Elt> tableau_ /*[nrow, block_enc]*/;
 };
 }  // namespace proofs
 

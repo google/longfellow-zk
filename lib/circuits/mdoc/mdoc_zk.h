@@ -161,7 +161,8 @@ MdocProverErrorCode run_mdoc_prover(
     const uint8_t* transcript, size_t tr_len, /* session transcript */
     const RequestedAttribute* attrs, size_t attrs_len,
     const char* now, /* time formatted as "2023-11-02T09:00:00Z" */
-    uint8_t** prf, size_t* proof_len, const ZkSpecStruct* zk_spec_version);
+    uint8_t** prf, size_t* proof_len, const ZkSpecStruct* zk_spec_version,
+    uint8_t* arena_buf, size_t arena_buf_size);
 
 // The run_mdoc2_verifier method accepts a byte representation of the circuit,
 // the public key of the issuer, the transcript, an array of RequestedAttribute
@@ -205,6 +206,21 @@ const ZkSpecStruct* find_zk_spec(const char* system_name,
                                  const char* circuit_hash);
 
 #ifdef __cplusplus
+}
+
+// Backward-compatible C++ overload without arena buffer (uses heap allocation).
+static inline MdocProverErrorCode run_mdoc_prover(
+    const uint8_t* bcp, size_t bcsz,
+    const uint8_t* mdoc, size_t mdoc_len,
+    const char* pkx, const char* pky,
+    const uint8_t* transcript, size_t tr_len,
+    const RequestedAttribute* attrs, size_t attrs_len,
+    const char* now,
+    uint8_t** prf, size_t* proof_len, const ZkSpecStruct* zk_spec_version) {
+  return run_mdoc_prover(bcp, bcsz, mdoc, mdoc_len, pkx, pky,
+                         transcript, tr_len, attrs, attrs_len,
+                         now, prf, proof_len, zk_spec_version,
+                         nullptr, 0);
 }
 
 namespace proofs {

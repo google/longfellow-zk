@@ -18,9 +18,11 @@
 #include <stddef.h>
 
 #include <memory>
+#include <memory_resource>
 #include <vector>
 
 #include "algebra/utility.h"
+#include "util/arena.h"
 
 namespace proofs {
 
@@ -53,10 +55,10 @@ class ReedSolomon {
       : f_(F),  // could grab this from the factory
         degree_bound_(n - 1),
         m_(m),
-        leading_constant_(m - n + 1),
-        binom_i_(n) {
+        leading_constant_(m - n + 1, Elt{}, current_resource()),
+        binom_i_(n, Elt{}, current_resource()) {
     // inverses[i]: inverses[i] = 1/i from i = 1 to m-1 (inverses[0] = 0)
-    std::vector<Elt> inverses(m_);
+    std::pmr::vector<Elt> inverses(m_, Elt{}, current_resource());
     AlgebraUtil<Field>::batch_inverse_arithmetic(m, &inverses[0], F);
     c_ = factory.make(n, m, &inverses[0]);
     leading_constant_[0] = F.one();
@@ -96,12 +98,12 @@ class ReedSolomon {
     size_t n = degree_bound_ + 1;  // number of points input
 
     // Define x[i] = (-1)^i \binom{n}{i} p(i) for i=0 through i=n
-    std::vector<Elt> x(n);
+    std::pmr::vector<Elt> x(n, Elt{}, current_resource());
     for (size_t i = 0; i < n; i++) {
       x[i] = F.mulf(binom_i_[i], y[i]);
     }
 
-    std::vector<Elt> T(m_);
+    std::pmr::vector<Elt> T(m_, Elt{}, current_resource());
     c_->convolution(&x[0], &T[0]);
     // Multiply the leading constants by the convolution
     for (size_t i = n; i < m_; ++i) {
@@ -124,9 +126,9 @@ class ReedSolomon {
   // (-1)^{degree_bound_} (i+degree_bound_ - degree_bound_) (from i=0 to i=m-n)
   // i.e., the leading constant \binom{k}{degree_bound_} *
   // (-1)^degree_bound_ (k - degree_bound_), shifted left by degree_bound_
-  std::vector<Elt> leading_constant_;
+  std::pmr::vector<Elt> leading_constant_;
   // (-1)^i (degree_bound_ choose i) from i=0 to i=degree_bound_
-  std::vector<Elt> binom_i_;
+  std::pmr::vector<Elt> binom_i_;
 };
 
 template <class Field, class ConvolutionFactory>

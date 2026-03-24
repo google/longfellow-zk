@@ -20,9 +20,11 @@
 
 #include <cstring>
 #include <functional>
+#include <memory_resource>
 #include <vector>
 
 #include "merkle/merkle_tree.h"
+#include "util/arena.h"
 #include "random/random.h"
 #include "util/crypto.h"
 
@@ -34,10 +36,12 @@ struct MerkleNonce {
 };
 
 struct MerkleProof {
-  explicit MerkleProof(size_t nreq) : nonce(nreq), path() {}
+  explicit MerkleProof(size_t nreq)
+      : nonce(nreq, MerkleNonce{}, current_resource()),
+        path(current_resource()) {}
 
-  std::vector<MerkleNonce> nonce;  // [nreq]
-  std::vector<Digest> path;        // variable size, but < nreq * mt_pathlen
+  std::pmr::vector<MerkleNonce> nonce;  // [nreq]
+  std::pmr::vector<Digest> path;        // variable size, but < nreq * mt_pathlen
 };
 
 inline size_t merkle_commitment_len(size_t n) { return merkle_tree_len(n); }
@@ -45,7 +49,8 @@ inline size_t merkle_commitment_len(size_t n) { return merkle_tree_len(n); }
 // prover-side
 class MerkleCommitment {
  public:
-  explicit MerkleCommitment(size_t n) : n_(n), mt_(n), nonce_(n) {}
+  explicit MerkleCommitment(size_t n)
+      : n_(n), mt_(n), nonce_(n, MerkleNonce{}, current_resource()) {}
 
   Digest commit(const std::function<void(size_t, SHA256 &)> &updhash,
                 RandomEngine &rng) {
@@ -75,7 +80,7 @@ class MerkleCommitment {
  private:
   size_t n_;
   MerkleTree mt_;
-  std::vector<MerkleNonce> nonce_;
+  std::pmr::vector<MerkleNonce> nonce_;
 };
 
 // Declare a class for symmetry, but this class is never instantiated
@@ -85,7 +90,7 @@ class MerkleCommitmentVerifier {
                      const size_t pos[/*nreq*/], size_t nreq,
                      const std::function<void(size_t, SHA256 &)> &updhash) {
     // Assemble the expected leaf values
-    std::vector<Digest> leaves(nreq);
+    std::pmr::vector<Digest> leaves(nreq, Digest{}, current_resource());
     for (size_t r = 0; r < nreq; ++r) {
       SHA256 sha;
       sha.Update(proof.nonce[r].bytes, MerkleNonce::kLength);

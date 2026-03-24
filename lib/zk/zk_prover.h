@@ -18,9 +18,11 @@
 #include <stddef.h>
 
 #include <memory>
+#include <memory_resource>
 #include <vector>
 
 #include "arrays/dense.h"
+#include "util/arena.h"
 #include "ligero/ligero_param.h"
 #include "ligero/ligero_prover.h"
 #include "random/random.h"
@@ -65,8 +67,8 @@ class ZkProver : public ProverLayers<Field> {
         f_(F),
         rsf_(rs_factory),
         pad_(c_.nl),
-        witness_(n_witness_),
-        lqc_(c_.nl),
+        witness_(n_witness_, Elt{}, current_resource()),
+        lqc_(c_.nl, LigeroQuadraticConstraint{}, current_resource()),
         lp_(nullptr) {}
 
   void commit(ZkProof<Field>& zkp, const Dense<Field>& W, Transcript& tp,
@@ -129,8 +131,8 @@ class ZkProver : public ProverLayers<Field> {
 
     // 5. Simulate the verifier to assemble constraints on the committed vals.
     //    Form the sparse matrix A and vector b such that A*w = b.
-    std::vector<LigeroLinearConstraint<Field>> a;
-    std::vector<Elt> b;
+    std::pmr::vector<LigeroLinearConstraint<Field>> a(current_resource());
+    std::pmr::vector<Elt> b(current_resource());
     size_t ci = ZkCommon<Field>::verifier_constraints(c_, W, zkp.proof, &aux, a,
                                                       b, tsp, n_witness_, f_);
     log(INFO, "ZK constraints done");
@@ -192,8 +194,8 @@ class ZkProver : public ProverLayers<Field> {
   const Field& f_;
   const ReedSolomonFactory& rsf_;
   Proof<Field> pad_;
-  std::vector<Elt> witness_;
-  std::vector<LigeroQuadraticConstraint> lqc_;
+  std::pmr::vector<Elt> witness_;
+  std::pmr::vector<LigeroQuadraticConstraint> lqc_;
   std::unique_ptr<LigeroProver<Field, ReedSolomonFactory>> lp_;
 };
 

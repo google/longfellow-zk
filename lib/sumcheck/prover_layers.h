@@ -18,9 +18,11 @@
 #include <stddef.h>
 
 #include <memory>
+#include <memory_resource>
 #include <vector>
 
 #include "arrays/affine.h"
+#include "util/arena.h"
 #include "arrays/dense.h"
 #include "arrays/eqs.h"
 #include "sumcheck/circuit.h"
@@ -38,7 +40,7 @@ class ProverLayers {
   using Elt = typename Field::Elt;
 
  public:
-  using inputs = std::vector<std::unique_ptr<Dense<Field>>>;
+  using inputs = std::pmr::vector<std::unique_ptr<Dense<Field>>>;
 
   explicit ProverLayers(const Field& f) : f_(f) {}
 

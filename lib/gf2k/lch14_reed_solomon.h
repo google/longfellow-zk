@@ -19,9 +19,11 @@
 
 #include <algorithm>
 #include <memory>
+#include <memory_resource>
 #include <vector>
 
 #include "gf2k/lch14.h"
+#include "util/arena.h"
 
 namespace proofs {
 
@@ -56,7 +58,7 @@ class LCH14ReedSolomon {
     }
 
     // "coefficients" in the LCH14 novel polynomial basis
-    std::vector<Elt> C(fftn);
+    std::pmr::vector<Elt> C(fftn, Elt{}, current_resource());
 
     // compute the "coefficients" under the assumption
     // that we know n_ evaluations and that the higher-order

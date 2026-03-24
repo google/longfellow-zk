@@ -17,9 +17,11 @@
 
 #include <stddef.h>
 
+#include <memory_resource>
 #include <vector>
 
 #include "arrays/dense.h"
+#include "util/arena.h"
 #include "ligero/ligero_param.h"
 #include "ligero/ligero_verifier.h"
 #include "random/transcript.h"
@@ -47,7 +49,7 @@ class ZkVerifier {
       : circ_(c),
         n_witness_(c.ninputs - c.npub_in),
         param_(n_witness_ + ZkCommon<Field>::pad_size(c), c.nl, rate, nreq),
-        lqc_(c.nl),
+        lqc_(c.nl, LigeroQuadraticConstraint{}, current_resource()),
         rsf_(rsf),
         f_(F) {
     ZkCommon<Field>::setup_lqc(c, lqc_, n_witness_);
@@ -60,7 +62,7 @@ class ZkVerifier {
         n_witness_(c.ninputs - c.npub_in),
         param_(n_witness_ + ZkCommon<Field>::pad_size(c), c.nl, rate, nreq,
                block_enc),
-        lqc_(c.nl),
+        lqc_(c.nl, LigeroQuadraticConstraint{}, current_resource()),
         rsf_(rsf),
         f_(F) {
     ZkCommon<Field>::setup_lqc(c, lqc_, n_witness_);
@@ -80,8 +82,8 @@ class ZkVerifier {
 
     // Derive constraints on the witness.
     using Llc = LigeroLinearConstraint<Field>;
-    std::vector<Llc> A;
-    std::vector<Elt> b;
+    std::pmr::vector<Llc> A(current_resource());
+    std::pmr::vector<Elt> b(current_resource());
     const LigeroHash hash_of_A{0xde, 0xad, 0xbe, 0xef};
     size_t cn = ZkCommon<Field>::verifier_constraints(circ_, pub, zk.proof,
                                                       /*aux=*/nullptr, A, b, tv,
@@ -100,7 +102,7 @@ class ZkVerifier {
   const Circuit<Field>& circ_;
   const size_t n_witness_;
   const LigeroParam<Field> param_;
-  std::vector<LigeroQuadraticConstraint> lqc_;
+  std::pmr::vector<LigeroQuadraticConstraint> lqc_;
   const RSFactory& rsf_;
   const Field& f_;
 };

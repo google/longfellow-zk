@@ -19,8 +19,10 @@
 #include <stdint.h>
 
 #include <cstring>
+#include <memory_resource>
 #include <vector>
 
+#include "util/arena.h"
 #include "util/crypto.h"
 #include "util/panic.h"
 
@@ -99,7 +101,8 @@ inline std::vector<bool> compressed_merkle_proof_tree(size_t n,
 
 class MerkleTree {
  public:
-  explicit MerkleTree(size_t n) : n_(n), layers_(2 * n) {}
+  explicit MerkleTree(size_t n)
+      : n_(n), layers_(2 * n, Digest{}, current_resource()) {}
 
   void set_leaf(size_t pos, const Digest& leaf) {
     check(pos < n_, "Invalid position for leaf in Merkle tree");
@@ -119,7 +122,7 @@ class MerkleTree {
   // from the root to any leaf in POS.  Then, for each inner node in
   // TREE, we include in the proof the child that is not in TREE, if
   // any.  Note, this method requires pos to contain no duplicates.
-  size_t generate_compressed_proof(std::vector<Digest>& proof,
+  size_t generate_compressed_proof(std::pmr::vector<Digest>& proof,
                                    const size_t pos[/*np*/], size_t np) {
     std::vector<bool> tree = compressed_merkle_proof_tree(n_, pos, np);
 
@@ -147,7 +150,7 @@ class MerkleTree {
   // layers_[n/2, n) stores nodes at layer 1.
   // layers_[n/4, n/2) stores nodes at layer 2, etc.
   // The root is at layers_[1] where layers_[0] is not used.
-  std::vector<Digest> layers_;
+  std::pmr::vector<Digest> layers_;
 };
 
 class MerkleTreeVerifier {

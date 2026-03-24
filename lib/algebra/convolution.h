@@ -19,9 +19,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <memory_resource>
 #include <vector>
 
 #include "algebra/blas.h"
+#include "util/arena.h"
 #include "algebra/fft.h"
 #include "algebra/rfft.h"
 
@@ -65,7 +67,7 @@ class FFTConvolution {
         n_(n),
         m_(m),
         padding_(choose_padding(m)),
-        y_fft_(padding_, f_.zero()) {
+        y_fft_(padding_, f_.zero(), current_resource()) {
     Blas<Field>::copy(m, &y_fft_[0], 1, y, 1);
     FFT<Field>::fftf(&y_fft_[0], padding_, omega_, omega_order_, f_);
 
@@ -78,7 +80,7 @@ class FFTConvolution {
   // z[k] = \sum_{i=0}^{n-1} x[i] y[k-i].
   // Note that y has already been FFT'd and divided by padding_ in constructor
   void convolution(const Elt x[/*n_*/], Elt z[/*m_*/]) const {
-    std::vector<Elt> x_fft(padding_, f_.zero());
+    std::pmr::vector<Elt> x_fft(padding_, f_.zero(), current_resource());
     Blas<Field>::copy(n_, &x_fft[0], 1, x, 1);
     FFT<Field>::fftf(&x_fft[0], padding_, omega_, omega_order_, f_);
     // Pointwise multiplication.
@@ -102,7 +104,7 @@ class FFTConvolution {
 
   // fft(y[i]) / padding
   // padded with zeroes to the next power of 2 at least m.
-  std::vector<Elt> y_fft_;
+  std::pmr::vector<Elt> y_fft_;
 };
 
 template <class Field>
@@ -141,7 +143,7 @@ class FFTExtConvolution {
         n_(n),
         m_(m),
         padding_(choose_padding(m)),
-        y_fft_(padding_, f_.zero()) {
+        y_fft_(padding_, f_.zero(), current_resource()) {
     Blas<Field>::copy(m, &y_fft_[0], 1, y, 1);
     RFFT<FieldExt>::r2hc(&y_fft_[0], padding_, omega_, omega_order_, f_ext_);
 
@@ -154,7 +156,7 @@ class FFTExtConvolution {
   // z[k] = \sum_{i=0}^{n-1} x[i] y[k-i].
   // Note that y has already been FFT'd and divided by padding_ in constructor
   void convolution(const Elt x[/*n_*/], Elt z[/*m_*/]) const {
-    std::vector<Elt> x_fft(padding_, f_.zero());
+    std::pmr::vector<Elt> x_fft(padding_, f_.zero(), current_resource());
     Blas<Field>::copy(n_, &x_fft[0], 1, x, 1);
     RFFT<FieldExt>::r2hc(&x_fft[0], padding_, omega_, omega_order_, f_ext_);
 
@@ -187,7 +189,7 @@ class FFTExtConvolution {
 
   // fft(y[i]) / padding
   // padded with zeroes to the next power of 2 at least m.
-  std::vector<Elt> y_fft_;
+  std::pmr::vector<Elt> y_fft_;
 };
 
 template <class Field, class FieldExt>

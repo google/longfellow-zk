@@ -18,9 +18,11 @@
 #include <stddef.h>
 
 #include <array>
+#include <memory_resource>
 #include <vector>
 
 #include "algebra/blas.h"
+#include "util/arena.h"
 #include "ligero/ligero_param.h"
 #include "ligero/ligero_transcript.h"
 #include "merkle/merkle_commitment.h"
@@ -51,11 +53,11 @@ class LigeroVerifier {
       return false;
     }
 
-    std::vector<Elt> u_ldt(p.nwqrow);
-    std::vector<Elt> alphal(nl);
-    std::vector<std::array<Elt, 3>> alphaq(p.nq);
-    std::vector<Elt> u_quad(p.nqtriples);
-    std::vector<size_t> idx(p.nreq);
+    std::pmr::vector<Elt> u_ldt(p.nwqrow, Elt{}, current_resource());
+    std::pmr::vector<Elt> alphal(nl, Elt{}, current_resource());
+    std::pmr::vector<std::array<Elt, 3>> alphaq(p.nq, std::array<Elt, 3>{}, current_resource());
+    std::pmr::vector<Elt> u_quad(p.nqtriples, Elt{}, current_resource());
+    std::pmr::vector<size_t> idx(p.nreq, size_t{0}, current_resource());
 
     // Replay the protocol first in order to compute all the
     // challenges.  In particular, we need IDX before we can do
@@ -95,7 +97,7 @@ class LigeroVerifier {
 
     {
       // linear check
-      std::vector<Elt> A(p.nwqrow * p.w);
+      std::pmr::vector<Elt> A(p.nwqrow * p.w, Elt{}, current_resource());
 
       LigeroCommon<Field>::inner_product_vector(&A[0], p, nl, nllterm, llterm,
                                                 &alphal[0], lqc, &alphaq[0], F);
@@ -131,7 +133,7 @@ class LigeroVerifier {
                                       const InterpolatorFactory& interpolator,
                                       const Field& F) {
     const auto interpy = interpolator.make(ylen, p.block_enc);
-    std::vector<Elt> yext(p.block_enc);
+    std::pmr::vector<Elt> yext(p.block_enc, Elt{}, current_resource());
     Blas<Field>::copy(ylen, &yext[0], 1, y, 1);
     interpy->interpolate(&yext[0]);
     Blas<Field>::gather(p.nreq, &yp[0], &yext[p.dblock], idx);
@@ -157,7 +159,7 @@ class LigeroVerifier {
                                const Elt u_ldt[/*nrow*/],
                                const InterpolatorFactory& interpolator,
                                const Field& F) {
-    std::vector<Elt> yc(p.nreq);
+    std::pmr::vector<Elt> yc(p.nreq, Elt{}, current_resource());
 
     // the ILDT blinding row with coefficient 1
     Blas<Field>::copy(p.nreq, &yc[0], 1, &proof.req_at(p.ildt, 0), 1);
@@ -168,7 +170,7 @@ class LigeroVerifier {
                         1, F);
     }
 
-    std::vector<Elt> yp(p.nreq);
+    std::pmr::vector<Elt> yp(p.nreq, Elt{}, current_resource());
     interpolate_req_columns(&yp[0], p, p.block, &proof.y_ldt[0], idx,
                             interpolator, F);
 
@@ -184,7 +186,7 @@ class LigeroVerifier {
                         const size_t idx[/*nreq*/], const Elt A[/*nwqrow, w*/],
                         const InterpolatorFactory& interpolator,
                         const Field& F) {
-    std::vector<Elt> yc(p.nreq);
+    std::pmr::vector<Elt> yc(p.nreq, Elt{}, current_resource());
 
     // the IDOT blinding row with coefficient 1
     Blas<Field>::copy(p.nreq, &yc[0], 1, &proof.req_at(p.idot, 0), 1);
@@ -192,8 +194,8 @@ class LigeroVerifier {
     {
       const auto interpA = interpolator.make(p.block, p.block_enc);
 
-      std::vector<Elt> Aext(p.block_enc);
-      std::vector<Elt> Areq(p.nreq);
+      std::pmr::vector<Elt> Aext(p.block_enc, Elt{}, current_resource());
+      std::pmr::vector<Elt> Areq(p.nreq, Elt{}, current_resource());
 
       for (size_t i = 0; i < p.nwqrow; ++i) {
         LigeroCommon<Field>::layout_Aext(&Aext[0], p, i, &A[0], F);
@@ -206,7 +208,7 @@ class LigeroVerifier {
       }
     }
 
-    std::vector<Elt> yp(p.nreq);
+    std::pmr::vector<Elt> yp(p.nreq, Elt{}, current_resource());
     interpolate_req_columns(&yp[0], p, p.dblock, &proof.y_dot[0], idx,
                             interpolator, F);
 
@@ -222,13 +224,13 @@ class LigeroVerifier {
                               const Elt u_quad[/*nqtriples*/],
                               const InterpolatorFactory& interpolator,
                               const Field& F) {
-    std::vector<Elt> yc(p.nreq);
+    std::pmr::vector<Elt> yc(p.nreq, Elt{}, current_resource());
 
     // the IQUAD blinding row with coefficient 1
     Blas<Field>::copy(p.nreq, &yc[0], 1, &proof.req_at(p.iquad, 0), 1);
 
     {
-      std::vector<Elt> tmp(p.nreq);
+      std::pmr::vector<Elt> tmp(p.nreq, Elt{}, current_resource());
       size_t iqx = p.iq;
       size_t iqy = iqx + p.nqtriples;
       size_t iqz = iqy + p.nqtriples;
@@ -250,14 +252,14 @@ class LigeroVerifier {
     }
 
     // reconstruct y_quad from the two parts in the proof
-    std::vector<Elt> yquad(p.dblock);
+    std::pmr::vector<Elt> yquad(p.dblock, Elt{}, current_resource());
     Blas<Field>::copy(p.r, &yquad[0], 1, &proof.y_quad_0[0], 1);
     Blas<Field>::clear(p.w, &yquad[p.r], 1, F);
     Blas<Field>::copy(p.dblock - p.block, &yquad[p.block], 1,
                       &proof.y_quad_2[0], 1);
 
     // interpolate y_quad at the opened columns
-    std::vector<Elt> yp(p.nreq);
+    std::pmr::vector<Elt> yp(p.nreq, Elt{}, current_resource());
     interpolate_req_columns(&yp[0], p, p.dblock, &yquad[0], idx, interpolator,
                             F);
 

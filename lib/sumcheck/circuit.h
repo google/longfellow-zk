@@ -19,9 +19,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <memory_resource>
 #include <vector>
 
 #include "algebra/poly.h"
+#include "util/arena.h"
 #include "arrays/affine.h"
 #include "sumcheck/quad.h"
 
@@ -54,7 +56,7 @@ struct Circuit {
   size_t subfield_boundary;  // Least input wire not known to be in the
                              // subfield
 
-  std::vector<Layer<Field>> l;  // layers
+  std::pmr::vector<Layer<Field>> l;  // layers
 
   uint8_t id[32];  // unique id for the circuit, created by the compiler
 
@@ -123,8 +125,8 @@ struct Challenge {
 
   // verifier picks G for V[G,c]
   Elt g[kMaxBindings];  // [logV]
-  std::vector<LayerChallenge<Field>> l;
-  explicit Challenge(size_t nl) : l(nl) {}
+  std::pmr::vector<LayerChallenge<Field>> l;
+  explicit Challenge(size_t nl) : l(nl, LayerChallenge<Field>{}, current_resource()) {}
 };
 
 // Full proof:
@@ -137,9 +139,9 @@ struct Proof {
   static constexpr size_t kMaxBindings = LayerProof<Field>::kMaxBindings;
 
   // then engage in sumcheck one per layer
-  std::vector<LayerProof<Field>> l;
+  std::pmr::vector<LayerProof<Field>> l;
 
-  explicit Proof(size_t nl) : l(nl) {}
+  explicit Proof(size_t nl) : l(nl, LayerProof<Field>{}, current_resource()) {}
   size_t size() const {
     return l.size() * (kMaxBindings * 4 + kMaxBindings * 3 * 2 + 2);
   }
@@ -150,8 +152,8 @@ struct Proof {
 template <class Field>
 struct ProofAux {
   using Elt = typename Field::Elt;
-  std::vector<Elt> bound_quad;
-  explicit ProofAux(size_t nl) : bound_quad(nl) {}
+  std::pmr::vector<Elt> bound_quad;
+  explicit ProofAux(size_t nl) : bound_quad(nl, Elt{}, current_resource()) {}
 };
 }  // namespace proofs
 
