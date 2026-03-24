@@ -216,8 +216,7 @@ TEST(ZK, test_circuit_io) {
   EXPECT_FALSE(zkpv.read(rb, p256_base));
 }
 
-template <class Vec>
-void dump(const char* msg, const Vec& bytes) {
+void dump(const char* msg, const std::vector<uint8_t> bytes) {
   size_t sz = bytes.size();
   log(INFO, "%s size: %zu", msg, sz);
 
@@ -306,7 +305,7 @@ TEST(ZK, Rfc_testvector1) {
     EXPECT_EQ(V->v_[i], Fg.zero());
   }
   sc_prover.prove(&zkpr.proof, nullptr, circuit.get(), in, tp);
-  std::pmr::vector<uint8_t> sc_bytes;
+  std::vector<uint8_t> sc_bytes;
   zkpr.write_sc_proof(zkpr.proof, sc_bytes, Fg);
   dump("sc_proof", sc_bytes);
 
@@ -333,12 +332,12 @@ TEST(ZK, Rfc_testvector1) {
     dump("block", buf);
   }
 
-  std::pmr::vector<uint8_t> com_bytes;
+  std::vector<uint8_t> com_bytes;
   zkpr.write_com(zkpr.com, com_bytes, Fg);
   dump("commit", com_bytes);
 
   EXPECT_TRUE(zkp.prove(zkpr, W, tp));
-  std::pmr::vector<uint8_t> ligero_bytes;
+  std::vector<uint8_t> ligero_bytes;
   zkpr.write_com_proof(zkpr.com_proof, ligero_bytes, Fg);
   dump("ligero_proof", ligero_bytes);
 }

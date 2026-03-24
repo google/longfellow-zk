@@ -66,7 +66,7 @@ void run2_test_zk(const Circuit<Field>& circuit, Dense<Field>& W,
   EXPECT_TRUE(prover.prove(zkpr, W, tp));
   log(INFO, "ZK Prover done");
 
-  std::pmr::vector<uint8_t> zbuf;
+  std::vector<uint8_t> zbuf;
   zkpr.write(zbuf, base);
   log(INFO, "zkp len: %zu bytes", zbuf.size());
 
@@ -132,7 +132,7 @@ void run_test_zk(const Circuit<Field>& circuit, Dense<Field>& W,
 
   log(INFO, "ZK Prover done");
 
-  std::pmr::vector<uint8_t> zbuf;
+  std::vector<uint8_t> zbuf;
   zkpr.write(zbuf, F);
   log(INFO, "zkp len: %zu bytes", zbuf.size());
 

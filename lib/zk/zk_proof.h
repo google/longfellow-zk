@@ -17,12 +17,10 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <memory_resource>
 #include <optional>
 #include <vector>
 
 #include "ligero/ligero_param.h"
-#include "util/arena.h"
 #include "merkle/merkle_commitment.h"
 #include "merkle/merkle_tree.h"
 #include "sumcheck/circuit.h"
@@ -89,7 +87,7 @@ struct ZkProof {
            com_proof.nreq * com_proof.mc_pathlen * Digest::kLength;
   }
 
-  void write(std::pmr::vector<uint8_t> &buf, const Field &F) const {
+  void write(std::vector<uint8_t> &buf, const Field &F) const {
     size_t s0 = buf.size();
     write_com(com, buf, F);
     size_t s1 = buf.size();
@@ -113,7 +111,7 @@ struct ZkProof {
     return true;
   }
 
-  void write_sc_proof(const Proof<Field> &pr, std::pmr::vector<uint8_t> &buf,
+  void write_sc_proof(const Proof<Field> &pr, std::vector<uint8_t> &buf,
                       const Field &F) const {
     check(c.logc == 0, "cannot write sc proof with logc != 0");
     for (size_t i = 0; i < pr.l.size(); ++i) {
@@ -131,12 +129,12 @@ struct ZkProof {
     }
   }
 
-  void write_com(const LigeroCommitment<Field> &com0, std::pmr::vector<uint8_t> &buf,
+  void write_com(const LigeroCommitment<Field> &com0, std::vector<uint8_t> &buf,
                  const Field &F) const {
     buf.insert(buf.end(), com0.root.data, com0.root.data + Digest::kLength);
   }
 
-  void write_com_proof(const LigeroProof<Field> &pr, std::pmr::vector<uint8_t> &buf,
+  void write_com_proof(const LigeroProof<Field> &pr, std::vector<uint8_t> &buf,
                        const Field &F) const {
     for (size_t i = 0; i < pr.block; ++i) {
       write_elt(pr.y_ldt[i], buf, F);
@@ -186,31 +184,31 @@ struct ZkProof {
   }
 
  private:
-  void write_elt(const Elt &x, std::pmr::vector<uint8_t> &buf,
+  void write_elt(const Elt &x, std::vector<uint8_t> &buf,
                  const Field &F) const {
     uint8_t tmp[Field::kBytes];
     F.to_bytes_field(tmp, x);
     buf.insert(buf.end(), tmp, tmp + Field::kBytes);
   }
 
-  void write_subfield_elt(const Elt &x, std::pmr::vector<uint8_t> &buf,
+  void write_subfield_elt(const Elt &x, std::vector<uint8_t> &buf,
                           const Field &F) const {
     uint8_t tmp[Field::kSubFieldBytes];
     F.to_bytes_subfield(tmp, x);
     buf.insert(buf.end(), tmp, tmp + Field::kSubFieldBytes);
   }
 
-  void write_digest(const Digest &x, std::pmr::vector<uint8_t> &buf) const {
+  void write_digest(const Digest &x, std::vector<uint8_t> &buf) const {
     buf.insert(buf.end(), x.data, x.data + Digest::kLength);
   }
 
-  void write_nonce(const MerkleNonce &x, std::pmr::vector<uint8_t> &buf) const {
+  void write_nonce(const MerkleNonce &x, std::vector<uint8_t> &buf) const {
     buf.insert(buf.end(), x.bytes, x.bytes + MerkleNonce::kLength);
   }
 
   // Assumption is that all of the sizes of arrays that are part of proofs
   // fit into 4 bytes, and can thus work on 32-b machines.
-  void write_size(size_t g, std::pmr::vector<uint8_t> &buf) const {
+  void write_size(size_t g, std::vector<uint8_t> &buf) const {
     for (size_t i = 0; i < 4; ++i) {
       buf.push_back(static_cast<uint8_t>(g & 0xff));
       g >>= 8;

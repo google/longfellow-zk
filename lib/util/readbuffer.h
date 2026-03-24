@@ -31,10 +31,6 @@ class ReadBuffer {
   explicit ReadBuffer(const std::vector<uint8_t> &v)
       : ReadBuffer(v.data(), v.size()) {}
 
-  template <class Alloc>
-  explicit ReadBuffer(const std::vector<uint8_t, Alloc> &v)
-      : ReadBuffer(v.data(), v.size()) {}
-
   // no copies
   ReadBuffer(const ReadBuffer &) = delete;
 

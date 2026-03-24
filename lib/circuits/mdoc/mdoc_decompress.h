@@ -20,15 +20,8 @@
 #include <vector>
 
 namespace proofs {
-// Decompress into a buffer. Only uses bytes.data() and bytes.size().
-extern size_t decompress(uint8_t* data, size_t data_len,
-                         const uint8_t* compressed, size_t compressed_len);
-
-template <class Vec>
-size_t decompress(Vec& bytes, const uint8_t* compressed,
-                  size_t compressed_len) {
-  return decompress(bytes.data(), bytes.size(), compressed, compressed_len);
-}
+extern size_t decompress(std::vector<uint8_t>& bytes, const uint8_t* compressed,
+                         size_t compressed_len);
 }  // namespace proofs
 
 #endif  // PRIVACY_PROOFS_ZK_LIB_CIRCUITS_MDOC_MDOC_DECOMPRESS_H_

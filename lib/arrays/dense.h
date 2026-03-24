@@ -21,11 +21,9 @@
 #include <array>
 #include <cstdint>
 #include <memory>
-#include <memory_resource>
 #include <vector>
 
 #include "algebra/blas.h"
-#include "util/arena.h"
 #include "algebra/poly.h"
 #include "arrays/affine.h"
 #include "util/panic.h"
@@ -44,20 +42,16 @@ class Dense {
   corner_t n0_, n1_;
 
   // Row-major indexing: v_[i1*n0+i0] stores the value at (i0, i1)
-  std::pmr::vector<Elt> v_;
+  std::vector<Elt> v_;
 
-  explicit Dense(corner_t n0, corner_t n1)
-      : n0_(n0), n1_(n1), v_(n0 * n1, Elt{}, current_resource()) {}
+  explicit Dense(corner_t n0, corner_t n1) : n0_(n0), n1_(n1), v_(n0 * n1) {}
 
   // make0 replacement
-  explicit Dense(const Field& F)
-      : n0_(1), n1_(1), v_(1, Elt{}, current_resource()) {
-    v_[0] = F.zero();
-  }
+  explicit Dense(const Field& F) : n0_(1), n1_(1), v_(1) { v_[0] = F.zero(); }
 
   // initialize dense array from P[i1*ldp+i0]
   explicit Dense(corner_t n0, corner_t n1, const Elt p[], size_t ldp)
-      : n0_(n0), n1_(n1), v_(n0 * n1, Elt{}, current_resource()) {
+      : n0_(n0), n1_(n1), v_(n0 * n1) {
     for (corner_t i1 = 0; i1 < n1; ++i1) {
       Blas<Field>::copy(n0, v_[i1 * n0], 1, &p[i1 * ldp], 1);
     }
@@ -183,8 +177,7 @@ class DenseFiller {
     return *this;
   }
 
-  template <class Alloc>
-  DenseFiller& push_back(const std::vector<Elt, Alloc>& a) {
+  DenseFiller& push_back(const std::vector<Elt>& a) {
     for (size_t i = 0; i < a.size(); ++i) {
       push_back(a[i]);
     }

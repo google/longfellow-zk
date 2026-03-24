@@ -19,7 +19,6 @@
 #include <stdio.h>
 
 #include <algorithm>
-#include <memory_resource>
 #include <vector>
 
 #include "benchmark/benchmark.h"
@@ -75,7 +74,7 @@ TEST(MerkleTree, VerifyCompressedProof) {
       std::vector<Digest> leaves;
       MerkleTree prover = setupBatch(n, testSize, leaves, idx);
       Digest root = prover.build_tree();
-      std::pmr::vector<Digest> proof;
+      std::vector<Digest> proof;
       size_t len = prover.generate_compressed_proof(proof, &idx[0], testSize);
 
       MerkleTreeVerifier verifier(n, root);
@@ -93,7 +92,7 @@ TEST(MerkleTree, VerifyCompressedProofFailure) {
     MerkleTree prover = setupBatch(n, kTestSize, leaves, idx);
     Digest root = prover.build_tree();
 
-    std::pmr::vector<Digest> proof;
+    std::vector<Digest> proof;
     size_t len = prover.generate_compressed_proof(proof, &idx[0], kTestSize);
     MerkleTreeVerifier verifier(n, root);
 
@@ -118,7 +117,7 @@ TEST(MerkleTree, ZeroLengthProof) {
   size_t ids[] = {0, 1, 2, 3};
   std::vector<Digest> empty_leaves;
   MerkleTreeVerifier verifier(4, root);
-  std::pmr::vector<Digest> empty_proof;
+  std::vector<Digest> empty_proof;
 
   // Empty proof should fail.
   EXPECT_FALSE(
@@ -139,8 +138,7 @@ TEST(MerkleTree, UniqueLeaves) {
   size_t ids[] = {1, 1};
   std::vector<Digest> ll = {leaves[1], leaves[1]};
   MerkleTreeVerifier verifier(4, root);
-  std::pmr::vector<Digest> proof;
-  proof.push_back(Digest::hash2(leaves[1], leaves[1]));
+  std::vector<Digest> proof = {Digest::hash2(leaves[1], leaves[1])};
 
   EXPECT_DEATH(
       verifier.verify_compressed_proof(proof.data(), 1, leaves, ids, 2),
@@ -152,7 +150,7 @@ TEST(MerkleTree, BatchVerifyProofTooShort) {
   std::vector<Digest> leaves;
   MerkleTree prover = setupBatch(300, 20, leaves, idx);
   Digest root = prover.build_tree();
-  std::pmr::vector<Digest> proof;
+  std::vector<Digest> proof;
   size_t len = prover.generate_compressed_proof(proof, &idx[0], 20);
   MerkleTreeVerifier verifier(300, root);
 
@@ -200,7 +198,7 @@ TEST(MerkleTree, TestVectors) {
   print_digest(root);
 
   std::vector<size_t> idx;
-  std::pmr::vector<Digest> proof;
+  std::vector<Digest> proof;
   idx.push_back(0);
   idx.push_back(1);
   size_t len = mt.generate_compressed_proof(proof, &idx[0], 2);
@@ -212,7 +210,7 @@ TEST(MerkleTree, TestVectors) {
   // Example requires 3 elements in the proof.
   idx[0] = 1;
   idx[1] = 3;
-  std::pmr::vector<Digest> proof2;
+  std::vector<Digest> proof2;
   len = mt.generate_compressed_proof(proof2, &idx[0], 2);
   printf("len = %zu\n", len);
   for (size_t i = 0; i < len; ++i) {

@@ -22,13 +22,11 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
-#include <memory_resource>
 #include <optional>
 #include <unordered_map>
 #include <vector>
 
 #include "algebra/hash.h"
-#include "util/arena.h"
 #include "sumcheck/circuit.h"
 #include "sumcheck/circuit_id.h"
 #include "sumcheck/quad.h"
@@ -83,8 +81,7 @@ class CircuitRep {
   explicit CircuitRep(const Field& f, FieldID field_id)
       : f_(f), field_id_(field_id) {}
 
-  template <class ByteVec>
-  void to_bytes(const Circuit<Field>& sc_c, ByteVec& bytes) {
+  void to_bytes(const Circuit<Field>& sc_c, std::vector<uint8_t>& bytes) {
     EltHash eh(f_);
     bytes.push_back(0x1);  // version
     serialize_field_id(bytes, field_id_);
@@ -97,7 +94,7 @@ class CircuitRep {
 
     // Scan the circuit to generate the constant table. To keep one
     // scan, write the quad to a separate byte vector and later copy it.
-    ByteVec quadb;
+    std::vector<uint8_t> quadb;
     quadb.reserve(1 << 24);
     for (const auto& layer : sc_c.l) {
       serialize_size(quadb, layer.logw);
@@ -164,7 +161,7 @@ class CircuitRep {
       return nullptr;
     }
 
-    std::pmr::vector<Elt> constants(numconst, Elt{}, current_resource());
+    std::vector<Elt> constants(numconst);
     for (size_t i = 0; i < numconst; ++i) {
       // Fail if Elt cannot be parsed.
       auto vv = f_.of_bytes_field(buf.next(Field::kBytes));
@@ -261,13 +258,11 @@ class CircuitRep {
     return std::nullopt;
   }
 
-  template <class ByteVec>
-  static void serialize_field_id(ByteVec& bytes, FieldID id) {
+  static void serialize_field_id(std::vector<uint8_t>& bytes, FieldID id) {
     serialize_num(bytes, static_cast<size_t>(id));
   }
 
-  template <class ByteVec>
-  static void serialize_size(ByteVec& bytes, size_t sz) {
+  static void serialize_size(std::vector<uint8_t>& bytes, size_t sz) {
     serialize_num(bytes, sz);
   }
 
@@ -279,8 +274,7 @@ class CircuitRep {
   // phenomenon, but at least part of the reason is that the deltas
   // are usually smaller than the indices.
   //
-  template <class ByteVec>
-  static void serialize_index(ByteVec& bytes, QuadCorner ind0,
+  static void serialize_index(std::vector<uint8_t>& bytes, QuadCorner ind0,
                               QuadCorner prev_ind0) {
     size_t ind = static_cast<size_t>(ind0);
     size_t prev_ind = static_cast<size_t>(prev_ind0);
@@ -295,8 +289,7 @@ class CircuitRep {
     }
   }
 
-  template <class ByteVec>
-  static void serialize_num(ByteVec& bytes, size_t g) {
+  static void serialize_num(std::vector<uint8_t>& bytes, size_t g) {
     check(g < kMaxValue, "Violating small wire-label assumption");
     uint8_t tmp[kBytesWritten];
     for (size_t i = 0; i < kBytesWritten; ++i) {
@@ -350,7 +343,7 @@ class CircuitRep {
   // This structure encapsulates the hash used by the compiler.
   class EltHash {
    public:
-    std::pmr::vector<Elt> constants_;
+    std::vector<Elt> constants_;
 
     explicit EltHash(const Field& f) : f_(f), table_(1000, EHash(f)) {}
 

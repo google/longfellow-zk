@@ -16,11 +16,9 @@
 #define PRIVACY_PROOFS_ZK_LIB_ZK_ZK_COMMON_H_
 
 #include <cstddef>
-#include <memory_resource>
 #include <vector>
 
 #include "arrays/dense.h"
-#include "util/arena.h"
 #include "arrays/eq.h"
 #include "arrays/eqs.h"
 #include "ligero/ligero_param.h"
@@ -52,7 +50,7 @@ class ZkCommon {
   static size_t verifier_constraints(
       const Circuit<Field>& circuit, const Dense<Field>& pub,
       const Proof<Field>& proof, const ProofAux<Field>* aux,
-      std::pmr::vector<Llc>& a, std::pmr::vector<typename Field::Elt>& b, Transcript& tsv,
+      std::vector<Llc>& a, std::vector<typename Field::Elt>& b, Transcript& tsv,
       size_t pi, const Field& F) {
     const size_t ninp = circuit.ninputs, npub = circuit.npub_in;
 
@@ -150,7 +148,7 @@ class ZkCommon {
 
   // Setup lqc based on proof pad layout.
   static void setup_lqc(const Circuit<Field>& C,
-                        std::pmr::vector<LigeroQuadraticConstraint>& lqc,
+                        std::vector<LigeroQuadraticConstraint>& lqc,
                         size_t start_pad) {
     size_t pi = start_pad;
     for (size_t i = 0; i < C.nl; ++i) {
@@ -257,17 +255,15 @@ class ZkCommon {
   // and support simple linear operations on such quantities
   class Expression {
     Elt known_;
-    std::pmr::vector<Elt> symbolic_;
+    std::vector<Elt> symbolic_;
     const Field& f_;
 
    public:
     Expression(size_t nvar, const Field& F)
-        : known_(F.zero()),
-          symbolic_(nvar, F.zero(), current_resource()),
-          f_(F) {}
+        : known_(F.zero()), symbolic_(nvar, F.zero()), f_(F) {}
 
     Elt known() { return known_; }
-    std::pmr::vector<Elt> symbolic() { return symbolic_; }
+    std::vector<Elt> symbolic() { return symbolic_; }
 
     void scale(const Elt& k) {
       f_.mul(known_, k);
@@ -376,14 +372,14 @@ class ZkCommon {
     //      - (EQQ * W[L, C]) dW[R, C] - EQQ * dW[R,C] * dW[L,C]
     //   = EQQ * W[R,C] * W[L,C] - KNOWN
     void finalize(const Elt wc[], const Elt& eqq, size_t ci, size_t ly,
-                  size_t pi, std::pmr::vector<Llc>& a, std::pmr::vector<Elt>& b) {
+                  size_t pi, std::vector<Llc>& a, std::vector<Elt>& b) {
       // break the Expression abstraction and split into constituents.
 
       // EQQ * W[R,C] * W[L,C] - known
       Elt rhs = f_.subf(f_.mulf(eqq, f_.mulf(wc[0], wc[1])), expr_.known());
 
       // symbolic part
-      std::pmr::vector<Elt> lhs = expr_.symbolic();
+      std::vector<Elt> lhs = expr_.symbolic();
       f_.sub(lhs[pl_.ovp_claim_pad(0)], f_.mulf(eqq, wc[1]));
       f_.sub(lhs[pl_.ovp_claim_pad(1)], f_.mulf(eqq, wc[0]));
       f_.sub(lhs[pl_.ovp_claim_pad(2)], eqq);
@@ -411,7 +407,7 @@ class ZkCommon {
   static size_t input_constraint(const Claims& cla, const Dense<Field>& pub,
                                  size_t pub_inputs, size_t num_inputs,
                                  size_t pi, Elt got, Elt alpha,
-                                 std::pmr::vector<Llc>& a, std::pmr::vector<Elt>& b,
+                                 std::vector<Llc>& a, std::vector<Elt>& b,
                                  size_t ci, const Field& F) {
     Eqs<Field> eq0(cla.logv, num_inputs, cla.g[0], F);
     Eqs<Field> eq1(cla.logv, num_inputs, cla.g[1], F);
