@@ -18,13 +18,23 @@
 #include <cstdint>
 
 #include "util/panic.h"
+
+#ifdef __APPLE__
+#include <Security/SecRandom.h>
+#else
 #include "openssl/rand.h"
+#endif
 
 namespace proofs {
 
 void rand_bytes(uint8_t out[/*n*/], size_t n) {
+#ifdef __APPLE__
+  int ret = SecRandomCopyBytes(kSecRandomDefault, n, out);
+  check(ret == errSecSuccess, "SecRandomCopyBytes failed");
+#else
   int ret = RAND_bytes(out, n);
   check(ret == 1, "openssl RAND_bytes failed");
+#endif
 }
 
 void hex_to_str(char out[/* 2*n + 1*/], const uint8_t in[/*n*/], size_t n) {
