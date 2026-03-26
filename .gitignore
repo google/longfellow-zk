@@ -1,3 +1,4 @@
 /lib/build-iphoneos
 /lib/build-iphonesimulator
 /lib/build
+/build-xcframework
