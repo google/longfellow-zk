@@ -446,9 +446,6 @@ MdocProverErrorCode run_mdoc_prover(
   log(INFO, "circuit created. h[in:%zu q:%zu], s[in:%zu q:%zu]",
       c_hash->ninputs, c_hash->nl, c_sig->ninputs, c_sig->nl);
 
-  // Free decompressed circuit bytes (~150MB) now that circuits are parsed.
-  std::vector<uint8_t>().swap(bytes);
-
   //  ============ Produce zk witness ==============
   auto W_sig = Dense<Fp256Base>(1, c_sig->ninputs);
   auto W_hash = Dense<f_128>(1, c_hash->ninputs);
@@ -479,13 +476,11 @@ MdocProverErrorCode run_mdoc_prover(
   ZkProof<f_128> h_zk(*c_hash, r, req, zk_spec->block_enc_hash);
   ZkProof<Fp256Base> sig_zk(*c_sig, r, req, zk_spec->block_enc_sig);
 
-  auto hash_p = std::make_unique<ZkProver<f_128, RSFactory>>(
-      *c_hash, Fs, the_reed_solomon_factory);
-  auto sig_p = std::make_unique<ZkProver<Fp256Base, RSFactory_b>>(
-      *c_sig, p256_base, rsf_b);
+  ZkProver<f_128, RSFactory> hash_p(*c_hash, Fs, the_reed_solomon_factory);
+  ZkProver<Fp256Base, RSFactory_b> sig_p(*c_sig, p256_base, rsf_b);
 
-  hash_p->commit(h_zk, W_hash, tp, rng);
-  sig_p->commit(sig_zk, W_sig, tp, rng);
+  hash_p.commit(h_zk, W_hash, tp, rng);
+  sig_p.commit(sig_zk, W_sig, tp, rng);
 
   log(INFO,
       "commit created. h[nl:%zu, ni:%zu], s[nl:%zu, ni:%zu] hc[b:%zu r:%zu] "
@@ -503,25 +498,15 @@ MdocProverErrorCode run_mdoc_prover(
   update_macs(W_sig, W_hash, kSigMacIndex,
               getHashMacIndex(attrs_len, zk_spec->version), macs, av, Fs);
 
-  if (!hash_p->prove(h_zk, W_hash, tp)) {
+  if (!hash_p.prove(h_zk, W_hash, tp)) {
     return MDOC_PROVER_GENERAL_FAILURE;
   };
   log(INFO, "ZK hash proof done");
 
-  // Free hash prover and witness now that hash proof is complete.
-  hash_p.reset();
-  W_hash.v_.clear();
-  W_hash.v_.shrink_to_fit();
-
-  if (!sig_p->prove(sig_zk, W_sig, tp)) {
+  if (!sig_p.prove(sig_zk, W_sig, tp)) {
     return MDOC_PROVER_GENERAL_FAILURE;
   };
   log(INFO, "ZK signature proof done");
-
-  // Free signature prover and witness now that sig proof is complete.
-  sig_p.reset();
-  W_sig.v_.clear();
-  W_sig.v_.shrink_to_fit();
 
   // Serialize proof to bytes.
   // [6 mac values] [docType] [hash proof] [sig proof]
