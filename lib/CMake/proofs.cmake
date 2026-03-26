@@ -13,38 +13,53 @@
 # limitations under the License.
 
 add_compile_definitions(OPENSSL_SUPPRESS_DEPRECATED=1)
-include(GoogleTest)
-find_package(benchmark REQUIRED)
-find_package(GTest REQUIRED)
 
-macro(proofs_add_testing_libraries PROG)
-    # libraries that are common enough to be useful in all tests
-    target_link_libraries(${PROG} testing_main)    
+option(PROOFS_BUILD_TESTS "Build tests and benchmarks" ON)
 
-#   -static won't work on Debian because libbenchmark-dev is
-#   dynamic only.  One could enable -static and comment out
-#   benchmark, in which case some tests won't build
+if(PROOFS_BUILD_TESTS)
+    include(GoogleTest)
+    find_package(benchmark REQUIRED)
+    find_package(GTest REQUIRED)
+endif()
 
-#    target_link_libraries(${PROG} -static)
+if(PROOFS_BUILD_TESTS)
+    macro(proofs_add_testing_libraries PROG)
+        # libraries that are common enough to be useful in all tests
+        target_link_libraries(${PROG} testing_main)
 
-    # on Debian buster, gtest seems to need pthread
-    target_link_libraries(${PROG} gtest pthread)
-    target_link_libraries(${PROG} benchmark::benchmark)
+    #   -static won't work on Debian because libbenchmark-dev is
+    #   dynamic only.  One could enable -static and comment out
+    #   benchmark, in which case some tests won't build
 
-    gtest_discover_tests(${PROG})
-endmacro()
+    #    target_link_libraries(${PROG} -static)
 
-macro(proofs_add_test PROG)
-    add_executable(${PROG} ${PROG}.cc ${ARGN})
-    target_link_libraries(${PROG} ec)    
-    target_link_libraries(${PROG} algebra)
-    target_link_libraries(${PROG} util)
-    proofs_add_testing_libraries(${PROG})
-endmacro()
+        # on Debian buster, gtest seems to need pthread
+        target_link_libraries(${PROG} gtest pthread)
+        target_link_libraries(${PROG} benchmark::benchmark)
 
-macro(proofs_add_tests)
-    foreach (PROG ${ARGN})
-        proofs_add_test(${PROG})
-    endforeach ()
-endmacro()
+        gtest_discover_tests(${PROG})
+    endmacro()
+
+    macro(proofs_add_test PROG)
+        add_executable(${PROG} ${PROG}.cc ${ARGN})
+        target_link_libraries(${PROG} ec)
+        target_link_libraries(${PROG} algebra)
+        target_link_libraries(${PROG} util)
+        proofs_add_testing_libraries(${PROG})
+    endmacro()
+
+    macro(proofs_add_tests)
+        foreach (PROG ${ARGN})
+            proofs_add_test(${PROG})
+        endforeach ()
+    endmacro()
+else()
+    # No-op stubs so subdirectory CMakeLists.txt files work unchanged.
+    macro(proofs_add_testing_libraries PROG)
+    endmacro()
+    macro(proofs_add_test PROG)
+    endmacro()
+    macro(proofs_add_tests)
+    endmacro()
+endif()
 

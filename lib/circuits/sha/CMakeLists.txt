@@ -14,5 +14,7 @@
 
 add_library(flatsha OBJECT flatsha256_witness.cc sha256_constants.cc)
 
-proofs_add_tests(flatsha256_circuit_test)
-target_link_libraries(flatsha256_circuit_test flatsha)
+if(PROOFS_BUILD_TESTS)
+    proofs_add_tests(flatsha256_circuit_test)
+    target_link_libraries(flatsha256_circuit_test flatsha)
+endif()

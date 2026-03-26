@@ -12,5 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-proofs_add_tests(circuit_test)
-target_link_libraries(circuit_test flatsha)
+if(PROOFS_BUILD_TESTS)
+    proofs_add_tests(circuit_test)
+    target_link_libraries(circuit_test flatsha)
+endif()

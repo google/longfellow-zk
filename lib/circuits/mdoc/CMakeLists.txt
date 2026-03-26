@@ -25,18 +25,20 @@ add_library(mdoc_static STATIC
     $<TARGET_OBJECTS:util>
 )
 
-proofs_add_test(mdoc_signature_test)
-target_link_libraries(mdoc_signature_test mdoc)
+if(PROOFS_BUILD_TESTS)
+    proofs_add_test(mdoc_signature_test)
+    target_link_libraries(mdoc_signature_test mdoc)
 
-#proofs_add_test(zk_spec_test)
-#target_link_libraries(zk_spec_test mdoc)
+    #proofs_add_test(zk_spec_test)
+    #target_link_libraries(zk_spec_test mdoc)
 
-# link mdoc_zk_test explicitly against the static library
-# so that we know that the static library works
-add_executable(mdoc_zk_test mdoc_zk_test.cc)
-target_link_libraries(mdoc_zk_test mdoc_static)
-proofs_add_testing_libraries(mdoc_zk_test)
-target_link_libraries(mdoc_zk_test crypto zstd)
+    # link mdoc_zk_test explicitly against the static library
+    # so that we know that the static library works
+    add_executable(mdoc_zk_test mdoc_zk_test.cc)
+    target_link_libraries(mdoc_zk_test mdoc_static)
+    proofs_add_testing_libraries(mdoc_zk_test)
+    target_link_libraries(mdoc_zk_test crypto zstd)
+endif()
 
 set(installable_libs mdoc_static)
 install(TARGETS ${installable_libs} DESTINATION lib)
