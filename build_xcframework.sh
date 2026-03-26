@@ -27,7 +27,7 @@ LIB_DIR="$ROOT_DIR/lib"
 OUTPUT_DIR="$ROOT_DIR/build-xcframework"
 FRAMEWORK_NAME="MdocZk"
 DEPLOYMENT_TARGET_IOS="15.0"
-ZSTD_LIBS="/Users/ffeli/Source/other/multipaz/multipaz-longfellow/src/iosMain/nativeLibs"
+ZSTD_LIBS="$ROOT_DIR/third_party/zstd"
 
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
