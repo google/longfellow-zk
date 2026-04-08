@@ -1219,7 +1219,7 @@ li > p:last-of-type:only-child {
 </tr></thead>
 <tfoot><tr>
 <td class="left">Frigo &amp; shelat</td>
-<td class="center">Expires 5 October 2026</td>
+<td class="center">Expires 10 October 2026</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1232,12 +1232,12 @@ li > p:last-of-type:only-child {
 <dd class="internet-draft">draft-google-cfrg-libzk-01</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-04-03" class="published">3 April 2026</time>
+<time datetime="2026-04-08" class="published">8 April 2026</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2026-10-05">5 October 2026</time></dd>
+<dd class="expires"><time datetime="2026-10-10">10 October 2026</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1275,7 +1275,7 @@ li > p:last-of-type:only-child {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 5 October 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 10 October 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1451,10 +1451,13 @@ li > p:last-of-type:only-child {
                 <p id="section-toc.1-1.6.2.4.1"><a href="#section-6.4" class="auto internal xref">6.4</a>.  <a href="#name-representation-of-polynomia" class="internal xref">Representation of polynomials</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.5">
-                <p id="section-toc.1-1.6.2.5.1"><a href="#section-6.5" class="auto internal xref">6.5</a>.  <a href="#name-transform-circuit-and-wires" class="internal xref">Transform circuit and wires into a padded proof</a></p>
+                <p id="section-toc.1-1.6.2.5.1"><a href="#section-6.5" class="auto internal xref">6.5</a>.  <a href="#name-transcript-encryption-and-d" class="internal xref">Transcript encryption and deferred verification</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.6">
-                <p id="section-toc.1-1.6.2.6.1"><a href="#section-6.6" class="auto internal xref">6.6</a>.  <a href="#name-generate-constraints-from-t" class="internal xref">Generate constraints from the public inputs and the padded proof</a></p>
+                <p id="section-toc.1-1.6.2.6.1"><a href="#section-6.6" class="auto internal xref">6.6</a>.  <a href="#name-transform-circuit-and-wires" class="internal xref">Transform circuit and wires into a padded proof</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.7">
+                <p id="section-toc.1-1.6.2.7.1"><a href="#section-6.7" class="auto internal xref">6.7</a>.  <a href="#name-generate-constraints-from-t" class="internal xref">Generate constraints from the public inputs and the padded proof</a></p>
 </li>
             </ul>
 </li>
@@ -2574,7 +2577,7 @@ def dot_check(proof, challenge_indicies, A) {
 </div>
 </section>
 </div>
-<div id="overview-of-the-longfellow-protocol">
+<div id="overview">
 <section id="section-5">
       <h2 id="name-overview-of-the-longfellow-">
 <a href="#section-5" class="section-number selfRef">5. </a><a href="#name-overview-of-the-longfellow-" class="section-name selfRef">Overview of the Longfellow protocol</a>
@@ -2657,30 +2660,34 @@ nonnegative integers <code>i</code>, padding with zeroes as necessary.  Here,
 <p id="section-6.1-4">Arrays can be multi-dimensional, as in the three-dimensional array
 <code>Q[g, l, r]</code>.  It is understood that the array is padded with
 infinitely many zeroes in each dimension.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
-<p id="section-6.1-5">Given array <code>A[]</code> and field element <code>x</code>, the function
-<code>bind(A, x)</code> returns the array <code>B</code> such that<a href="#section-6.1-5" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.1-6">
+<p id="section-6.1-5">Depending on the context, some arrays may consist of almost all non-zero
+values, while other arrays may be sparse, containing very few non-zero
+values (ignoring the zero-padding convention above). Implementations
+should use dense or sparse representations of arrays as appropriate.<a href="#section-6.1-5" class="pilcrow">¶</a></p>
+<p id="section-6.1-6">Given array <code>A[]</code> and field element <code>x</code>, the function
+<code>bind(A, x)</code> returns the array <code>B</code> such that<a href="#section-6.1-6" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-7">
 <pre>  B[i] = (1 - x) * A[2 * i] + x * A[2 * i + 1]
-</pre><a href="#section-6.1-6" class="pilcrow">¶</a>
+</pre><a href="#section-6.1-7" class="pilcrow">¶</a>
 </div>
-<p id="section-6.1-7">In case of multiple dimensions such as <code>Q[g, l, r]</code>,
-always bind across the first dimension.  For example,<a href="#section-6.1-7" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.1-8">
+<p id="section-6.1-8">In case of multiple dimensions such as <code>Q[g, l, r]</code>,
+always bind across the first dimension.  For example,<a href="#section-6.1-8" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-9">
 <pre>  bind(Q, x)[g, l, r] =
      (1 - x) * Q[2 * g, l, r] + x * Q[2 * g + 1, l, r]
-</pre><a href="#section-6.1-8" class="pilcrow">¶</a>
+</pre><a href="#section-6.1-9" class="pilcrow">¶</a>
 </div>
-<p id="section-6.1-9">This <code>bind</code> can be generalized to an array of field elements as follows:<a href="#section-6.1-9" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.1-10">
+<p id="section-6.1-10">This <code>bind</code> can be generalized to an array of field elements as follows:<a href="#section-6.1-10" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-11">
 <pre>  bindv(A, X) =
        A                                  if X is empty
        bindv(bind(A, X[0]), X[1..])       otherwise
-</pre><a href="#section-6.1-10" class="pilcrow">¶</a>
+</pre><a href="#section-6.1-11" class="pilcrow">¶</a>
 </div>
-<p id="section-6.1-11">Two-dimentional arrays can be transposed in the usual way:<a href="#section-6.1-11" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.1-12">
+<p id="section-6.1-12">Two-dimentional arrays can be transposed in the usual way:<a href="#section-6.1-12" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.1-13">
 <pre>  transpose(Q)[l, r] = Q[r, l] .
-</pre><a href="#section-6.1-12" class="pilcrow">¶</a>
+</pre><a href="#section-6.1-13" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -2718,21 +2725,21 @@ constraints but not binding.<a href="#section-6.2-8" class="pilcrow">¶</a></p>
 <p id="section-6.2-9">This document only uses bindings of <code>EQ</code> and never <code>EQ</code> itself,
 and therefore the whole array never needs to be stored explicitly.
 For <code>n = 2^l</code> and <code>X</code> of size <code>l</code>, <code>bindv(EQ_{n}, X)</code> can be computed
-recursively in linear time as <code>bindv(EQ_{n}, X) = bindeq(l, X)</code> where<a href="#section-6.2-9" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.2-10">
-<pre>   bindeq(l, X) =
-      LET n = 2^l
-      allocate B[n]
-      IF l = 0 THEN
-         B[0] = 1
-      ELSE
-         LET A = bindeq(l - 1, X[1..])
-         FOR 0 &lt;= 2 * i &lt; n DO
-            B[2 * i]     = (1 - X[0]) * A[i]
-            B[2 * i + 1] = X[0] * A[i]
-         ENDFOR
-      ENDIF
-      return B
+recursively in linear time as follows.<a href="#section-6.2-9" class="pilcrow">¶</a></p>
+<div class="lang-python sourcecode" id="section-6.2-10">
+<pre>def bindeq(
+        field: FiniteField,
+        challenges: list[FiniteRingElement]) -&gt; list[FiniteRingElement]:
+    log_n = len(challenges)
+    if log_n == 0:
+        return [field.one()]
+    n = 2 ** log_n
+    b = [field.zero() for _ in range(n)]
+    a = bindeq(field, challenges[1:])
+    for i in range(n // 2):
+        b[2 * i] = (field.one() - challenges[0]) * a[i]
+        b[2 * i + 1] = challenges[0] * a[i]
+    return b
 </pre><a href="#section-6.2-10" class="pilcrow">¶</a>
 </div>
 <p id="section-6.2-11">For <code>m &lt;= n</code>, <code>bindv(EQ_{n}, X)[i]</code> and <code>bindv(EQ_{m}, X)[i]</code>
@@ -2870,96 +2877,351 @@ with <code>v = beta</code>.<a href="#section-6.3.3-10" class="pilcrow">¶</a></p
         </h3>
 <p id="section-6.4-1">In a generic sumcheck protocol, the prover sends to the verifier
 polynomials of a degree specified in advance.  In the present document,
-the polynomials are always of degree 2, and are represented by their
+the polynomials are always of degree two, and are represented by their
 evaluations at three points <code>P0 = 0</code>, <code>P1 = 1</code>, and <code>P2</code>, where <code>0</code>
 and <code>1</code> are the additive and multiplicative identities in the field.
 The choice of <code>P2</code> depends upon the field.  For fields of characteristic
 greater than 2, set <code>P2 = 2</code> (= <code>1 + 1</code> in the field).  For <code>GF(2^128)</code>
-expressed as <code>GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)</code>, and set <code>P2
-= X</code>.  This document does not prescribe a choice of P2 for binary
-fields other than <code>GF(2^128)</code>, but other binary fields
-represented as <code>GF(2)[X] / (Q(X))</code> SHOULD choose <code>P2 = X</code> for
-consistency.<a href="#section-6.4-1" class="pilcrow">¶</a></p>
+expressed as <code>GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)</code>, set <code>P2 = inj(2)</code>
+as defined in <a href="#gf2k" class="auto internal xref">Section 2.2.2</a>.  This document does not prescribe a choice of
+P2 for binary fields other than <code>GF(2^128)</code>.<a href="#section-6.4-1" class="pilcrow">¶</a></p>
+<p id="section-6.4-2">At the start of each round of communication in a sumcheck protocol, both the
+prover and the (virtual) sumcheck verifier agree on a claim value, which
+represents the sum of the evaluation of some function at all inputs <code>{0,1}^*</code>.
+The polynomials computed by the prover represent the sum of the
+evaluations of the multilinear extension of that same function, with one
+argument fixed to <code>P0</code>, <code>P1</code>, or <code>P2</code>, and all other arguments chosen
+from <code>{0,1}</code>.
+Therefore, the sum of <code>p(P0) + p(P1)</code> is equal to the claim from the
+start of the sumcheck round, and the prover only needs to send two field
+elements in order for the parties to agree on the entire degree two
+polynomial.
+Here, <code>p(P0)</code> and <code>p(P2)</code> are sent to the (virtual) sumcheck verifier,
+and <code>p(P1)</code> is reconstructed from <code>p(P0)</code> and the claim.<a href="#section-6.4-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="transcript-encryption-and-deferred-verification">
+<section id="section-6.5">
+        <h3 id="name-transcript-encryption-and-d">
+<a href="#section-6.5" class="section-number selfRef">6.5. </a><a href="#name-transcript-encryption-and-d" class="section-name selfRef">Transcript encryption and deferred verification</a>
+        </h3>
+<p id="section-6.5-1">The sumcheck protocol produces a series of polynomials and claim values,
+computed from the circuit input values, to prove that the circuit
+was evaluated correctly.
+As described in <a href="#overview" class="auto internal xref">Section 5</a>, these polynomials and claims are not
+directly revealed to the verifier.
+Rather, the field elements that make up these values are encrypted with
+a one-time pad by subtracting a randomly chosen pad value from each
+field element, and the difference is sent to the verifier.<a href="#section-6.5-1" class="pilcrow">¶</a></p>
+<p id="section-6.5-2">When the verifier executes the sumcheck protocol, it does not have
+direct access to all the circuit inputs, and it is only given the
+one-time pad encrypted forms of the sumcheck polynomials and per-layer
+claims, not the corresponding plaintext values.
+Therefore, the prover and verifier defer part of the verification by
+producing a series of linear and quadratic constraints, relating the
+private input values and the one-time pad values, so that those
+constraints can be checked with the Ligero zero-knowledge system (see
+<a href="#ligero-zk-proof" class="auto internal xref">Section 4</a>).<a href="#section-6.5-2" class="pilcrow">¶</a></p>
+<p id="section-6.5-3">The variables used in these constraints are assigned sequentially, first
+to the private circuit inputs, then to elements of the one-time pad.
+Variables for one-time pad values are assigned to values for circuit
+layers in order, starting with the output layer. Within each layer,
+variables are first assigned to one-time pad values for sumcheck
+polynomials, then to the per-layer claim values. The number of sumcheck
+polynomials for each layer is equal to double the value of
+<code>log_num_input_wires</code> for that layer of the circuit.
+The polynomials are represented by two field
+elements each, one for the evaluation at <code>P0 = 0</code>, and one for the
+evaluation at <code>P2</code>. At the end of the variables for each layer, three
+variables are assigned for claim-related values. Two variables are used
+for the one-time pad values for the claims <code>vl</code> and <code>vr</code>. Then, a
+variable is used for the product of those two one-time pad values.<a href="#section-6.5-3" class="pilcrow">¶</a></p>
+<div class="breakable lang-python sourcecode" id="section-6.5-4">
+<pre>def construct_symbolic_variables(
+        field,
+        circuit: Circuit,
+        ) -&gt; tuple[tuple[MPolynomial, ...], list[LayerPad]]:
+    num_private_inputs = circuit.ninputs - circuit.pub_in
+    witness_length = (
+        num_private_inputs
+        + sum(l.log_num_input_wires for l in circuit.layers) * 4
+        + len(circuit.layers) * 3
+    )
+    ring = PolynomialRing(field, witness_length, "w")
+    variables = ring.gens()
+    witness_variables = variables[:num_private_inputs]
+    pad_variables = variables[num_private_inputs:]
+    return (
+        witness_variables,
+        construct_symbolic_pad(field, circuit, pad_variables)
+    )
+
+
+def construct_symbolic_pad(
+        field,
+        circuit: Circuit, variables) -&gt; list[LayerPad]:
+    it = iter(variables)
+    layers = []
+    for layer in circuit.layers:
+        evals: list[list[SumcheckPolynomial]] = []
+        for round in range(layer.log_num_input_wires):
+            evals.append([])
+            for _ in range(2):
+                evals[round].append(
+                    SumcheckPolynomial(
+                        next(it),
+                        next(it),
+                    ),
+                )
+        vl = next(it)
+        vr = next(it)
+        vl_vr = next(it)
+        layers.append(LayerPad(
+            evals,
+            vl,
+            vr,
+            vl_vr,
+        ))
+    return layers
+
+
+def construct_concrete_pad(
+        field: FiniteField,
+        circuit: Circuit,
+        pad_prg=random_element,
+        ) -&gt; tuple[list[LayerPad], list[FiniteRingElement]]:
+    """
+    Chooses one-time pad values, and returns them in structured and
+    flattened forms.
+    """
+    layers = []
+    flattened = []
+    for layer in circuit.layers:
+        evals: list[list[SumcheckPolynomial]] = []
+        for round in range(layer.log_num_input_wires):
+            evals.append([])
+            for _ in range(2):
+                p0 = pad_prg(field)
+                p2 = pad_prg(field)
+                evals[round].append(SumcheckPolynomial(p0, p2))
+                flattened.append(p0)
+                flattened.append(p2)
+        vl = pad_prg(field)
+        vr = pad_prg(field)
+        vl_vr = vl * vr
+        layers.append(LayerPad(
+            evals,
+            vl,
+            vr,
+            vl_vr,
+        ))
+        flattened.append(vl)
+        flattened.append(vr)
+        flattened.append(vl_vr)
+    return (layers, flattened)
+</pre><a href="#section-6.5-4" class="pilcrow">¶</a>
+</div>
 </section>
 </div>
 <div id="transform-circuit-and-wires-into-a-padded-proof">
-<section id="section-6.5">
+<section id="section-6.6">
         <h3 id="name-transform-circuit-and-wires">
-<a href="#section-6.5" class="section-number selfRef">6.5. </a><a href="#name-transform-circuit-and-wires" class="section-name selfRef">Transform circuit and wires into a padded proof</a>
+<a href="#section-6.6" class="section-number selfRef">6.6. </a><a href="#name-transform-circuit-and-wires" class="section-name selfRef">Transform circuit and wires into a padded proof</a>
         </h3>
-<div class="alignLeft art-text artwork" id="section-6.5-1">
-<pre>sumcheck_circuit(circuit, wires, pad, transcript) {
-  G[0] = G[1] = transcript.gen_challenge(circuit.lv)
-  FOR 0 &lt;= j &lt; circuit.nl DO
-     // Let V[j] be the output wires of layer j.
-     // The body of the loop reduces the verification of the
-     // two "claims" bind(V[j], G[0]) and bind(V[j], G[1])
-     // to the verification of the two claims
-     // bind(V[j + 1], G'[0]) and bind(V[j + 1], G'[1]),
-     // where the new bindings G' are chosen in sumcheck_layer()
+<p id="section-6.6-1">The prover constructs a padded proof by executing the sumcheck protocol
+in order to certify that the wires at each layer of the circuit are
+correctly calculated from the wires at the preceding layer.<a href="#section-6.6-1" class="pilcrow">¶</a></p>
+<p id="section-6.6-2">The goal is to prove that, for some layer index <code>j</code>, and every output
+wire index <code>g</code> in that layer, the following all hold with high
+probability.<a href="#section-6.6-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.6-3">
+<pre>V[j][g] = SUM_{l, r} Q[j][g, l, r] V[j + 1][l] V[j + 1][r]
 
-     alpha = transcript.gen_challenge(1)
-
-     // Form the combined quad QZ = Q + beta Z
-     // to handle in-circuit assertions
-     beta = transcript.gen_challenge(1)
-     QZ = circuit.layer[j].quad + beta * circuit.layer[j].Z;
-
-     // QZ is three-dimensional QZ[g, l, r]
-     QUAD = bindv(QZ, G[0]) + alpha * bindv(QZ, G[1])
-     // having bound g, QUAD is two-dimensional QUAD[l, r]
-
-     (proof[j], G) =
-         sumcheck_layer(QUAD, wires[j], circuit.layer[j].lv,
-                        pad[j], transcript)
-  ENDFOR
-  return proof
-}
-</pre><a href="#section-6.5-1" class="pilcrow">¶</a>
+0 = SUM_{l, r} Z[j][g, l, r] V[j + 1][l] V[j + 1][r]
+</pre><a href="#section-6.6-3" class="pilcrow">¶</a>
 </div>
-<div class="alignLeft art-text artwork" id="section-6.5-2">
-<pre>sumcheck_layer(QUAD, wires, lv, layer_pad, transcript) {
-   (VL, VR) = wires
-   FOR 0 &lt;= round &lt; lv DO
-      FOR 0 &lt;= hand &lt; 2 DO
-        Let p(x) =
-           SUM_{l, r} bind(QUAD, x)[l, r] * bind(VL, x)[l] * VR[r]
-        evals.p0 = p(P0) - layer_pad.evals[round][hand].p0
-        // p(P1) is implied and not needed
-        evals.p2 = p(P2) - layer_pad.evals[round][hand].p2
-        layer_proof.evals[round][hand] = evals
-        transcript.write(evals);
-        challenge = transcript.gen_challenge(1)
-        G[round][hand] = challenge
+<p id="section-6.6-4">These equations are combined into one equation after multiplying them by
+random verifier challenges. This equation is of the form<a href="#section-6.6-4" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.6-5">
+<pre>claim = SUM_{l, r} QUAD[j][l, r] V[j + 1][l] V[j + 1][r]
+</pre><a href="#section-6.6-5" class="pilcrow">¶</a>
+</div>
+<p id="section-6.6-6">If we reinterpret the wire indices <code>l</code> and <code>r</code> as binary numbers,
+replacing them both with <code>log_num_input_wires</code> many variables having
+value 0 or 1, then this equation has the form needed to apply the
+sumcheck protocol.<a href="#section-6.6-6" class="pilcrow">¶</a></p>
+<p id="section-6.6-7">At each layer, both parties start with two claims that each represent a
+linear combination of the layer's output wire values.
+Concretely, the claims for the layer's outputs are <code>bind(V[j], G[0])</code>
+and <code>bind(V[j], G[1])</code> where <code>G[0]</code> and <code>G[1]</code> are arrays of verifier
+challenges.
+These two claim values get combined into one using a random challenge
+value.
+In each successive round of communication, the function inside the
+summation is replaced with a new function having one fewer parameter,
+one of the output wire arrays is halved in size by binding it with a
+random challenge, and the claim value is replaced with a newly computed
+claim value.
+The prover proves that the new claim values and the new function at each
+round are consistent with those in the previous round by evaluating the
+multilinear extension of the function at multiple points, including
+points with a random challenge coordinate.
+The prover computes a degree two polynomial by summing this multilinear
+extension at many points, with the polynomial's parameter determining
+the last parameter of the multilinear extension.
+Two evaluations of this polynomial are sent to the verifier, though as
+noted above these evaluations get encrypted with a one-time pad.
+After several rounds of communication, the function being summed is
+replaced with a constant, and both output wire arrays are replaced with
+two new claim values.
+Concretely, the new claims will be <code>bind(V[j + 1], G'[0])</code> and <code>bind(V[j
++ 1], G'[0])</code>, where <code>V[j + 1]</code> is the input wires of layer j, and
+<code>G'[0]</code> and <code>G'[1]</code> are a fresh set of verifier challenges, chosen at
+each round of the sumcheck protocol.
+These two claim values are encrypted with a one-time pad and sent to the
+verifier.<a href="#section-6.6-7" class="pilcrow">¶</a></p>
+<p id="section-6.6-8">Before the first round, a fixed number of verifier challenges are
+generated and discarded. These are reserved for possible future
+extensions to the protocol. Additionally, a fixed number of challenges
+are generated for binding the output wires before the first round, with
+the remainder of the challenges being discarded. In both of these cases,
+<code>MAX_BINDINGS = 40</code> challenges are generated. For all subsequent layers,
+challenges used for binding output wires are generated one at a time,
+with no extra unused challenges.<a href="#section-6.6-8" class="pilcrow">¶</a></p>
+<div class="lang-python sourcecode" id="section-6.6-9">
+<pre>def sumcheck_circuit(
+        field,
+        circuit: Circuit,
+        wires: list[list],
+        pad: list[LayerPad],
+        transcript: Transcript) -&gt; list[LayerProof]:
+    for _ in range(MAX_BINDINGS):
+        # Discard initial challenges. These are reserved for possible
+        # future use.
+        _ = transcript.generate_field(field)
+    challenges = [
+        transcript.generate_field(field)
+        for _ in range(MAX_BINDINGS)
+    ]
+    G = (
+        challenges[:circuit.log_num_outputs],
+        challenges[:circuit.log_num_outputs],
+    )
+    proof: list[LayerProof] = []
+    for j, layer in enumerate(circuit.layers):
+        alpha = transcript.generate_field(field)
 
-        // bind the L variable to CHALLENGE
-        VL = bind(VL, challenge)
-        QUAD = bind(QUAD, challenge)
+        # Form the combined quad, QZ = Q + beta * Z, to handle
+        # in-circuit assertions.
+        beta = transcript.generate_field(field)
+        QZ = layer.quad + beta * layer.Z
 
-        // swap L and R
-        (VL, VR) = (VR, VL)
-        QUAD = transpose(QUAD)
-      ENDFOR
-   ENDFOR
-   layer_proof.vl = VL[0] - layer_pad.vl
-   layer_proof.vr = VR[0] - layer_pad.vr
-   transcript.write(layer_proof.vl)
-   transcript.write(layer_proof.vr)
-   return (layer_proof, G)
-}
-</pre><a href="#section-6.5-2" class="pilcrow">¶</a>
+        # QZ is three-dimensional, QZ[g, l, r].
+        QUAD = QZ.bindv(G[0]) + alpha * QZ.bindv(G[1])
+        # Having bound g, QUAD is now effectively two-dimensional,
+        # QUAD[l, r].
+        QUAD = QUAD.drop_dimension()
+
+        layer_proof, G = sumcheck_layer(
+            field,
+            QUAD,
+            wires[j + 1],
+            layer.log_num_input_wires,
+            pad[j],
+            transcript,
+        )
+        proof.append(layer_proof)
+    return proof
+</pre><a href="#section-6.6-9" class="pilcrow">¶</a>
+</div>
+<div class="breakable lang-python sourcecode" id="section-6.6-10">
+<pre>def sumcheck_layer(
+        field,
+        QUAD: SparseArray,
+        wires: list,
+        log_num_input_wires: int,
+        layer_pad: LayerPad,
+        transcript: Transcript) -&gt; tuple[LayerProof, tuple[list, list]]:
+    VL = DenseArray(field, wires)
+    VR = DenseArray(field, wires)
+    P2 = sumcheck_p2(field)
+    evals: list[list[SumcheckPolynomial]] = []
+    G: tuple[list, list] = ([], [])
+    for round in range(log_num_input_wires):
+        evals.append([])
+        for hand in range(2):
+            # Consider the following polynomial.
+            #
+            # p(x) = \sum_{l, r} bind(QUAD, x)[l, r]
+            #                    * bind(VL, x)[l]
+            #                    * VR[r]
+            #
+            # We evaluate this polynomial at the points P0 and P2. The
+            # sum of p(P0) and p(P1) is implicitly known already, so
+            # p(P1) does not need to be calculated.
+            #
+            # Implementation note: this can be computed more efficiently
+            # by first computing the intermediate array defined as
+            # follows:
+            #
+            # A[l] = \sum_{r} QUAD[l, r] * VR[r]
+            #
+            # This allows performing only one pass over the quad, and
+            # binding only 1-D arrays with length equal to the number
+            # of wires.
+            eval_p0 = sum(
+                (
+                    v * VL[k[hand]] * VR[k[1 - hand]]
+                    for (k, v) in QUAD.entries.items()
+                    if k[hand] &amp; 1 == 0
+                ),
+                start=field.zero(),
+            )
+            QUAD_bind_p2 = QUAD.bind(P2, axis=hand)
+            VL_bind_p2 = VL.bind(P2)
+            eval_p2 = field.zero()
+            for (k, v) in QUAD_bind_p2.entries.items():
+                eval_p2 += v * VL_bind_p2[k[hand]] * VR[k[1 - hand]]
+            blinded_p0 = eval_p0 - layer_pad.evals[round][hand].p0
+            blinded_p2 = eval_p2 - layer_pad.evals[round][hand].p2
+            evals[round].append(SumcheckPolynomial(blinded_p0, blinded_p2))
+            transcript.write_field(blinded_p0)
+            transcript.write_field(blinded_p2)
+            challenge = transcript.generate_field(field)
+            G[hand].append(challenge)
+
+            # Bind the current index variable to the challenge.
+            VL = VL.bind(challenge)
+            QUAD = QUAD.bind(challenge, axis=hand)
+
+            # Swap VL and VR.
+            (VL, VR) = (VR, VL)
+
+    layer_proof = LayerProof(
+        evals,
+        VL[0] - layer_pad.vl,
+        VR[0] - layer_pad.vr,
+    )
+    transcript.write_field_element_array([
+        layer_proof.vl,
+        layer_proof.vr,
+    ])
+    return (layer_proof, G)
+</pre><a href="#section-6.6-10" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
 <div id="generate-constraints-from-the-public-inputs-and-the-padded-proof">
-<section id="section-6.6">
+<section id="section-6.7">
         <h3 id="name-generate-constraints-from-t">
-<a href="#section-6.6" class="section-number selfRef">6.6. </a><a href="#name-generate-constraints-from-t" class="section-name selfRef">Generate constraints from the public inputs and the padded proof</a>
+<a href="#section-6.7" class="section-number selfRef">6.7. </a><a href="#name-generate-constraints-from-t" class="section-name selfRef">Generate constraints from the public inputs and the padded proof</a>
         </h3>
-<p id="section-6.6-1">This section defines a procedure <code>constraints_circuit</code> for transforming the proof
-returned by <code>sumcheck_circuit</code> into constraints for the commitment
-scheme.  Specifically, each layer produces one linear constraint and one quadratic constraint.<a href="#section-6.6-1" class="pilcrow">¶</a></p>
-<p id="section-6.6-2">The main difficulty in describing the algorithm is that it operates
+<p id="section-6.7-1">This section defines a procedure <code>constraints_circuit</code> for transforming
+the proof returned by <code>sumcheck_circuit</code> into constraints to be checked
+by the commitment scheme.  Specifically, each layer produces one linear
+constraint and one quadratic constraint. One additional linear
+constraint is added after processing the input layer.<a href="#section-6.7-1" class="pilcrow">¶</a></p>
+<p id="section-6.7-2">The main difficulty in describing the algorithm is that it operates
 not on concrete witnesses, but on expressions in which the witnesses
 are symbolic quantities.  Symbolic manipulation is necessary because
 the verifier does not have access to the witnesses.  To avoid
@@ -2971,120 +3233,208 @@ symbolic representation of the fourth element in the <code>w</code> array.  The
 algorithm does not need arbitrarily complex symbolic expressions.  It
 suffices to keep track of affine symbolic expressions of the form
 <code>k + SUM_{i} a[i] sym_w[i]</code> for some (concrete, nonsymbolic) field elements
-<code>k</code> and <code>a[]</code>.<a href="#section-6.6-2" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-6.6-3">
-<pre>constraints_circuit(circuit, public_inputs, sym_private_inputs,
-                    sym_pad, transcript, proof) {
-  G[0] = G[1] = transcript.gen_challenge(circuit.lv)
-  claims = [0, 0]
-  FOR 0 &lt;= j &lt; circuit.nl DO
-     alpha = transcript.gen_challenge(1)
-     beta = transcript.gen_challenge(1)
-     QZ = circuit.layer[j].quad + beta * circuit.layer[j].Z;
-     QUAD = bindv(QZ, G[0]) + alpha * bindv(QZ, G[1])
-     (claims, G) = constraints_layer(
-               QUAD, circuit.layer[j].lv, sym_pad[j], transcript,
-               proof[j], claims, alpha)
-  ENDFOR
+<code>k</code> and <code>a[]</code>.<a href="#section-6.7-2" class="pilcrow">¶</a></p>
+<div class="breakable lang-python sourcecode" id="section-6.7-3">
+<pre>def constraints_circuit(
+        field,
+        circuit: Circuit,
+        public_inputs: list,
+        sym_private_inputs: list,
+        sym_pad: list[LayerPad],
+        transcript: Transcript,
+        proof: list[LayerProof]) -&gt; tuple[list, list[QuadraticConstraint]]:
+    """
+    Processes a sumcheck proof, and produces lists of constraints for
+    verification.
 
-  // now add constraints that the two final claims
-  // equal the binding of sym_inputs at G[0], G[1]
+    Linear constrants are returned as expressions of the form
+    `k + SUM_{i} a[i] sym_w[i]`, representing
+    `k + SUM_{i} a[i] sym_w[i] = 0`, and quadratic constraints are
+    returned as objects holding three variables, representing
+    `w_x * w_y = w_z`.
+    """
+    for _ in range(MAX_BINDINGS):
+        # Discard initial challenges. These are reserved for possible
+        # future use.
+        _ = transcript.generate_field(field)
+    challenges = [
+        transcript.generate_field(field)
+        for _ in range(MAX_BINDINGS)
+    ]
+    G = (
+        challenges[:circuit.log_num_outputs],
+        challenges[:circuit.log_num_outputs],
+    )
+    linear_constraints = []
+    quadratic_constraints = []
+    for j, layer in enumerate(circuit.layers):
+        alpha = transcript.generate_field(field)
+        beta = transcript.generate_field(field)
+        QZ = layer.quad + beta * layer.Z
+        QUAD = QZ.bindv(G[0]) + alpha * QZ.bindv(G[1])
+        QUAD = QUAD.drop_dimension()
+        if j == 0:
+            claims = (field.zero(), field.zero())
+        else:
+            claims = (
+                claims[0] + sym_pad[j - 1].vl,
+                claims[1] + sym_pad[j - 1].vr,
+            )
+        (
+            G,
+            claims,
+            linear_constraint,
+            quadratic_constraint,
+        ) = constraints_layer(
+            field,
+            QUAD,
+            layer.log_num_input_wires,
+            sym_pad[j],
+            transcript,
+            proof[j],
+            claims,
+            alpha,
+        )
+        linear_constraints.append(linear_constraint)
+        quadratic_constraints.append(quadratic_constraint)
 
-  gamma = transcript.gen_challenge(1)
-  LET eq2 = bindv(EQ, G[0]) + gamma * bindv(EQ, G[1])
-  LET sym_layer_pad = sym_pad[circuit.nl - 1]
-  LET npub = number of elements in public_inputs
-
-  Output the linear constraint
-      SUM_{i} (eq2[i + npub] * sym_private_inputs[i])
-      - sym_layer_pad.vl
-      - gamma * sym_layer_pad.vr
-    =
-      - SUM_{i} (eq2[i] * public_inputs[i])
-      + claims[0]
-      + gamma * claims[1]
-}
-</pre><a href="#section-6.6-3" class="pilcrow">¶</a>
+    # Add a constraint checking that the two final claims equal the
+    # binding of sym_inputs with G[0] and G[1].
+    gamma = transcript.generate_field(field)
+    # eq2 = bindv(EQ, G[0]) + gamma * bindv(EQ, G[1])
+    eq2 = [
+        a + gamma * b
+        for a, b in zip(
+            bindeq(field, G[0]),
+            bindeq(field, G[1]),
+        )
+    ]
+    sym_layer_pad = sym_pad[-1]
+    num_private_inputs = circuit.ninputs - circuit.pub_in
+    final_constraint = (
+        sum(
+            eq2[i] * public_inputs[i]
+            for i in range(circuit.pub_in)
+        )
+        + sum(
+            eq2[i + circuit.pub_in] * sym_private_inputs[i]
+            for i in range(num_private_inputs)
+        )
+        - claims[0]
+        - sym_layer_pad.vl
+        - gamma * claims[1]
+        - gamma * sym_layer_pad.vr
+    )
+    linear_constraints.append(final_constraint)
+    return linear_constraints, quadratic_constraints
+</pre><a href="#section-6.7-3" class="pilcrow">¶</a>
 </div>
-<div class="alignLeft art-text artwork" id="section-6.6-4">
-<pre>constraints_layer(QUAD, wires, lv, sym_layer_pad, transcript,
-                  layer_proof, claims, alpha) {
-   // Initial symbolic claim, which happens to be
-   // a known constant but which will be updated to contain
-   // symbolic linear terms later.
-   LET sym_claim = claims[0] + alpha * claims[1]
+<div class="breakable lang-python sourcecode" id="section-6.7-4">
+<pre>def constraints_layer(
+        field,
+        QUAD: SparseArray,
+        log_num_input_wires: int,
+        sym_layer_pad: LayerPad,
+        transcript: Transcript,
+        layer_proof: LayerProof,
+        claims: tuple[Any, Any],
+        alpha):
+    # Initial claim. This is a known constant during the first round,
+    # but it will be a symbolic affine expression in subsequent rounds.
+    sym_claim = claims[0] + alpha * claims[1]
 
-   FOR 0 &lt;= round &lt; lv DO
-      FOR 0 &lt;= hand &lt; 2 DO
-        LET hp = layer_proof.evals[round][hand]
-        LET sym_hpad = sym_layer_pad.evals[round][hand]
+    # Lagrange basis polynomials
+    R = field["x"]
+    lag_0 = R.lagrange_polynomial([
+        (field.zero(), field.one()),
+        (field.one(), field.zero()),
+        (sumcheck_p2(field), field.zero()),
+    ])
+    lag_1 = R.lagrange_polynomial([
+        (field.zero(), field.zero()),
+        (field.one(), field.one()),
+        (sumcheck_p2(field), field.zero()),
+    ])
+    lag_2 = R.lagrange_polynomial([
+        (field.zero(), field.zero()),
+        (field.one(), field.zero()),
+        (sumcheck_p2(field), field.one()),
+    ])
 
-        transcript.write(hp);
-        challenge = transcript.gen_challenge(1)
-        G[round][hand] = challenge
+    G: tuple[list, list] = ([], [])
+    for round in range(log_num_input_wires):
+        for hand in range(2):
+            hp = layer_proof.evals[round][hand]
+            sym_hpad = sym_layer_pad.evals[round][hand]
 
-        // Now the unpadded polynomial evaluations are expected
-        // to be
-        //   p(P0) = hp.p0 + sym_hpad.p0
-        //   p(P2) = hp.p2 + sym_hpad.p2
-        LET sym_p0 = hp.p0 + sym_hpad.p0
-        LET sym_p2 = hp.p2 + sym_hpad.p2
+            transcript.write_field(hp.p0)
+            transcript.write_field(hp.p2)
+            challenge = transcript.generate_field(field)
+            G[hand].append(challenge)
 
-        // Compute the implied p(P1) = claim - p(P0) in symbolic form
-        LET sym_p1 = sym_claim - sym_p0
+            # After decrypting, the polynomial evaluations are expected
+            # to be:
+            #
+            #   p(P0) = hp.p0 + sym_hpad.p0
+            #   p(P2) = hp.p2 + sym_hpad.p2
+            sym_p0 = hp.p0 + sym_hpad.p0
+            sym_p2 = hp.p2 + sym_hpad.p2
 
-        LET lag_i(x) =
-               the quadratic polynomial such that
-                      lag_i(P_k) = 1  if i = k
-                                   0  otherwise
-               for 0 &lt;= k &lt; 3
+            # Compute the implied evaluation, p(P1) = claim - p(P0), in
+            # symbolic form.
+            sym_p1 = sym_claim - sym_p0
 
-        // given p(P0), p(P1), and p(P2), interpolate the
-        // new claim symbolically
-        sym_claim =   lag_0(challenge) * sym_p0
-                    + lag_1(challenge) * sym_p1
-                    + lag_2(challenge) * sym_p2
+            # Given p(P0), p(P1), and p(P2), interpolate the new claim
+            # symbolically.
+            sym_claim = (
+                lag_0(challenge) * sym_p0
+                + lag_1(challenge) * sym_p1
+                + lag_2(challenge) * sym_p2
+            )
 
-        // bind L
-        QUAD = bind(QUAD, challenge);
+            QUAD = QUAD.bind(challenge, axis=hand)
 
-        // swap left and right
-        QUAD = transpose(QUAD)
-      ENDFOR
-   ENDFOR
+    # Now the bound QUAD is a 1x1 array.
+    Q = QUAD.drop_dimension().drop_dimension()[()]
 
-   // now the bound QUAD is a scalar (a 1x1 array)
-   LET Q = QUAD[0,0]
+    # We want to verify that
+    #
+    #   sym_claim = Q * VL * VR
+    #
+    # where VL = layer_proof.vl + sym_layer_pad.vl
+    #   and VR = layer_proof.vr + sym_layer_pad.vr
+    #
+    # To keep this constraint linear, we expand the multiplication, and
+    # replace sym_layer_pad.vl * sym_layer_pad.vr with
+    # sym_layer_pad.vl_vr, checking that these quantities are equal in a
+    # separate quadratic constraint.
 
-   // now verify that
-   //
-   //   SYM_CLAIM = Q * VL * VR
-   //
-   // where VL = layer_proof.vl + layer_pad.vl
-   //       VR = layer_proof.vr + layer_pad.vr
+    linear_constraint = (
+        sym_claim - Q * (
+            layer_proof.vl * layer_proof.vr
+            + layer_proof.vr * sym_layer_pad.vl
+            + layer_proof.vl * sym_layer_pad.vr
+            + sym_layer_pad.vl_vr
+        )
+    )
+    quadratic_constraint = QuadraticConstraint(
+        sym_layer_pad.vl,
+        sym_layer_pad.vr,
+        sym_layer_pad.vl_vr,
+    )
 
-   // decompose SYM_CLAIM into the known constant
-   // and the symbolic part
-   LET known + symbolic = sym_claim
+    transcript.write_field_element_array([
+        layer_proof.vl,
+        layer_proof.vr,
+    ])
 
-   Output the linear constraint
-      symbolic
-      - (Q * layer_proof.vr) * sym_layer_pad.vl
-      - (Q * layer_proof.vl) * sym_layer_pad.vr
-      - Q * sym_layer_pad.vl_vr
-     =
-      Q * layer_proof.vl * layer_proof.vl - known
-
-   Output the quadratic constraint
-
-      sym_layer_pad.vl * sym_layer_pad.vr = sym_layer_pad.vl_vr
-
-   transcript.write(layer_proof.vl)
-   transcript.write(layer_proof.vr)
-
-   return (G, [layer_proof.vl, layer_proof.vr])
-}
-</pre><a href="#section-6.6-4" class="pilcrow">¶</a>
+    return (
+        G,
+        (layer_proof.vl, layer_proof.vr),
+        linear_constraint,
+        quadratic_constraint,
+    )
+</pre><a href="#section-6.7-4" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -3324,21 +3674,21 @@ struct {
   Version version;     // 1-byte identifier, 0x1.
   FieldID field;       // identifies the field
   FieldID subfield;    // identifies the subfield
-  size nv;             // number of outputs
-        size pub_in;         // number of public inputs
-        size ninputs;        // number of inputs, including witnesses
-        size nl;             // number of layers
-        Elt const_table[];   // array of constants used by the quads
-        CircuitLayer layers[];  // array of layers of size nl
+  size num_outputs;    // number of outputs
+  size pub_in;         // number of public inputs
+  size ninputs;        // number of inputs, including witnesses
+  size num_layers;     // number of layers
+  Elt const_table[];   // array of constants used by the quads
+  CircuitLayer layers[];        // array of layers of size num_layers
 } Circuit;
 </pre><a href="#section-7.6-2" class="pilcrow">¶</a>
 </div>
 <p id="section-7.6-3">The <code>const_table</code> structure contains an array of <code>Elt</code> constants that can be referred by any of the CircuitLayer structures. This feature saves space because a typical circuit uses only a handful of constants, which can be referred by a small index value into this table.<a href="#section-7.6-3" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-7.6-4">
 <pre>struct {
-  size logw;     // log of number of wires
-  size nw;       // number of wires
-  Quads quads[];  // array of nw Quads
+  size log_num_input_wires;  // log of number of wires
+  size num_input_wires;      // number of wires
+  Quads quads[];             // array of Quads
 } CircuitLayer;
 </pre><a href="#section-7.6-4" class="pilcrow">¶</a>
 </div>
@@ -3380,17 +3730,17 @@ typedef Delta uint;
 <a href="#section-10" class="section-number selfRef">10. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
       </h2>
 <dl class="references">
+<dt id="RFC2119">[RFC2119]</dt>
+      <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="RFC6919">[RFC6919]</dt>
       <dd>
 <span class="refAuthor">Barnes, R.</span>, <span class="refAuthor">Kent, S.</span>, and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"Further Key Words for Use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">RFC 6919</span>, <span class="seriesInfo">DOI 10.17487/RFC6919</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6919">https://www.rfc-editor.org/info/rfc6919</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC4086">[RFC4086]</dt>
-      <dd>
-<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="RFC2119">[RFC2119]</dt>
     <dd>
-<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
+<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
@@ -3399,14 +3749,6 @@ typedef Delta uint;
 <a href="#section-11" class="section-number selfRef">11. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
       </h2>
 <dl class="references">
-<dt id="RFC6234">[RFC6234]</dt>
-      <dd>
-<span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">T. Hansen</span>, <span class="refTitle">"US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)"</span>, <span class="seriesInfo">RFC 6234</span>, <span class="seriesInfo">DOI 10.17487/RFC6234</span>, <time datetime="2011-05" class="refDate">May 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6234">https://www.rfc-editor.org/info/rfc6234</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="longfellow">[longfellow]</dt>
-      <dd>
-<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="additivefft">[additivefft]</dt>
       <dd>
 <span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
@@ -3419,13 +3761,21 @@ typedef Delta uint;
       <dd>
 <span class="refAuthor">Khovratovich, D.</span>, <span class="refAuthor">Rothblum, R. D.</span>, and <span class="refAuthor">L. Soukhanov</span>, <span class="refTitle">"How to Prove False Statements: Practical Attacks on Fiat-Shamir"</span>, <time datetime="2025" class="refDate">2025</time>, <span>&lt;<a href="https://eprint.iacr.org/2025/118">https://eprint.iacr.org/2025/118</a>&gt;</span>. </dd>
 <dd class="break"></dd>
+<dt id="RFC6234">[RFC6234]</dt>
+      <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">T. Hansen</span>, <span class="refTitle">"US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)"</span>, <span class="seriesInfo">RFC 6234</span>, <span class="seriesInfo">DOI 10.17487/RFC6234</span>, <time datetime="2011-05" class="refDate">May 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6234">https://www.rfc-editor.org/info/rfc6234</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="ligero">[ligero]</dt>
       <dd>
 <span class="refAuthor">Ames, S.</span>, <span class="refAuthor">Hazay, C.</span>, <span class="refAuthor">Ishai, Y.</span>, and <span class="refAuthor">M. Venkitasubramaniam</span>, <span class="refTitle">"Ligero: Lightweight Sublinear Arguments Without a Trusted Setup"</span>, <time datetime="2022" class="refDate">2022</time>, <span>&lt;<a href="https://eprint.iacr.org/2022/1608">https://eprint.iacr.org/2022/1608</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="GMR">[GMR]</dt>
-    <dd>
+      <dd>
 <span class="refAuthor">Goldwasser, S.</span>, <span class="refAuthor">Micali, S.</span>, and <span class="refAuthor">C. Rackoff</span>, <span class="refTitle">"THE KNOWLEDGE COMPLEXITY OF INTERACTIVE PROOF SYSTEMS"</span>, <time datetime="1989" class="refDate">1989</time>. </dd>
+<dd class="break"></dd>
+<dt id="longfellow">[longfellow]</dt>
+    <dd>
+<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
