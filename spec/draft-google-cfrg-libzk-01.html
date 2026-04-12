@@ -10,17 +10,17 @@
 <meta content="
        This document defines an algorithm for generating and verifying a succinct non-interactive zero-knowledge argument that for a given input  x  and a circuit  C , there exists a witness  w , such that  C(x,w)  evaluates to 0. The technique here combines the MPC-in-the-head approach for constructing ZK arguments described in Ligero   with a verifiable computation protocol based on sumcheck for proving that  C(x,w)=0 . 
     " name="description">
-<meta content="xml2rfc 3.32.0" name="generator">
+<meta content="xml2rfc 3.33.0" name="generator">
 <meta name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.32.0
+  xml2rfc 3.33.0
     Python 3.14.3
     ConfigArgParse 1.7.5
     google-i18n-address 3.1.1
     intervaltree 3.2.1
     Jinja2 3.1.6
-    lxml 6.0.2
-    platformdirs 4.9.4
+    lxml 6.0.3
+    platformdirs 4.9.6
     pycountry 26.2.16
     PyYAML 6.0.3
     requests 2.33.1
@@ -1219,7 +1219,7 @@ li > p:last-of-type:only-child {
 </tr></thead>
 <tfoot><tr>
 <td class="left">Frigo &amp; shelat</td>
-<td class="center">Expires 10 October 2026</td>
+<td class="center">Expires 14 October 2026</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1232,12 +1232,12 @@ li > p:last-of-type:only-child {
 <dd class="internet-draft">draft-google-cfrg-libzk-01</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-04-08" class="published">8 April 2026</time>
+<time datetime="2026-04-12" class="published">12 April 2026</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2026-10-10">10 October 2026</time></dd>
+<dd class="expires"><time datetime="2026-10-14">14 October 2026</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1275,7 +1275,7 @@ li > p:last-of-type:only-child {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 10 October 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 14 October 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1845,7 +1845,7 @@ If <code>r &lt; m</code> return <code>r</code>, otherwise start over.<a href="#s
 </li>
         </ul>
 <div class="alignLeft art-text artwork" id="section-3.3-4">
-<pre>    def generate_nat(self, m):
+<pre>    def generate_nat(self, m: int) -&gt; int:
         assert m &gt; 0, "m must be &gt; 0"
 
         l = m.bit_length()
@@ -1866,13 +1866,13 @@ If <code>r &lt; m</code> return <code>r</code>, otherwise start over.<a href="#s
 </li>
         </ul>
 <div class="alignLeft art-text artwork" id="section-3.3-6">
-<pre>        def generate_nats_wo_replacement(m, n):
-            # assert(m &gt; n)
-            A = list(range(0, m))
-            for i in range(0, n):
-                j = i + generate_nat(m - i)
-                A[i], A[j] = A[j], A[i]
-            return A[:n]
+<pre>def generate_nats_wo_replacement(m: int, n: int) -&gt; list[int]:
+    # assert(m &gt; n)
+    A = list(range(0, m))
+    for i in range(0, n):
+        j = i + generate_nat(m - i)
+        A[i], A[j] = A[j], A[i]
+    return A[:n]
 </pre><a href="#section-3.3-6" class="pilcrow">¶</a>
 </div>
 <ul class="normal">
@@ -1922,18 +1922,19 @@ in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>
           </h4>
 <div class="alignLeft art-text artwork" id="section-4.1.1-1">
 <pre>class MerkleTree:
-    def __init__(self, n):
+    def __init__(self, n: int) -&gt; None:
         self.n = n
         self.a = [b''] * (2 * n)
 
-    def set_leaf(self, pos, leaf):
+    def set_leaf(self, pos: int, leaf: bytes) -&gt; None:
         assert 0 &lt;= pos &lt; self.n, f"{pos} is out of bounds"
         self.a[pos + self.n] = leaf
 
-    def build_tree(self):
+    def build_tree(self) -&gt; bytes:
         for i in range(self.n - 1, 0, -1):
             left = self.a[2 * i]
-            right = self.a[2 * i + 1]s
+            right = self.a[2 * i + 1]
+
             self.a[i] = hash(left + right)
 
         return self.a[1]
@@ -1950,7 +1951,10 @@ in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>
 <p id="section-4.1.2-2">To address these inefficiencies, this section explains how to produce a batch proof of inclusion for <code>k</code> leaves. The main idea is to start from the requested set of leaves and build all of the implied internal nodes given the leaves. For example, if sibling leaves are included, then their parent is implied, and the parent need not be included in the compressed proof.  Then it suffices to revisit the same tree and include the necessary siblings along all of the Merkle paths.  It is assumed that the verifier already has the leaf digests that are at the indicies, and thus the proof only contains the necessary internal nodes of the Merkle tree that are used to verify the claim.<a href="#section-4.1.2-2" class="pilcrow">¶</a></p>
 <p id="section-4.1.2-3">It is important in this formulation to treat the input digests as a sequence, i.e. with a given order. Both the prover and verifier of this batch proof must use the same order of the <code>requested_leaves</code> array.<a href="#section-4.1.2-3" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.1.2-4">
-<pre>    def mark_tree(self, requested_leaves):
+<pre>    def mark_tree(
+            self,
+            requested_leaves: list[int],
+            ) -&gt; list[bool]:
         marked = [False] * (2 * self.n)
 
         for i in requested_leaves:
@@ -1962,19 +1966,24 @@ in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>
 
         return marked
 
-    def compressed_proof(self, requested_leaves):
+    def compressed_proof(
+            self,
+            requested_leaves: list[int],
+            ) -&gt; list[bytes]:
         proof = []
         marked = self.mark_tree(requested_leaves)
         for i in range(self.n - 1, 0, -1):
             if marked[i]:
                 child = 2 * i
 
-                # If the left child is marked, we need the right child.
+                # If the left child is marked, we need the right
+                # child (sibling).
                 if marked[child]:
                     child += 1
 
                 # If the identified child/sibling is NOT marked,
-                # add its hash to the proof so the verifier can calculate the parent.
+                # we must provide its hash in the proof so the
+                # verifier can calculate the parent.
                 if not marked[child]:
                     proof.append(self.a[child])
 
@@ -1990,8 +1999,15 @@ in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>
           </h4>
 <p id="section-4.1.3-1">This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment <code>root</code> defines an <code>n</code>-leaf Merkle tree that contains <code>k</code> digests <code>s[0], ..., s[k-1]</code> at corresponding indices <code>i[0], ..., i[k-1]</code>."  The strategy of this verification procedure is to deduce which nodes are needed along the <code>k</code> verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the <code>root</code> digest. As an optimization, the <code>defined[]</code> array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of <code>k=0</code> digests is defined to fail. It is assumed that the <code>indices[]</code> array does not contain duplicates.<a href="#section-4.1.3-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.1.3-2">
-<pre>    def verify_merkle(self, root, n, k, s, indices, proof):
-        tmp = [None] * (2 * n)
+<pre>    def verify_merkle(
+            self,
+            root: bytes,
+            n: int,
+            k: int,
+            s: list[bytes],
+            indices: list[int],
+            proof: list[bytes]) -&gt; bool:
+        tmp: list[None | bytes] = [None] * (2 * n)
         defined = [False] * (2 * n)
 
         proof_index = 0
@@ -2022,6 +2038,8 @@ in ascending order, set <code>a[i] = transcript.generate_field_element(F)</code>
             if defined[2 * i] and defined[2 * i + 1]:
                 left = tmp[2 * i]
                 right = tmp[2 * i + 1]
+                assert left is not None
+                assert right is not None
                 tmp[i] = hash(left + right)
                 defined[i] = True
 
@@ -2150,7 +2168,8 @@ row i for IQ &lt;= i &lt; NROW             : quadratic rows
           <li id="section-4.3-4.2">
             <p id="section-4.3-4.2.1">The second IDOT row is defined as<a href="#section-4.3-4.2.1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.3-4.2.2">
-<pre>Z = RANDOM[DBLOCK] such that sum_{i = NREQ ... NREQ + WR - 1} Z_i = 0
+<pre>Z = RANDOM[DBLOCK] such that
+    sum_{i = NREQ ... NREQ + WR - 1} Z_i = 0
 extend(Z, DBLOCK, NCOL)
 </pre><a href="#section-4.3-4.2.2" class="pilcrow">¶</a>
 </div>
@@ -2346,7 +2365,10 @@ def layout_zk_rows(T) {
     transcript.write(dot);
     transcript.write(qpr);
 
-    challenge_indicies = transcript.generate_nats_wo_replacement(NCOL - DBLOCK, NREQ);
+    challenge_indicies = transcript.generate_nats_wo_replacement(
+        NCOL - DBLOCK,
+        NREQ,
+    );
 
     columns = requested_columns(challenge_indicies, DBLOCK);
 
@@ -2729,7 +2751,8 @@ recursively in linear time as follows.<a href="#section-6.2-9" class="pilcrow">�
 <div class="lang-python sourcecode" id="section-6.2-10">
 <pre>def bindeq(
         field: FiniteField,
-        challenges: list[FiniteRingElement]) -&gt; list[FiniteRingElement]:
+        challenges: list[FiniteRingElement],
+        ) -&gt; list[FiniteRingElement]:
     log_n = len(challenges)
     if log_n == 0:
         return [field.one()]
@@ -2938,9 +2961,12 @@ for the one-time pad values for the claims <code>vl</code> and <code>vr</code>. 
 variable is used for the product of those two one-time pad values.<a href="#section-6.5-3" class="pilcrow">¶</a></p>
 <div class="breakable lang-python sourcecode" id="section-6.5-4">
 <pre>def construct_symbolic_variables(
-        field,
+        field: FiniteField,
         circuit: Circuit,
-        ) -&gt; tuple[tuple[MPolynomial, ...], list[LayerPad]]:
+        ) -&gt; tuple[
+            tuple[MPolynomial, ...],
+            list[LayerPad[MPolynomial]],
+        ]:
     num_private_inputs = circuit.ninputs - circuit.pub_in
     witness_length = (
         num_private_inputs
@@ -2958,12 +2984,14 @@ variable is used for the product of those two one-time pad values.<a href="#sect
 
 
 def construct_symbolic_pad(
-        field,
-        circuit: Circuit, variables) -&gt; list[LayerPad]:
+        field: FiniteField,
+        circuit: Circuit,
+        variables: Sequence[MPolynomial],
+        ) -&gt; list[LayerPad[MPolynomial]]:
     it = iter(variables)
     layers = []
     for layer in circuit.layers:
-        evals: list[list[SumcheckPolynomial]] = []
+        evals: list[list[SumcheckPolynomial[MPolynomial]]] = []
         for round in range(layer.log_num_input_wires):
             evals.append([])
             for _ in range(2):
@@ -2988,8 +3016,14 @@ def construct_symbolic_pad(
 def construct_concrete_pad(
         field: FiniteField,
         circuit: Circuit,
-        pad_prg=random_element,
-        ) -&gt; tuple[list[LayerPad], list[FiniteRingElement]]:
+        pad_prg: Callable[
+            [FiniteField],
+            FiniteRingElement,
+        ] = random_element,
+        ) -&gt; tuple[
+            list[LayerPad[FiniteRingElement]],
+            list[FiniteRingElement],
+        ]:
     """
     Chooses one-time pad values, and returns them in structured and
     flattened forms.
@@ -2997,7 +3031,7 @@ def construct_concrete_pad(
     layers = []
     flattened = []
     for layer in circuit.layers:
-        evals: list[list[SumcheckPolynomial]] = []
+        evals: list[list[SumcheckPolynomial[FiniteRingElement]]] = []
         for round in range(layer.log_num_input_wires):
             evals.append([])
             for _ in range(2):
@@ -3090,10 +3124,10 @@ challenges used for binding output wires are generated one at a time,
 with no extra unused challenges.<a href="#section-6.6-8" class="pilcrow">¶</a></p>
 <div class="lang-python sourcecode" id="section-6.6-9">
 <pre>def sumcheck_circuit(
-        field,
+        field: FiniteField,
         circuit: Circuit,
-        wires: list[list],
-        pad: list[LayerPad],
+        wires: list[list[FiniteRingElement]],
+        pad: list[LayerPad[FiniteRingElement]],
         transcript: Transcript) -&gt; list[LayerProof]:
     for _ in range(MAX_BINDINGS):
         # Discard initial challenges. These are reserved for possible
@@ -3136,16 +3170,19 @@ with no extra unused challenges.<a href="#section-6.6-8" class="pilcrow">¶</a><
 </div>
 <div class="breakable lang-python sourcecode" id="section-6.6-10">
 <pre>def sumcheck_layer(
-        field,
+        field: FiniteField,
         QUAD: SparseArray,
-        wires: list,
+        wires: list[FiniteRingElement],
         log_num_input_wires: int,
-        layer_pad: LayerPad,
-        transcript: Transcript) -&gt; tuple[LayerProof, tuple[list, list]]:
+        layer_pad: LayerPad[FiniteRingElement],
+        transcript: Transcript) -&gt; tuple[
+            LayerProof,
+            tuple[list[FiniteRingElement], list[FiniteRingElement]],
+        ]:
     VL = DenseArray(field, wires)
     VR = DenseArray(field, wires)
     P2 = sumcheck_p2(field)
-    evals: list[list[SumcheckPolynomial]] = []
+    evals: list[list[SumcheckPolynomial[FiniteRingElement]]] = []
     G: tuple[list, list] = ([], [])
     for round in range(log_num_input_wires):
         evals.append([])
@@ -3156,13 +3193,13 @@ with no extra unused challenges.<a href="#section-6.6-8" class="pilcrow">¶</a><
             #                    * bind(VL, x)[l]
             #                    * VR[r]
             #
-            # We evaluate this polynomial at the points P0 and P2. The
-            # sum of p(P0) and p(P1) is implicitly known already, so
-            # p(P1) does not need to be calculated.
+            # We evaluate this polynomial at the points P0 and P2.
+            # The sum of p(P0) and p(P1) is implicitly known already,
+            # so p(P1) does not need to be calculated.
             #
-            # Implementation note: this can be computed more efficiently
-            # by first computing the intermediate array defined as
-            # follows:
+            # Implementation note: this can be computed more
+            # efficiently by first computing the intermediate array
+            # defined as follows:
             #
             # A[l] = \sum_{r} QUAD[l, r] * VR[r]
             #
@@ -3184,7 +3221,10 @@ with no extra unused challenges.<a href="#section-6.6-8" class="pilcrow">¶</a><
                 eval_p2 += v * VL_bind_p2[k[hand]] * VR[k[1 - hand]]
             blinded_p0 = eval_p0 - layer_pad.evals[round][hand].p0
             blinded_p2 = eval_p2 - layer_pad.evals[round][hand].p2
-            evals[round].append(SumcheckPolynomial(blinded_p0, blinded_p2))
+            evals[round].append(SumcheckPolynomial(
+                blinded_p0,
+                blinded_p2,
+            ))
             transcript.write_field(blinded_p0)
             transcript.write_field(blinded_p2)
             challenge = transcript.generate_field(field)
@@ -3236,13 +3276,16 @@ suffices to keep track of affine symbolic expressions of the form
 <code>k</code> and <code>a[]</code>.<a href="#section-6.7-2" class="pilcrow">¶</a></p>
 <div class="breakable lang-python sourcecode" id="section-6.7-3">
 <pre>def constraints_circuit(
-        field,
+        field: FiniteField,
         circuit: Circuit,
-        public_inputs: list,
-        sym_private_inputs: list,
-        sym_pad: list[LayerPad],
+        public_inputs: list[FiniteRingElement],
+        sym_private_inputs: Sequence[MPolynomial],
+        sym_pad: list[LayerPad[MPolynomial]],
         transcript: Transcript,
-        proof: list[LayerProof]) -&gt; tuple[list, list[QuadraticConstraint]]:
+        proof: list[LayerProof]) -&gt; tuple[
+            list[MPolynomial],
+            list[QuadraticConstraint],
+        ]:
     """
     Processes a sumcheck proof, and produces lists of constraints for
     verification.
@@ -3267,6 +3310,8 @@ suffices to keep track of affine symbolic expressions of the form
     )
     linear_constraints = []
     quadratic_constraints = []
+    claim_0: MPolynomial | FiniteRingElement
+    claim_1: MPolynomial | FiniteRingElement
     for j, layer in enumerate(circuit.layers):
         alpha = transcript.generate_field(field)
         beta = transcript.generate_field(field)
@@ -3274,15 +3319,14 @@ suffices to keep track of affine symbolic expressions of the form
         QUAD = QZ.bindv(G[0]) + alpha * QZ.bindv(G[1])
         QUAD = QUAD.drop_dimension()
         if j == 0:
-            claims = (field.zero(), field.zero())
+            claim_0 = field.zero()
+            claim_1 = field.zero()
         else:
-            claims = (
-                claims[0] + sym_pad[j - 1].vl,
-                claims[1] + sym_pad[j - 1].vr,
-            )
+            claim_0 = claim_0 + sym_pad[j - 1].vl
+            claim_1 = claim_1 + sym_pad[j - 1].vr
         (
             G,
-            claims,
+            (claim_0, claim_1),
             linear_constraint,
             quadratic_constraint,
         ) = constraints_layer(
@@ -3292,7 +3336,7 @@ suffices to keep track of affine symbolic expressions of the form
             sym_pad[j],
             transcript,
             proof[j],
-            claims,
+            (claim_0, claim_1),
             alpha,
         )
         linear_constraints.append(linear_constraint)
@@ -3313,16 +3357,22 @@ suffices to keep track of affine symbolic expressions of the form
     num_private_inputs = circuit.ninputs - circuit.pub_in
     final_constraint = (
         sum(
-            eq2[i] * public_inputs[i]
-            for i in range(circuit.pub_in)
+            (
+                eq2[i] * public_inputs[i]
+                for i in range(circuit.pub_in)
+            ),
+            start=field.zero(),
         )
         + sum(
-            eq2[i + circuit.pub_in] * sym_private_inputs[i]
-            for i in range(num_private_inputs)
+            (
+                eq2[i + circuit.pub_in] * sym_private_inputs[i]
+                for i in range(num_private_inputs)
+            ),
+            start=field.zero(),
         )
-        - claims[0]
+        - claim_0
         - sym_layer_pad.vl
-        - gamma * claims[1]
+        - gamma * claim_1
         - gamma * sym_layer_pad.vr
     )
     linear_constraints.append(final_constraint)
@@ -3331,16 +3381,25 @@ suffices to keep track of affine symbolic expressions of the form
 </div>
 <div class="breakable lang-python sourcecode" id="section-6.7-4">
 <pre>def constraints_layer(
-        field,
+        field: FiniteField,
         QUAD: SparseArray,
         log_num_input_wires: int,
-        sym_layer_pad: LayerPad,
+        sym_layer_pad: LayerPad[MPolynomial],
         transcript: Transcript,
         layer_proof: LayerProof,
-        claims: tuple[Any, Any],
-        alpha):
+        claims: tuple[
+            MPolynomial | FiniteRingElement,
+            MPolynomial | FiniteRingElement,
+        ],
+        alpha: FiniteRingElement) -&gt; tuple[
+            tuple[list[FiniteRingElement], list[FiniteRingElement]],
+            tuple[FiniteRingElement, FiniteRingElement],
+            MPolynomial,
+            QuadraticConstraint,
+        ]:
     # Initial claim. This is a known constant during the first round,
-    # but it will be a symbolic affine expression in subsequent rounds.
+    # but it will be a symbolic affine expression in subsequent
+    # rounds.
     sym_claim = claims[0] + alpha * claims[1]
 
     # Lagrange basis polynomials
@@ -3361,7 +3420,10 @@ suffices to keep track of affine symbolic expressions of the form
         (sumcheck_p2(field), field.one()),
     ])
 
-    G: tuple[list, list] = ([], [])
+    G: tuple[list[FiniteRingElement], list[FiniteRingElement]] = (
+        [],
+        [],
+    )
     for round in range(log_num_input_wires):
         for hand in range(2):
             hp = layer_proof.evals[round][hand]
@@ -3372,20 +3434,20 @@ suffices to keep track of affine symbolic expressions of the form
             challenge = transcript.generate_field(field)
             G[hand].append(challenge)
 
-            # After decrypting, the polynomial evaluations are expected
-            # to be:
+            # After decrypting, the polynomial evaluations are
+            # expected to be:
             #
             #   p(P0) = hp.p0 + sym_hpad.p0
             #   p(P2) = hp.p2 + sym_hpad.p2
             sym_p0 = hp.p0 + sym_hpad.p0
             sym_p2 = hp.p2 + sym_hpad.p2
 
-            # Compute the implied evaluation, p(P1) = claim - p(P0), in
-            # symbolic form.
+            # Compute the implied evaluation, p(P1) = claim - p(P0),
+            # in symbolic form.
             sym_p1 = sym_claim - sym_p0
 
-            # Given p(P0), p(P1), and p(P2), interpolate the new claim
-            # symbolically.
+            # Given p(P0), p(P1), and p(P2), interpolate the new
+            # claim symbolically.
             sym_claim = (
                 lag_0(challenge) * sym_p0
                 + lag_1(challenge) * sym_p1
@@ -3404,10 +3466,10 @@ suffices to keep track of affine symbolic expressions of the form
     # where VL = layer_proof.vl + sym_layer_pad.vl
     #   and VR = layer_proof.vr + sym_layer_pad.vr
     #
-    # To keep this constraint linear, we expand the multiplication, and
-    # replace sym_layer_pad.vl * sym_layer_pad.vr with
-    # sym_layer_pad.vl_vr, checking that these quantities are equal in a
-    # separate quadratic constraint.
+    # To keep this constraint linear, we expand the multiplication,
+    # and replace sym_layer_pad.vl * sym_layer_pad.vr with
+    # sym_layer_pad.vl_vr, checking that these quantities are equal
+    # in a separate quadratic constraint.
 
     linear_constraint = (
         sym_claim - Q * (
@@ -3611,7 +3673,8 @@ struct {
       size_t runlen = 0
       while (ci + runlen &lt; N &amp;&amp;
              runlen &lt; kMaxRunLen &amp;&amp;
-             columns[ci + runlen].is_in_subfield(F2) == subfield_run) {
+             columns[ci + runlen].is_in_subfield(F2) == subfield_run
+             ) {
         ++runlen;
       }
       write_size(runlen, buf);
@@ -3730,17 +3793,17 @@ typedef Delta uint;
 <a href="#section-10" class="section-number selfRef">10. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
       </h2>
 <dl class="references">
+<dt id="RFC4086">[RFC4086]</dt>
+      <dd>
+<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="RFC2119">[RFC2119]</dt>
       <dd>
 <span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC6919">[RFC6919]</dt>
-      <dd>
-<span class="refAuthor">Barnes, R.</span>, <span class="refAuthor">Kent, S.</span>, and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"Further Key Words for Use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">RFC 6919</span>, <span class="seriesInfo">DOI 10.17487/RFC6919</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6919">https://www.rfc-editor.org/info/rfc6919</a>&gt;</span>. </dd>
-<dd class="break"></dd>
-<dt id="RFC4086">[RFC4086]</dt>
     <dd>
-<span class="refAuthor">Eastlake 3rd, D.</span>, <span class="refAuthor">Schiller, J.</span>, and <span class="refAuthor">S. Crocker</span>, <span class="refTitle">"Randomness Requirements for Security"</span>, <span class="seriesInfo">BCP 106</span>, <span class="seriesInfo">RFC 4086</span>, <span class="seriesInfo">DOI 10.17487/RFC4086</span>, <time datetime="2005-06" class="refDate">June 2005</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc4086">https://www.rfc-editor.org/info/rfc4086</a>&gt;</span>. </dd>
+<span class="refAuthor">Barnes, R.</span>, <span class="refAuthor">Kent, S.</span>, and <span class="refAuthor">E. Rescorla</span>, <span class="refTitle">"Further Key Words for Use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">RFC 6919</span>, <span class="seriesInfo">DOI 10.17487/RFC6919</span>, <time datetime="2013-04" class="refDate">April 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6919">https://www.rfc-editor.org/info/rfc6919</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
@@ -3749,10 +3812,6 @@ typedef Delta uint;
 <a href="#section-11" class="section-number selfRef">11. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
       </h2>
 <dl class="references">
-<dt id="additivefft">[additivefft]</dt>
-      <dd>
-<span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
-<dd class="break"></dd>
 <dt id="rbr">[rbr]</dt>
       <dd>
 <span class="refAuthor">Canetti, R.</span>, <span class="refAuthor">Chen, Y.</span>, <span class="refAuthor">Holmgren, J.</span>, <span class="refAuthor">Lombardi, A.</span>, <span class="refAuthor">Rothblum, G.</span>, and <span class="refAuthor">R. Rothblum</span>, <span class="refTitle">"Fiat-Shamir From Simpler Assumptions"</span>, <time datetime="2018" class="refDate">2018</time>, <span>&lt;<a href="https://eprint.iacr.org/2018/1004">https://eprint.iacr.org/2018/1004</a>&gt;</span>. </dd>
@@ -3765,17 +3824,21 @@ typedef Delta uint;
       <dd>
 <span class="refAuthor">Eastlake 3rd, D.</span> and <span class="refAuthor">T. Hansen</span>, <span class="refTitle">"US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)"</span>, <span class="seriesInfo">RFC 6234</span>, <span class="seriesInfo">DOI 10.17487/RFC6234</span>, <time datetime="2011-05" class="refDate">May 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6234">https://www.rfc-editor.org/info/rfc6234</a>&gt;</span>. </dd>
 <dd class="break"></dd>
+<dt id="longfellow">[longfellow]</dt>
+      <dd>
+<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="additivefft">[additivefft]</dt>
+      <dd>
+<span class="refAuthor">Lin, S.</span>, <span class="refAuthor">Chung, W.</span>, and <span class="refAuthor">Y. Han</span>, <span class="refTitle">"Novel polynomial basis and its application to Reed-Solomon erasure codes"</span>, <time datetime="2014" class="refDate">2014</time>, <span>&lt;<a href="https://arxiv.org/abs/1404.3458">https://arxiv.org/abs/1404.3458</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="ligero">[ligero]</dt>
       <dd>
 <span class="refAuthor">Ames, S.</span>, <span class="refAuthor">Hazay, C.</span>, <span class="refAuthor">Ishai, Y.</span>, and <span class="refAuthor">M. Venkitasubramaniam</span>, <span class="refTitle">"Ligero: Lightweight Sublinear Arguments Without a Trusted Setup"</span>, <time datetime="2022" class="refDate">2022</time>, <span>&lt;<a href="https://eprint.iacr.org/2022/1608">https://eprint.iacr.org/2022/1608</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="GMR">[GMR]</dt>
-      <dd>
-<span class="refAuthor">Goldwasser, S.</span>, <span class="refAuthor">Micali, S.</span>, and <span class="refAuthor">C. Rackoff</span>, <span class="refTitle">"THE KNOWLEDGE COMPLEXITY OF INTERACTIVE PROOF SYSTEMS"</span>, <time datetime="1989" class="refDate">1989</time>. </dd>
-<dd class="break"></dd>
-<dt id="longfellow">[longfellow]</dt>
     <dd>
-<span class="refAuthor">Frigo, M.</span> and <span class="refAuthor">a. shelat</span>, <span class="refTitle">"Anonymous credentials from ECDSA"</span>, <time datetime="2024" class="refDate">2024</time>, <span>&lt;<a href="https://eprint.iacr.org/2024/2010">https://eprint.iacr.org/2024/2010</a>&gt;</span>. </dd>
+<span class="refAuthor">Goldwasser, S.</span>, <span class="refAuthor">Micali, S.</span>, and <span class="refAuthor">C. Rackoff</span>, <span class="refTitle">"THE KNOWLEDGE COMPLEXITY OF INTERACTIVE PROOF SYSTEMS"</span>, <time datetime="1989" class="refDate">1989</time>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
