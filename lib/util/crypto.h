@@ -98,8 +98,14 @@ class PRF {
 };
 
 // Generate n random bytes, following the openssl API convention.
-// This method will panic if the openssl library fails.
+// This method will panic if the random number generation fails.
+// On macOS with SECURE_ENCLAVE_RNG enabled, uses Apple's Secure Enclave.
+// Otherwise, falls back to OpenSSL's RAND_bytes.
 void rand_bytes(uint8_t out[/*n*/], size_t n);
+
+// Check if Apple Secure Enclave is being used for random number generation.
+// Returns true if Secure Enclave is active, false otherwise.
+bool is_secure_enclave_active();
 
 void hex_to_str(char out[/* 2*n + 1*/], const uint8_t in[/*n*/], size_t n);
 
