@@ -1,3 +1,4 @@
 .devcontainer/
 .github/
 clang-build-release/
+*.DS_Store
