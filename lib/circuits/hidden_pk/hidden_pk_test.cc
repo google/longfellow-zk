@@ -1,5 +1,5 @@
 
-// Tests for HiddenPKCircuit: secp256k1 ECDSA + SHA-256 commitment.
+// Tests for HiddenPKCircuit: secp256k1 ECDSA + Keccak-256 Ethereum address.
 
 #include "circuits/hidden_pk/hidden_pk_circuit.h"
 #include "circuits/hidden_pk/hidden_pk_witness.h"
@@ -19,6 +19,7 @@
 #include "circuits/logic/compiler_backend.h"
 #include "circuits/logic/evaluation_backend.h"
 #include "circuits/logic/logic.h"
+#include "circuits/tests/sha3/sha3_reference.h"
 #include "ec/p256k1.h"
 #include "random/secure_random_engine.h"
 #include "random/transcript.h"
@@ -38,8 +39,29 @@ namespace {
 
 using Field = Fp256k1Base;
 using EC    = P256k1;
-using Nat   = Fp256k1Nat;  // = Field::N = Nat<4>
+using Nat   = Fp256k1Nat;
 using Elt   = Field::Elt;
+
+// Derive the 20-byte Ethereum address for a secp256k1 public key.
+// Address = keccak256(pkx_big_endian || pky_big_endian)[12:32].
+std::vector<uint8_t> derive_eth_address(Elt pkx_mont, Elt pky_mont) {
+  const Field& F = p256k1_base;
+  uint8_t msg[64] = {};
+  Nat nx = F.from_montgomery(pkx_mont);
+  Nat ny = F.from_montgomery(pky_mont);
+  for (size_t i = 0; i < 32; ++i) {
+    uint8_t bx = 0, by = 0;
+    for (int j = 0; j < 8; ++j) {
+      if (nx.bit(255 - (i * 8 + j))) bx |= (1u << (7 - j));
+      if (ny.bit(255 - (i * 8 + j))) by |= (1u << (7 - j));
+    }
+    msg[i]      = bx;
+    msg[32 + i] = by;
+  }
+  uint8_t hash[32];
+  Sha3Reference::keccak256Hash(msg, 64, hash);
+  return std::vector<uint8_t>(hash + 12, hash + 32);
+}
 
 // Build the compiled circuit once and reuse.
 std::unique_ptr<Circuit<Field>> make_circuit() {
@@ -52,21 +74,23 @@ std::unique_ptr<Circuit<Field>> make_circuit() {
   const LogicType lc(&cbk, p256k1_base);
   CircuitType circuit(lc);
 
-  auto pkHash = lc.template vinput<256>();
-  auto e      = lc.eltw_input();
+  // Public inputs: eth_addr (20 bytes) then e (1 field element).
+  std::vector<typename CircuitType::v8> eth_addr(20);
+  for (size_t i = 0; i < 20; ++i) {
+    eth_addr[i] = lc.template vinput<8>();
+  }
+  auto e = lc.eltw_input();
 
   Q.private_input();
 
-  // Private inputs.
   typename CircuitType::Witness w;
   w.input(lc);
 
-  circuit.assert_hidden_pk(pkHash, e, w);
+  circuit.assert_hidden_pk(eth_addr, e, w);
   return Q.mkcircuit(/*nc=*/1);
 }
 
 // Fill the dense witness vector.
-// If prover=true, fill private witnesses too; otherwise only public inputs.
 void fill_dense(Dense<Field>& W, const HiddenPKWitness& hw,
                 const Nat& e_nat, bool prover) {
   const Field& F = p256k1_base;
@@ -75,17 +99,13 @@ void fill_dense(Dense<Field>& W, const HiddenPKWitness& hw,
   // Position 0: constant 1.
   filler.push_back(F.one());
 
-  // Positions 1..256: pkHash bits (LSB-first).
-  // hash_bytes[0] = MSB byte; pkHash_bits[i] = bit i of hash integer (LSB=0).
-  auto hash_bytes = hw.pk_hash_bytes();
-  for (size_t i = 0; i < 256; ++i) {
-    size_t byte_idx = 31 - (i / 8);  // byte 31 = LSB byte (bits 7..0)
-    size_t bit_pos  = i % 8;
-    int bit         = (hash_bytes[byte_idx] >> bit_pos) & 1;
-    filler.push_back(F.of_scalar(bit));
+  // Positions 1..160: eth_addr bits (20 bytes, LSB-first per byte).
+  auto addr = hw.eth_address_bytes();
+  for (size_t i = 0; i < 20; ++i) {
+    filler.push_back(addr[i], 8, F);
   }
 
-  // Position 257: e as a field element (Montgomery form of e_nat mod p).
+  // Position 161: e as a field element.
   filler.push_back(F.to_montgomery(e_nat));
 
   if (prover) {
@@ -93,11 +113,6 @@ void fill_dense(Dense<Field>& W, const HiddenPKWitness& hw,
   }
 }
 
-
-TEST(HiddenPK, EvalCorrect) {
-  // Full circuit evaluation is covered by ZkProverVerifier.
-  GTEST_SKIP() << "See ZkProverVerifier for end-to-end check.";
-}
 
 TEST(HiddenPK, CircuitSize) {
   set_log_level(INFO);
@@ -109,41 +124,61 @@ TEST(HiddenPK, CircuitSize) {
 TEST(HiddenPK, ZkProverVerifier) {
   const Field& F = p256k1_base;
 
-  // Derive pk from sk.
+  // Everything in this test is derived from a single sk.
+  // DISCLAIMER: Fixed k below is for testing only. Never reuse k in production.
   Nat sk("0x9FE33A7A06BD0FE6F5208A61991C49B5B4DD12DC42D9903E789F5118F9675030");
+
+  // pk = sk * G  (secp256k1 key derivation)
   EC::ECPoint Qpt = p256k1.scalar_multf(p256k1.generator(), sk);
   p256k1.normalize(Qpt);
   Elt pkx = Qpt.x;
   Elt pky = Qpt.y;
 
-  // Message hash (public).
-  Nat e_n("0xb94f6f125c79e932d738873f2584e5de7e816ed39e5c26df7ef96a73efacffcd");
+  // eth_addr = keccak256(pkx_bytes || pky_bytes)[12:32]
+  auto addr = derive_eth_address(pkx, pky);
+  ASSERT_EQ(addr.size(), 20u);
 
-  // Disclaimer: Fixed k for testing only - never use in production.
+  Nat e_n("0xb94f6f125c79e932d738873f2584e5de7e816ed39e5c26df7ef96a73efacffcd");
   Nat k_n("0x4b688df40bcedbe641ddb16ff0a1842d9c67ea1c3bf63f3e0471baa664531d1a");
 
-  // R = k*G; r = Rx mod scalar order.
+  // R = k * G;  r = R.x mod n
   EC::ECPoint R_pt = p256k1.scalar_multf(p256k1.generator(), k_n);
   p256k1.normalize(R_pt);
   Nat r_raw = p256k1_base.from_montgomery(R_pt.x);
-  // Reduce r mod scalar order n via the scalar field.
-  Nat r_n = p256k1_scalar.from_montgomery(p256k1_scalar.to_montgomery(r_raw));
+  Nat r_n   = p256k1_scalar.from_montgomery(p256k1_scalar.to_montgomery(r_raw));
 
-  // s = k^{-1} * (e + r * sk) mod n.
-  Nat k_inv = p256k1_scalar.from_montgomery(
+  // s = k^{-1} * (e + r * sk) mod n
+  Nat k_inv    = p256k1_scalar.from_montgomery(
       p256k1_scalar.invertf(p256k1_scalar.to_montgomery(k_n)));
   auto e_mont  = p256k1_scalar.to_montgomery(e_n);
   auto r_mont  = p256k1_scalar.to_montgomery(r_n);
   auto sk_mont = p256k1_scalar.to_montgomery(sk);
   auto r_sk    = p256k1_scalar.mulf(r_mont, sk_mont);
   auto e_rsk   = p256k1_scalar.addf(e_mont, r_sk);
-  auto s_mont  = p256k1_scalar.mulf(p256k1_scalar.to_montgomery(k_inv), e_rsk);
+  auto k_inv_m = p256k1_scalar.to_montgomery(k_inv);
+  auto s_mont  = p256k1_scalar.mulf(k_inv_m, e_rsk);
   Nat s_n      = p256k1_scalar.from_montgomery(s_mont);
 
-  // Compute witnesses.
+  // Verify the ECDSA equation algebraically: s * k == e + r * sk  (mod n).
+  // This proves that (r, s) was produced by the same sk that generated pk,
+  // and therefore the address, the public key, and the signature all belong
+  // to one key pair.
+  {
+    auto lhs = p256k1_scalar.mulf(p256k1_scalar.to_montgomery(s_n),
+                                  p256k1_scalar.to_montgomery(k_n));
+    auto rhs = p256k1_scalar.addf(e_mont, r_sk);
+    ASSERT_EQ(p256k1_scalar.from_montgomery(lhs),
+              p256k1_scalar.from_montgomery(rhs))
+        << "ECDSA self-consistency failed: s*k != e + r*sk mod n";
+  }
+
+  // Compute ZK witnesses.
   HiddenPKWitness hw;
   ASSERT_TRUE(hw.compute(pkx, pky, e_n, r_n, s_n))
-      << "ECDSA witness computation failed — bad test vectors?";
+      << "ECDSA witness computation failed";
+
+  // The witness's address must match addr derived directly from pk.
+  EXPECT_EQ(hw.eth_address_bytes(), addr);
 
   // Build circuit and witnesses.
   auto CIRCUIT = make_circuit();
@@ -179,6 +214,7 @@ TEST(HiddenPK, ZkProverVerifier) {
   verifier.recv_commitment(zkpr, tv);
   EXPECT_TRUE(verifier.verify(zkpr, *pub, tv)) << "ZK verification failed";
 }
+
 void BM_HiddenPKProver(benchmark::State& state) {
   set_log_level(LogLevel::ERROR);
 
