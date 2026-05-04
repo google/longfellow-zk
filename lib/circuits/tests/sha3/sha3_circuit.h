@@ -322,6 +322,88 @@ class Sha3Circuit {
     check(bw_idx == bws.size(), "Did not consume all BlockWitnesses");
   }
 
+  // Identical to assert_shake256
+  // except the padding byte is 0x01 instead of 0x1F, and output is fixed at
+  // 32 bytes so there is no squeeze phase.
+  //
+  // For Ethereum address derivation: call with the 64-byte uncompressed public
+  // key (x || y, no 0x04 prefix) and take out[12..31] as the address.
+  void assert_keccak256(const std::vector<v8>& seed, std::vector<v8>& out,
+                        const std::vector<BlockWitness>& bws) {
+    constexpr size_t rate = 136;
+    constexpr size_t outlen = 32;
+    size_t num_absorb_blocks = (seed.size() + rate) / rate;
+    // 32-byte output fits in the first rate-sized squeeze, so no extra blocks.
+    check(bws.size() == num_absorb_blocks, "Incorrect number of BlockWitnesses");
+
+    out.resize(outlen);
+
+    // Eagerly bind output wires to the final absorbed state (round 23).
+    // Must happen before the absorb loop so the wire refs are available.
+    size_t out_ptr = 0;
+    size_t sx = 0, sy = 0;
+    for (size_t i = 0; i < outlen; i += 8) {
+      for (size_t b = 0; b < 8; ++b) {
+        for (size_t j = 0; j < 8; ++j) {
+          out[out_ptr][j] =
+              bws[num_absorb_blocks - 1].a_intermediate[23][sx][sy][b * 8 + j];
+        }
+        ++out_ptr;
+      }
+      ++sx;
+      if (sx == 5) {
+        ++sy;
+        sx = 0;
+      }
+    }
+
+    // Absorb phase.
+    std::vector<v8> block(200);
+    for (size_t i = 0; i < 200; ++i) block[i] = lc_.template vbit<8>(0);
+    size_t bw_idx = 0;
+    size_t ptr = 0;
+
+    for (size_t i = 0; i < seed.size(); ++i) {
+      block[ptr++] = seed[i];
+      if (ptr == rate) {
+        v64 A_in[5][5];
+        for (int x = 0; x < 5; ++x) {
+          for (int y = 0; y < 5; ++y) {
+            if (bw_idx == 0) {
+              A_in[x][y] = lc_.template vbit<64>(0);
+            } else {
+              A_in[x][y] = bws[bw_idx - 1].a_intermediate[23][x][y];
+            }
+          }
+        }
+        xorin_block(A_in, block, rate);
+        keccak_f_1600(A_in, bws[bw_idx++]);
+        ptr = 0;
+        for (size_t j = 0; j < 200; ++j) block[j] = lc_.template vbit<8>(0);
+      }
+    }
+
+    // Keccak-256 padding: 0x01 at ptr, 0x80 XOR'd at rate-1.
+    // (SHAKE256 uses 0x1F here; SHA3-256 uses 0x06.)
+    block[ptr] = lc_.vxor(block[ptr], lc_.template vbit<8>(0x01));
+    block[rate - 1] = lc_.vxor(block[rate - 1], lc_.template vbit<8>(0x80));
+
+    v64 A_in[5][5];
+    for (int x = 0; x < 5; ++x) {
+      for (int y = 0; y < 5; ++y) {
+        if (bw_idx == 0) {
+          A_in[x][y] = lc_.template vbit<64>(0);
+        } else {
+          A_in[x][y] = bws[bw_idx - 1].a_intermediate[23][x][y];
+        }
+      }
+    }
+    xorin_block(A_in, block, rate);
+    keccak_f_1600(A_in, bws[bw_idx++]);
+
+    check(bw_idx == bws.size(), "Did not consume all BlockWitnesses");
+  }
+
   template <size_t I0, size_t I1>
   void sha3_vassert_eq_range(const v64& x, const v64& y) const {
     auto xx = lc_.as_scalar(lc_.template slice<I0, I1>(x));

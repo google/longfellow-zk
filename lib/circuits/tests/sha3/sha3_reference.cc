@@ -204,4 +204,41 @@ void Sha3Reference::shake256Hash(const uint8_t* in, size_t inlen, uint8_t* out,
   shake(136, in, inlen, out, outlen);
 }
 
+void Sha3Reference::keccak256Hash(const uint8_t* in, size_t inlen,
+                                  uint8_t out[32]) {
+  // Keccak-256 rate = 200 - 2*32 = 136 bytes (same as SHA3-256).
+  // The only difference from SHA3-256 is the padding byte: 0x01 here vs 0x06.
+  constexpr size_t rate = 136;
+  constexpr size_t mdlen = 32;
+  uint64_t A[5][5] = {};
+  uint8_t block[200] = {};
+  size_t ptr = 0;
+
+  for (size_t i = 0; i < inlen; ++i) {
+    block[ptr++] = in[i];
+    if (ptr == rate) {
+      xorin(A, block, rate);
+      keccak_f_1600(A);
+      ptr = 0;
+      for (size_t j = 0; j < rate; ++j) block[j] = 0;
+    }
+  }
+
+  // Keccak-256 padding: 0x01 (SHA3 uses 0x06, SHAKE uses 0x1F).
+  block[ptr] ^= 0x01;
+  block[rate - 1] ^= 0x80;
+  xorin(A, block, rate);
+  keccak_f_1600(A);
+
+  size_t x = 0, y = 0;
+  for (size_t i = 0; i < mdlen; i += 8) {
+    wu64le(&out[i], A[x][y]);
+    ++x;
+    if (x == 5) {
+      ++y;
+      x = 0;
+    }
+  }
+}
+
 }  // namespace proofs
