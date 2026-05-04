@@ -418,6 +418,9 @@ class Sha3Circuit {
       sha3_vassert_eq_range<32, 48>(x, y);
       sha3_vassert_eq_range<48, 64>(x, y);
     } else {
+      // Assume >= 22 bit subfield.  If this assumption is
+      // wrong, as_scalar() will crash at circuit-compile time,
+      // but we won't produce an unsound circuit.
       sha3_vassert_eq_range<0, 22>(x, y);
       sha3_vassert_eq_range<22, 43>(x, y);
       sha3_vassert_eq_range<43, 64>(x, y);
