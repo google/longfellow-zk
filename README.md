@@ -26,6 +26,7 @@ The public key and signature never appear onchain. Hash preimage resistance surv
 
 - [What We Built](#what-we-built)
 - [Circuit Relation](#circuit-relation)
+- [Keccak-256 Support](#keccak-256-support)
 - [Prerequisites](#prerequisites)
 - [Build](#build)
 - [Running the Tests](#running-the-tests)
@@ -43,23 +44,36 @@ Longfellow-ZK is a Google-developed ZK library for anonymous credentials: provin
 We contributed a `hidden_pk` circuit on top of this library that proves the following:
 
 1. A valid secp256k1 ECDSA signature exists under some public key `pk`
-2. `SHA256(pkx_bytes || pky_bytes) == pkHash`
+2. `keccak256(pkx_bytes || pky_bytes)[12:32] == eth_addr`
 
-Both `pk` and `(r, s)` stay as private witnesses. This is the core primitive for a quantum-resistant wallet: the onchain contract stores only `pkHash` and validates transactions via this ZK proof.
+Both `pk` and `(r, s)` stay as private witnesses. The public statement is the standard 20-byte Ethereum address — no intermediate hash or custom commitment scheme. The onchain contract stores only the existing Ethereum address and validates transactions via this ZK proof.
 
 ---
 
 ## Circuit Relation
 
 ```
-R = { (pkHash, e) ; (pk, sig) :
-        SHA256(pkx_bytes || pky_bytes) == pkHash
+R = { (eth_addr, e) ; (pk, sig) :
+        keccak256(pkx_bytes || pky_bytes)[12:32] == eth_addr
     AND ECDSA_verify_secp256k1(pk, sig, e) == true }
 ```
 
-`e` is the transaction hash (public). `pk = (pkx, pky)` and `sig = (r, s)` are private witnesses. Revealing `(r, s)` alongside `e` is enough to recover `pk` via `ecrecover`: this is why both must stay hidden.
+`e` is the transaction hash (public). `eth_addr` is the standard 20-byte Ethereum address (public). `pk = (pkx, pky)` and `sig = (r, s)` are private witnesses. Revealing `(r, s)` alongside `e` is enough to recover `pk` via `ecrecover`: this is why both must stay hidden.
+
+The public input is the native Ethereum address format — no custom commitment or extra onchain translation step required.
 
 ---
+
+## Keccak-256 Support
+
+Ethereum's address derivation uses Keccak-256, not SHA3-256. They share the same Keccak-f[1600] permutation and 136-byte rate, but differ only in the padding byte appended before squeezing: `0x01` for Keccak-256 (Ethereum), `0x06` for SHA3-256, `0x1F` for SHAKE-256. Longfellow-ZK's SHA3 circuit already proved SHA3-256 and SHAKE; we extended it to cover Keccak-256 by adding:
+
+- **`circuits/tests/sha3/sha3_reference.cc`** — `keccak256Hash` reference implementation (0x01 padding)
+- **`circuits/tests/sha3/sha3_witness.cc`** — `compute_witness_keccak256` to generate Keccak block witnesses
+- **`circuits/tests/sha3/sha3_circuit.h`** — `assert_keccak256` circuit method for in-circuit Keccak-256 proofs
+- **`circuits/tests/sha3/sha3_reference_test.cc`** — known-vector tests including `keccak256("")`, `keccak256("abc")`, and an Ethereum address derivation sanity check
+
+The `hidden_pk` circuit then uses `assert_keccak256` directly: the 64-byte input `pkx_bytes || pky_bytes` fits in a single Keccak block (rate = 136 bytes), so the proof requires exactly one Keccak permutation witness. The circuit outputs bytes `[12:32]` of the 32-byte digest as the Ethereum address public input, matching the native onchain address format without any extra commitment layer.
 
 ## Prerequisites
 
@@ -127,39 +141,30 @@ Measured on Apple M1 (single core, Release build). Circuit parameters: `kLigeroR
 
 | Metric | Value |
 |---|---|
-| Circuit inputs | 7,694 |
-| Public inputs | 258 (256 pkHash bits + e) |
-| Circuit layers | 11 |
+| Circuit inputs | 8,110 |
+| Public inputs | 162 (160 eth_addr bits + e) |
+| Circuit layers | 37 |
 | Circuit compilation (one-time) | ~370ms |
-| RS commitment | ~40ms |
-| Sumcheck | ~42ms |
-| **Total prove time** | **~87ms** |
-| **Verification time** | **~65ms** |
-| **Proof size** | **226 KB (231,532 bytes)** |
+| RS commitment | ~58ms |
+| Sumcheck | ~90ms |
+| **Total prove time** | **~155ms** |
+| **Verification time** | **~93ms** |
 
 Circuit compilation is a one-time cost per session. On mobile hardware expect 2–4× the proving time.
 
-### Proof size breakdown
+The previous SHA-256 version produced 258 public input bits (a custom 32-byte hash) and required an onchain `sha256(pk) == pkHash` check. The Keccak-256 version produces 162 public input bits — a standard 20-byte Ethereum address — and eliminates that onchain step entirely. The proving time increase (~155ms vs ~87ms) is the cost of replacing the two-block SHA-256 circuit with the Keccak-f[1600] permutation circuit.
 
-| Component | Size |
-|---|---|
-| Commitment (Merkle root) | 32 B |
-| Sumcheck proof | 17.6 KB |
-| Column opening proofs (132 columns) | 213.9 KB |
-
-Column openings dominate. Reducing `kLigeroNreq` to 64 cuts proof size roughly in half while keeping soundness above 100 bits.
-
-### On-chain cost estimate (mainnet)
+### Onchain cost estimate (mainnet)
 
 The verifier is hash-only — no pairings, no elliptic curve ops. Gas breaks down as:
 
 | Item | Gas |
 |---|---|
-| Calldata (226 KB, ~70% non-zero bytes) | ~2.5M |
+| Calldata (~70% non-zero bytes) | ~3M |
 | Keccak256 Fiat-Shamir (~200 calls) | ~50K |
 | Merkle path verification (132 paths) | ~330K |
 | Linear combination over public inputs | ~50K |
-| **Total** | **~3M gas** |
+| **Total** | **~3.4M gas** |
 
 ---
 
@@ -170,9 +175,15 @@ Files added to the Longfellow-ZK base:
 ```
 lib/circuits/hidden_pk/
 ├── CMakeLists.txt          Build target for hidden_pk_test
-├── hidden_pk_circuit.h     Circuit: ECDSA verify + SHA256(pk) commitment
-├── hidden_pk_witness.h     Witness computation from (sk, e, r, s)
+├── hidden_pk_circuit.h     Circuit: ECDSA verify + Keccak-256 Ethereum address
+├── hidden_pk_witness.h     Witness computation from (pk, e, r, s)
 └── hidden_pk_test.cc       Tests and Google Benchmark
+
+lib/circuits/tests/sha3/    (extended from upstream)
+├── sha3_circuit.h          Added assert_keccak256 (0x01 padding)
+├── sha3_reference.h/.cc    Added keccak256Hash reference implementation
+├── sha3_witness.h/.cc      Added compute_witness_keccak256
+└── sha3_reference_test.cc  Added Keccak-256 known-vector + Ethereum address tests
 ```
 
 ---

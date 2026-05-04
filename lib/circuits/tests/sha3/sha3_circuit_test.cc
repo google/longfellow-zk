@@ -260,6 +260,63 @@ TEST(SHA3_Circuit, AssertShake256) {
   }
 }
 
+TEST(SHA3_Circuit, AssertKeccak256EthereumAddress) {
+  const EvalBackend ebk(F);
+  const Logic L(&ebk, F);
+  Sha3Circuit<Logic> SHAC(L);
+
+  static const uint8_t pubkey[64] = {
+      0x2e, 0x30, 0x8d, 0x25, 0xd2, 0x7f, 0x4c, 0x59, 0x5c, 0x4a, 0x75,
+      0x43, 0x25, 0x3f, 0x3c, 0x23, 0x50, 0xc9, 0xd3, 0x23, 0xbc, 0xd5,
+      0x02, 0x29, 0xc8, 0x37, 0x68, 0x1f, 0x08, 0xda, 0x6a, 0x33, 0xb8,
+      0xab, 0x23, 0x8f, 0xae, 0xcd, 0x9c, 0xf2, 0xa7, 0x35, 0x9e, 0x6a,
+      0x69, 0x08, 0x97, 0x10, 0x87, 0x6a, 0xb1, 0x36, 0xab, 0x01, 0x7f,
+      0x88, 0x50, 0x5c, 0x03, 0x51, 0x6c, 0xc0, 0x99, 0xc6,
+  };
+  // Expected: last 20 bytes of keccak256(pubkey), i.e., digest[12..31].
+  static const uint8_t expected_addr[20] = {
+      0xb9, 0x0d, 0x65, 0xa6, 0x24, 0x90, 0x9b, 0xc3, 0x6e, 0xee,
+      0x6b, 0xff, 0xde, 0xcf, 0x3c, 0x5a, 0xcd, 0x77, 0x74, 0xc0,
+  };
+
+  std::vector<Logic::v8> seed;
+  for (uint8_t byte : pubkey) seed.push_back(L.vbit8(byte));
+
+  std::vector<Sha3Witness::BlockWitness> bws;
+  Sha3Witness::compute_witness_keccak256(
+      std::vector<uint8_t>(pubkey, pubkey + 64), bws);
+
+  std::vector<Sha3Circuit<Logic>::BlockWitness> circuit_bws(bws.size());
+  for (size_t k = 0; k < bws.size(); ++k) {
+    for (size_t round = 0; round < 24; ++round) {
+      if (sha3_slice_at(round)) {
+        for (size_t x = 0; x < 5; ++x) {
+          for (size_t y = 0; y < 5; ++y) {
+            for (size_t b = 0; b < 64; ++b) {
+              circuit_bws[k].a_intermediate[round][x][y][b] =
+                  L.bit((bws[k].a_intermediate[round][x][y] >> b) & 1);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  std::vector<Logic::v8> hash_out;
+  SHAC.assert_keccak256(seed, hash_out, circuit_bws);
+
+  ASSERT_EQ(hash_out.size(), 32u);
+
+  // Ethereum address is hash_out[12..31].
+  for (size_t i = 0; i < 20; ++i) {
+    uint8_t val = 0;
+    for (int j = 0; j < 8; ++j) {
+      if (L.eval(hash_out[12 + i][j]).elt() == F.one()) val |= (1 << j);
+    }
+    EXPECT_EQ(val, expected_addr[i]) << "address byte " << i << " mismatch";
+  }
+}
+
 template <class Field>
 std::unique_ptr<Circuit<Field>> make_shake256_circuit(size_t seed_size,
                                                       size_t out_size,
