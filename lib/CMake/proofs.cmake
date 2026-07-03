@@ -16,6 +16,14 @@ add_compile_definitions(OPENSSL_SUPPRESS_DEPRECATED=1)
 include(GoogleTest)
 find_package(benchmark REQUIRED)
 find_package(GTest REQUIRED)
+find_path(ZSTD_INCLUDE_DIR zstd.h)
+find_library(ZSTD_LIBRARY zstd)
+if (ZSTD_INCLUDE_DIR AND ZSTD_LIBRARY AND NOT TARGET zstd)
+  add_library(zstd UNKNOWN IMPORTED)
+  set_target_properties(zstd PROPERTIES
+    IMPORTED_LOCATION "${ZSTD_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ZSTD_INCLUDE_DIR}")
+endif()
 
 macro(proofs_add_testing_libraries PROG)
     # libraries that are common enough to be useful in all tests
@@ -31,7 +39,7 @@ macro(proofs_add_testing_libraries PROG)
     if (CMAKE_SYSTEM_NAME STREQUAL "Android")
         target_link_libraries(${PROG} gtest log)
     else()
-        target_link_libraries(${PROG} gtest pthread)
+        target_link_libraries(${PROG} GTest::gtest pthread)
     endif()
 
     target_link_libraries(${PROG} benchmark::benchmark)
@@ -65,4 +73,3 @@ macro(proofs_add_tests)
         proofs_add_test(${PROG})
     endforeach ()
 endmacro()
-
