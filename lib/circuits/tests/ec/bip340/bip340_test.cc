@@ -18,6 +18,7 @@
 #include "circuits/logic/compiler_backend.h"
 #include "circuits/logic/evaluation_backend.h"
 #include "circuits/logic/logic.h"
+#include "circuits/tests/ec/bip340/bip340_guard.h"
 #include "circuits/tests/ec/bip340/bip340_witness.h"
 #include "ec/p256k1.h"
 #include "random/secure_random_engine.h"
@@ -257,6 +258,45 @@ TEST(Bip340SizeTest, CircuitSize) {
 
 // ===================== ZK Prover / Verifier ==============================
 
+struct Bip340TestData {
+  Nat s_nat;
+  Nat e_nat;
+  Elt px;
+  Elt py;
+  Elt rx;
+};
+
+inline Bip340TestData MakeTestData(Nat s_nat = Nat(123456789ull),
+                                   Nat e_nat = Nat(987654321ull),
+                                   Nat sk = Nat(3ull)) {
+  const Field& F = p256k1_base;
+  const EC& ec = p256k1;
+  auto G = ec.generator();
+  auto P = ec.scalar_multf(G, sk);
+  ec.normalize(P);
+
+  Nat exp("0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c");
+  Elt x2 = F.mulf(P.x, P.x);
+  Elt x3 = F.mulf(x2, P.x);
+  Elt y2 = F.addf(x3, ec.b_);
+  Elt py = F.one();
+  Elt base = y2;
+  for (int i = 255; i >= 0; --i) {
+    py = F.mulf(py, py);
+    if (exp.bit(i)) py = F.mulf(py, base);
+  }
+  if (F.from_montgomery(py).bit(0) != 0) py = F.negf(py);
+
+  auto sG = ec.scalar_multf(G, s_nat);
+  auto eP = ec.scalar_multf(
+      typename EC::ECPoint{P.x, py, F.one()}, e_nat);
+  auto neg_eP = typename EC::ECPoint{eP.x, F.negf(eP.y), eP.z};
+  ec.addE(sG, neg_eP);
+  ec.normalize(sG);
+
+  return {s_nat, e_nat, P.x, py, sG.x};
+}
+
 class Bip340ZkTest : public ::testing::Test {
  protected:
   using CompilerBackendType = CompilerBackend<Field>;
@@ -335,41 +375,10 @@ class Bip340ZkTest : public ::testing::Test {
     log(INFO, "BIP-340 Verifier done");
   }
 
-  struct TestData {
-    Nat s_nat;
-    Nat e_nat;
-    Elt px;
-    Elt py;
-    Elt rx;
-  };
-
-  TestData setup_test_data(Nat s_nat = Nat(123456789ull),
-                           Nat e_nat = Nat(987654321ull),
-                           Nat sk = Nat(3ull)) {
-    auto G = ec.generator();
-    auto P = ec.scalar_multf(G, sk);
-    ec.normalize(P);
-
-    Nat exp("0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c");
-    Elt x2 = F.mulf(P.x, P.x);
-    Elt x3 = F.mulf(x2, P.x);
-    Elt y2 = F.addf(x3, ec.b_);
-    Elt py = F.one();
-    Elt base = y2;
-    for (int i = 255; i >= 0; --i) {
-      py = F.mulf(py, py);
-      if (exp.bit(i)) py = F.mulf(py, base);
-    }
-    if (F.from_montgomery(py).bit(0) != 0) py = F.negf(py);
-
-    auto sG = ec.scalar_multf(G, s_nat);
-    auto eP = ec.scalar_multf(
-        typename EC::ECPoint{P.x, py, F.one()}, e_nat);
-    auto neg_eP = typename EC::ECPoint{eP.x, F.negf(eP.y), eP.z};
-    ec.addE(sG, neg_eP);
-    ec.normalize(sG);
-
-    return {s_nat, e_nat, P.x, py, sG.x};
+  Bip340TestData setup_test_data(Nat s_nat = Nat(123456789ull),
+                                 Nat e_nat = Nat(987654321ull),
+                                 Nat sk = Nat(3ull)) {
+    return MakeTestData(s_nat, e_nat, sk);
   }
 };
 
@@ -435,6 +444,187 @@ TEST_F(Bip340ZkTest, LargerScalars) {
   Nat e_nat("0x1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c");
   auto d = setup_test_data(s_nat, e_nat);
   run_zk_test(d.s_nat, d.e_nat, d.px, d.py, d.rx);
+}
+
+// ===================== CRT Parameter Guard ==============================
+
+TEST(Bip340GuardTest, AcceptsReasonableBlockEnc) {
+  using Crt = CRT256<Field>;
+  // block_enc = 1024 → padding = 1024 < 2^22.
+  EXPECT_TRUE(check_crt_block_enc<Crt>(1024).empty());
+  // block_enc = 2^22 → padding = 2^22, exactly at limit.
+  EXPECT_TRUE(check_crt_block_enc<Crt>(1ull << 22).empty());
+}
+
+TEST(Bip340GuardTest, RejectsExcessiveBlockEnc) {
+  using Crt = CRT256<Field>;
+  // block_enc = 2^22 + 1 → padding = 2^23, exceeds 2^22.
+  auto err = check_crt_block_enc<Crt>((1ull << 22) + 1);
+  EXPECT_FALSE(err.empty());
+  EXPECT_NE(err.find("exceeds"), std::string::npos);
+}
+
+// ===================== Parameter Measurement ============================
+
+TEST(Bip340ParamTest, ReportCircuitParams) {
+  using CompilerBackendType = CompilerBackend<Field>;
+  using LogicCircuit = Logic<Field, CompilerBackendType>;
+  using EltW = typename LogicCircuit::EltW;
+  using VerifyC = Bip340Verify<LogicCircuit, Field, EC>;
+
+  QuadCircuit<Field> Q(p256k1_base);
+  const CompilerBackendType cbk(&Q);
+  const LogicCircuit lc(&cbk, p256k1_base);
+  VerifyC circuit(lc, p256k1);
+
+  typename VerifyC::Witness w;
+  Q.private_input();
+  w.input(lc);
+
+  EltW rx = lc.eltw_input();
+  EltW px = lc.eltw_input();
+  EltW e = lc.eltw_input();
+
+  circuit.assert_verify(rx, px, e, w);
+  auto C = Q.mkcircuit(1);
+
+  // Detailed parameter report.
+  size_t nwires = Q.nwires_;
+  size_t nquad = Q.nquad_terms_;
+  size_t depth = Q.depth_;
+  size_t nin = Q.ninput_;
+  size_t npriv = C->ninputs - C->npub_in;
+  size_t npub = C->npub_in;
+
+  log(INFO, "BIP-340 Circuit Parameters:");
+  log(INFO, "  wires(total)=%zu", nwires);
+  log(INFO, "  quad_terms=%zu", nquad);
+  log(INFO, "  depth=%zu", depth);
+  log(INFO, "  inputs(total)=%zu", nin);
+  log(INFO, "  public_inputs=%zu", npub);
+  log(INFO, "  private_inputs=%zu", npriv);
+
+  // The circuit should produce non-trivial parameters.
+  EXPECT_GT(nwires, 1000);
+  EXPECT_GT(nquad, 100);
+  EXPECT_GT(depth, 0u);
+
+  // Check LigeroParam-like derived values.
+  // nw = number of witness elements ; nq = quadr constraints.
+  // block_enc = (nw + nq + 1) rounded up for RS encoding.
+  size_t nw_approx = npriv;
+  size_t nq_approx = nquad;
+  size_t block_enc_approx = nw_approx + nq_approx + 1;
+  size_t pad = next_pow2(block_enc_approx);
+
+  log(INFO, "  estimated block_enc=%zu, padding=%zu", block_enc_approx, pad);
+
+  using Crt = CRT256<Field>;
+  auto err = check_crt_block_enc<Crt>(block_enc_approx);
+  EXPECT_TRUE(err.empty())
+      << "BIP-340 circuit block_enc exceeds CRT capacity: " << err;
+}
+
+// ===================== Scale Smoke Test =================================
+
+TEST(Bip340ScaleTest, MultiInstanceProof) {
+  // Run a ZK proof with 2 instances to verify scaling works.
+  set_log_level(INFO);
+
+  using CompilerBackendType = CompilerBackend<Field>;
+  using LogicCircuit = Logic<Field, CompilerBackendType>;
+  using EltW = typename LogicCircuit::EltW;
+  using VerifyC = Bip340Verify<LogicCircuit, Field, EC>;
+
+  constexpr size_t kNumInstances = 2;
+
+  // Build circuit with multiple BIP-340 verification instances.
+  QuadCircuit<Field> Q(p256k1_base);
+  const CompilerBackendType cbk(&Q);
+  const LogicCircuit lc(&cbk, p256k1_base);
+  VerifyC circuit(lc, p256k1);
+
+  std::vector<typename VerifyC::Witness> ws(kNumInstances);
+  std::vector<EltW> rxs(kNumInstances);
+  std::vector<EltW> pxs(kNumInstances);
+  std::vector<EltW> es(kNumInstances);
+
+  for (size_t i = 0; i < kNumInstances; ++i) {
+    rxs[i] = lc.eltw_input();
+    pxs[i] = lc.eltw_input();
+    es[i] = lc.eltw_input();
+  }
+  Q.private_input();
+  for (size_t i = 0; i < kNumInstances; ++i) {
+    ws[i].input(lc);
+  }
+  for (size_t i = 0; i < kNumInstances; ++i) {
+    circuit.assert_verify(rxs[i], pxs[i], es[i], ws[i]);
+  }
+  auto CIRCUIT = Q.mkcircuit(1);
+
+  dump_info("bip340 multi", Q);
+
+  // Check CRT capacity.
+  using Crt = CRT256<Field>;
+  size_t block_enc_approx = CIRCUIT->ninputs - CIRCUIT->npub_in +
+                            Q.nquad_terms_ + 1;
+  auto err = check_crt_block_enc<Crt>(block_enc_approx);
+  ASSERT_TRUE(err.empty()) << "Scale test exceeds CRT capacity: " << err;
+
+  // Prepare witness data.
+  auto d = MakeTestData();
+
+  Bip340Witness wit(p256k1);
+  ASSERT_TRUE(wit.compute_from_scalars(d.s_nat, d.e_nat, d.px, d.py));
+
+  auto W = std::make_unique<Dense<Field>>(1, CIRCUIT->ninputs);
+  {
+    DenseFiller<Field> filler(*W);
+    filler.push_back(p256k1_base.one());
+    for (size_t i = 0; i < kNumInstances; ++i) {
+      filler.push_back(d.rx);
+      filler.push_back(d.px);
+      filler.push_back(wit.e_);
+    }
+    for (size_t i = 0; i < kNumInstances; ++i) {
+      wit.fill_witness(filler);
+    }
+  }
+
+  using ConvolutionFactory = CrtConvolutionFactory<Crt, Field>;
+  using RSFactory = ReedSolomonFactory<Field, ConvolutionFactory>;
+
+  ConvolutionFactory factory(p256k1_base);
+  RSFactory rsf(factory, p256k1_base);
+
+  Transcript tp((uint8_t*)"bip340 scale", 12);
+  SecureRandomEngine rng;
+
+  ZkProof<Field> zkpr(*CIRCUIT, kRate, kQueries);
+  ZkProver<Field, RSFactory> prover(*CIRCUIT, p256k1_base, rsf);
+  prover.commit(zkpr, *W, tp, rng);
+  prover.prove(zkpr, *W, tp);
+  log(INFO, "BIP-340 scale prover done (%zu instances)", kNumInstances);
+
+  // Verifier.
+  Transcript tv((uint8_t*)"bip340 scale", 12);
+  auto pub = Dense<Field>(1, CIRCUIT->npub_in);
+  {
+    DenseFiller<Field> filler(pub);
+    filler.push_back(p256k1_base.one());
+    for (size_t i = 0; i < kNumInstances; ++i) {
+      filler.push_back(d.rx);
+      filler.push_back(d.px);
+      filler.push_back(wit.e_);
+    }
+  }
+
+  ZkVerifier<Field, RSFactory> verifier(*CIRCUIT, rsf, kRate, kQueries,
+                                         p256k1_base);
+  verifier.recv_commitment(zkpr, tv);
+  EXPECT_TRUE(verifier.verify(zkpr, pub, tv));
+  log(INFO, "BIP-340 scale verifier done");
 }
 
 }  // namespace
