@@ -87,6 +87,7 @@ add_subdirectory(circuits/sha)
 
 # experiments and tests, not used in production, may be buggy
 add_subdirectory(circuits/tests/anoncred)
+add_subdirectory(circuits/tests/ec/bip340)
 add_subdirectory(circuits/tests/sha3)
 add_subdirectory(circuits/tests/base64)
 add_subdirectory(circuits/tests/jwt)
