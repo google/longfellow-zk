@@ -24,6 +24,7 @@ add_library(mdoc_static STATIC
     $<TARGET_OBJECTS:algebra>
     $<TARGET_OBJECTS:util>
 )
+target_link_libraries(mdoc_static crypto zstd)
 
 proofs_add_test(mdoc_signature_test)
 target_link_libraries(mdoc_signature_test mdoc)
