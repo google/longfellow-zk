@@ -16,7 +16,7 @@ jobs:
       options: --user root
     steps:
     - name: Install dependencies
-      run: sage --pip install pycryptodome mypy
+      run: sage --pip install mypy
     - name: Checkout
       uses: actions/checkout@v6
       with:
