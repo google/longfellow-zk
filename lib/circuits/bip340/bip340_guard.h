@@ -20,17 +20,9 @@
 #include <string>
 
 #include "algebra/crt.h"
+#include "util/power_of_two.h"
 
 namespace proofs {
-
-/// Returns the smallest power of two >= n.
-inline size_t next_pow2(size_t n) {
-  size_t p = 1;
-  while (p < n) {
-    p *= 2;
-  }
-  return p;
-}
 
 /// Guard: checks that the block_enc parameter for a CRT-backed secp256k1
 /// proof is within the supported FFT size.  The CRT auxiliary primes support
@@ -42,7 +34,7 @@ inline size_t next_pow2(size_t n) {
 template <typename CRT>
 inline std::string check_crt_block_enc(size_t block_enc) {
   constexpr uint64_t kMaxOrder = crt::kOmegaOrder;  // 2^22
-  size_t pad = next_pow2(block_enc);
+  size_t pad = next_power_of_two(block_enc);
   if (pad > kMaxOrder) {
     return "CRT block_enc=" + std::to_string(block_enc) +
            " requires padding=" + std::to_string(pad) +

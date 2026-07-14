@@ -35,12 +35,12 @@ namespace proofs {
 /// testing).  The witness layout matches Bip340Verify::Witness::input().
 ///
 /// Fields (in witness input order):
-///   bits_s[256], int_sx[255], int_sy[255], int_sz[255]  — s·G trace
-///   bits_e[256], int_ex[255], int_ey[255], int_ez[255]  — e·P trace
-///   py        — affine P.y (the even square root of px³+7)
-///   ry        — affine R.y (computed from s·G - e·P)
-///   rz_inv    — inverse of R.z (proves R ≠ point-at-infinity)
-///   bits_ry[256] — bits of affine ry, MSB-first, allowing the circuit
+///   bits_s[256], int_sx[255], int_sy[255], int_sz[255]  - s*G trace
+///   bits_e[256], int_ex[255], int_ey[255], int_ez[255]  - e*P trace
+///   py        - affine P.y (the even square root of px^3+7)
+///   ry        - affine R.y (computed from s*G - e*P)
+///   rz_inv    - inverse of R.z (proves R != point-at-infinity)
+///   bits_ry[256] - bits of affine ry, MSB-first, allowing the circuit
 ///                  to reconstruct ry and enforce even parity (LSB=0).
 ///
 /// Validation performed by compute() (NOT proven in-circuit):
@@ -58,19 +58,19 @@ class Bip340Witness {
 
   const EC& ec_;
 
-  // s-bit decomposition and s·G intermediate points.
+  // s-bit decomposition and s*G intermediate points.
   Elt bits_s_[kBits];
   Elt int_sx_[kBits];
   Elt int_sy_[kBits];
   Elt int_sz_[kBits];
 
-  // e-bit decomposition and e·P intermediate points.
+  // e-bit decomposition and e*P intermediate points.
   Elt bits_e_[kBits];
   Elt int_ex_[kBits];
   Elt int_ey_[kBits];
   Elt int_ez_[kBits];
 
-  // P.y (the even square root of px³ + b).
+  // P.y (the even square root of px^3 + b).
   Elt py_;
 
   // R.y (affine, the canonical even y-coordinate of R), its inverse z,
@@ -139,13 +139,13 @@ class Bip340Witness {
     // Convert to Montgomery form.
     Elt px = F.to_montgomery(px_nat);
 
-    // -- Lift P.x: compute py = sqrt(px³ + 7), choosing the even root ----
+    // -- Lift P.x: compute py = sqrt(px^3 + 7), choosing the even root ----
     Elt x2 = F.mulf(px, px);
     Elt x3 = F.mulf(x2, px);
     Elt y2 = F.addf(x3, ec_.b_);  // b = 7
     py_ = sqrt_even(y2, F);
 
-    // Verify py² == y2 (pk is on the curve).
+    // Verify py^2 == y2 (pk is on the curve).
     if (F.mulf(py_, py_) != y2) return false;
 
     // -- Compute challenge e = tagged_hash("BIP0340/challenge",
@@ -163,12 +163,12 @@ class Bip340Witness {
     e_ = F.to_montgomery(e_nat);
     e_nat_ = e_nat;
 
-    // -- Compute s·G witness ---------------------------------------------
+    // -- Compute s*G witness ---------------------------------------------
     auto G = ec_.generator();
     compute_scalar_mult_witness(bits_s_, int_sx_, int_sy_, int_sz_, G,
                                 s_nat);
 
-    // -- Compute e·P witness ---------------------------------------------
+    // -- Compute e*P witness ---------------------------------------------
     typename EC::ECPoint P = {px, py_, one};
     compute_scalar_mult_witness(bits_e_, int_ex_, int_ey_, int_ez_, P,
                                 e_nat);
@@ -190,7 +190,7 @@ class Bip340Witness {
 
   /// Fill a Dense array from this witness (for the prover).
   void fill_witness(DenseFiller<Field>& filler) const {
-    // s·G: bits + intermediates (all but last for intermediates)
+    // s*G: bits + intermediates (all but last for intermediates)
     for (size_t i = 0; i < kBits; ++i) {
       filler.push_back(bits_s_[i]);
       if (i < kBits - 1) {
@@ -199,7 +199,7 @@ class Bip340Witness {
         filler.push_back(int_sz_[i]);
       }
     }
-    // e·P: bits + intermediates (all but last for intermediates)
+    // e*P: bits + intermediates (all but last for intermediates)
     for (size_t i = 0; i < kBits; ++i) {
       filler.push_back(bits_e_[i]);
       if (i < kBits - 1) {
@@ -228,7 +228,7 @@ class Bip340Witness {
     }
   }
 
-  /// Compute R = s·G - e·P from the already-computed intermediate
+  /// Compute R = s*G - e*P from the already-computed intermediate
   /// points, derive ry_, rz_inv_, and bits_ry_.  The intermediate
   /// points were produced by compute_scalar_mult_witness using
   /// the same double-and-add formulas as the circuit, so projective
@@ -283,7 +283,7 @@ class Bip340Witness {
   }
 
   /// Compute sqrt(y2) mod p, choosing the even root.
-  /// For secp256k1, p ≡ 3 mod 4, so sqrt = y2^((p+1)/4).
+  /// For secp256k1, p =  3 mod 4, so sqrt = y2^((p+1)/4).
   Elt sqrt_even(const Elt& y2, const Field& F) const {
     // (p+1)/4 for p = 2^256 - 2^32 - 977.
     Nat exp(

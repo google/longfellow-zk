@@ -24,6 +24,7 @@
 #include "algebra/blas.h"
 #include "algebra/fft.h"
 #include "algebra/rfft.h"
+#include "util/power_of_two.h"
 
 /*
 All of the classes in this package compute convolutions.
@@ -43,15 +44,6 @@ durations and can be safely passed by const reference.
 
 namespace proofs {
 
-// Returns the smallest power of 2 that is at least n.
-static size_t choose_padding(const size_t n) {
-  size_t p = 1;
-  while (p < n) {
-    p *= 2;
-  }
-  return p;
-}
-
 template <class Field>
 class FFTConvolution {
   using Elt = typename Field::Elt;
@@ -64,7 +56,7 @@ class FFTConvolution {
         omega_order_(omega_order),
         n_(n),
         m_(m),
-        padding_(choose_padding(m)),
+        padding_(next_power_of_two(m)),
         y_fft_(padding_, f_.zero()) {
     Blas<Field>::copy(m, &y_fft_[0], 1, y, 1);
     FFT<Field>::fftf(&y_fft_[0], padding_, omega_, omega_order_, f_);
@@ -140,7 +132,7 @@ class FFTExtConvolution {
         omega_order_(omega_order),
         n_(n),
         m_(m),
-        padding_(choose_padding(m)),
+        padding_(next_power_of_two(m)),
         y_fft_(padding_, f_.zero()) {
     Blas<Field>::copy(m, &y_fft_[0], 1, y, 1);
     RFFT<FieldExt>::r2hc(&y_fft_[0], padding_, omega_, omega_order_, f_ext_);

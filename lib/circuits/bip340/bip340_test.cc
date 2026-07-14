@@ -29,6 +29,7 @@
 #include "random/secure_random_engine.h"
 #include "random/transcript.h"
 #include "util/log.h"
+#include "util/power_of_two.h"
 #include "util/readbuffer.h"
 #include "zk/zk_proof.h"
 #include "zk/zk_prover.h"
@@ -146,7 +147,7 @@ class Bip340EvalTest : public ::testing::Test {
     return sG.x;
   }
 
-  /// sqrt mod p (p ≡ 3 mod 4), choosing even root.
+  /// sqrt mod p (p =  3 mod 4), choosing even root.
   Elt sqrt_even(const Elt& a) {
     Nat exp("0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c");
     Elt root = F.one();
@@ -350,12 +351,12 @@ constexpr RejectBy kRejectLayer[] = {
     RejectBy::kAccept,            // 3: valid
     RejectBy::kAccept,            // 4: valid
     RejectBy::kInputValidation,   // 5: pk not on curve (lift fails)
-    RejectBy::kCircuit,           // 6: odd R.y — detected by LSB-zero gate
+    RejectBy::kCircuit,           // 6: odd R.y - detected by LSB-zero gate
     RejectBy::kCircuit,           // 7: negated message
     RejectBy::kCircuit,           // 8: negated s value
-    RejectBy::kCircuit,           // 9: R = infinity (rx=0) — R.z*rz_inv=1 fails
+    RejectBy::kCircuit,           // 9: R = infinity (rx=0) - R.z*rz_inv=1 fails
     RejectBy::kCircuit,           // 10: R = infinity (rx=1)
-    RejectBy::kCircuit,           // 11: r not a quadratic residue — R.x==rx fails
+    RejectBy::kCircuit,           // 11: r not a quadratic residue - R.x==rx fails
     RejectBy::kInputValidation,   // 12: r >= p
     RejectBy::kInputValidation,   // 13: s >= n
     RejectBy::kInputValidation,   // 14: pk >= p
@@ -443,7 +444,7 @@ TEST(Bip340RealVectorTest, EvalTestVectors) {
 
     // kCircuit: compute() may succeed but the circuit must reject.
     if (!computed) {
-      // compute() caught it early — still valid, but log a note.
+      // compute() caught it early - still valid, but log a note.
       log(INFO, "Vector %zu: input validation caught what circuit should", vi);
       continue;
     }
@@ -673,7 +674,7 @@ TEST(Bip340SoundnessTest, OddRYWitnessFails) {
   Bip340Witness wit(ec);
   ASSERT_TRUE(wit.compute_from_scalars(d.s_nat, d.e_nat, d.px, d.py));
 
-  // Subcase 1: odd ry with consistent odd bits — fails LSB-zero check.
+  // Subcase 1: odd ry with consistent odd bits - fails LSB-zero check.
   {
     const EvalBackend ebk(F, false);
     const LogicType l(&ebk, F);
@@ -699,7 +700,7 @@ TEST(Bip340SoundnessTest, OddRYWitnessFails) {
         << "Odd ry with odd bits should fail LSB-zero check";
   }
 
-  // Subcase 2: odd ry with original even bits — fails reconstruction.
+  // Subcase 2: odd ry with original even bits - fails reconstruction.
   {
     const EvalBackend ebk(F, false);
     const LogicType l(&ebk, F);
@@ -1175,15 +1176,15 @@ TEST(Bip340TamperTest, TamperedProofFailsVerification) {
 
 TEST(Bip340GuardTest, AcceptsReasonableBlockEnc) {
   using Crt = CRT256<Field>;
-  // block_enc = 1024 → padding = 1024 < 2^22.
+  // block_enc = 1024 -> padding = 1024 < 2^22.
   EXPECT_TRUE(check_crt_block_enc<Crt>(1024).empty());
-  // block_enc = 2^22 → padding = 2^22, exactly at limit.
+  // block_enc = 2^22 -> padding = 2^22, exactly at limit.
   EXPECT_TRUE(check_crt_block_enc<Crt>(1ull << 22).empty());
 }
 
 TEST(Bip340GuardTest, RejectsExcessiveBlockEnc) {
   using Crt = CRT256<Field>;
-  // block_enc = 2^22 + 1 → padding = 2^23, exceeds 2^22.
+  // block_enc = 2^22 + 1 -> padding = 2^23, exceeds 2^22.
   auto err = check_crt_block_enc<Crt>((1ull << 22) + 1);
   EXPECT_FALSE(err.empty());
   EXPECT_NE(err.find("exceeds"), std::string::npos);
@@ -1240,7 +1241,7 @@ TEST(Bip340ParamTest, ReportCircuitParams) {
   size_t nw_approx = npriv;
   size_t nq_approx = nquad;
   size_t block_enc_approx = nw_approx + nq_approx + 1;
-  size_t pad = next_pow2(block_enc_approx);
+  size_t pad = next_power_of_two(block_enc_approx);
 
   log(INFO, "  estimated block_enc=%zu, padding=%zu", block_enc_approx, pad);
 

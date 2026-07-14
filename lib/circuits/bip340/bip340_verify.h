@@ -21,7 +21,7 @@ namespace proofs {
 
 /// Production BIP-340 / Schnorr signature verification over secp256k1.
 ///
-///   s·G = R + e·P
+///   s*G = R + e*P
 ///
 /// --- In-circuit (proven) ---
 ///
@@ -30,25 +30,25 @@ namespace proofs {
 ///   px : P.x (x-only public key).
 ///   e  : Fiat-Shamir challenge scalar (field element).
 ///
-/// Private witness: bits_s[256], int_s_{x,y,z}[255] for s·G;
-///   bits_e[256], int_e_{x,y,z}[255] for e·P;
+/// Private witness: bits_s[256], int_s_{x,y,z}[255] for s*G;
+///   bits_e[256], int_e_{x,y,z}[255] for e*P;
 ///   py (P.y, the even square root);
 ///   ry (affine R.y); rz_inv (R.z inverse); ry_bits[256].
 ///
 /// Circuit constraints:
 ///   - e is reconstructed from bits_e[256] (MSB-first).
 ///   - s is range-checked as a scalar: 0 <= s < n.
-///   - py² = px³ + 7  (P is on the secp256k1 curve).
-///   - ry² = rx³ + 7  (R is on the secp256k1 curve).
-///   - Double-and-add trace for s·G with intermediate witnesses.
-///   - Double-and-add trace for e·P with intermediate witnesses.
-///   - R = s·G - e·P computed in projective coordinates.
+///   - py^2 = px^3 + 7  (P is on the secp256k1 curve).
+///   - ry^2 = rx^3 + 7  (R is on the secp256k1 curve).
+///   - Double-and-add trace for s*G with intermediate witnesses.
+///   - Double-and-add trace for e*P with intermediate witnesses.
+///   - R = s*G - e*P computed in projective coordinates.
 ///   - R.z * rz_inv = 1  (R is not the point at infinity).
 ///   - R.x = rx  (projective equality: R.x * 1 == rx * R.z).
 ///   - R.y = ry  (projective equality; ry is the affine y).
 ///   - ry is canonically even: ry_bits[255] (LSB) = 0, and
 ///     ry reconstructed from ry_bits[256] matches ry.
-///   - Each ry_bits[i] ∈ {0,1}.
+///   - Each ry_bits[i] in {0,1}.
 ///
 /// --- Outside the circuit (witness/verifier validation) ---
 ///
@@ -122,7 +122,7 @@ class Bip340Verify {
     }
   }
 
-  /// Verify the BIP-340 relation: s·G - e·P = R, with R.x == rx.
+  /// Verify the BIP-340 relation: s*G - e*P = R, with R.x == rx.
   ///
   /// rx: x-coordinate of R (public, x-only)
   /// px: x-coordinate of P (public, x-only public key)
@@ -133,7 +133,7 @@ class Bip340Verify {
     EltW one = lc_.konst(lc_.one());
 
     // -- 0. Verify e matches bits_e decomposition ------------------------
-    // e must equal Σ bits_e[i] * 2^(kBits-1-i), i.e., the scalar
+    // e must equal sum_i bits_e[i] * 2^(kBits-1-i), i.e., the scalar
     // represented by the bits in MSB-first order.
     {
       EltW check = lc_.konst(lc_.zero());
@@ -157,17 +157,17 @@ class Bip340Verify {
       lc_.assert1(lc_.vlt(bits_s, bits_n_));
     }
 
-    // -- 2. Lift P: verify py² = px³ + b (secp256k1: b = 7) --------------
+    // -- 2. Lift P: verify py^2 = px^3 + b (secp256k1: b = 7) --------------
     assert_point_on_curve(px, w.py);
 
-    // -- 3. Compute s·G ---------------------------------------------------
+    // -- 3. Compute s*G ---------------------------------------------------
     EltW gx = lc_.konst(ec_.gx_);
     EltW gy = lc_.konst(ec_.gy_);
     EltW sgx = zero, sgy = one, sgz = zero;
     scalar_mult(sgx, sgy, sgz, gx, gy, one, w.bits_s, w.int_sx, w.int_sy,
                 w.int_sz);
 
-    // -- 4. Compute e·P  (P = (px, py, 1)) -------------------------------
+    // -- 4. Compute e*P  (P = (px, py, 1)) -------------------------------
     EltW epx = zero, epy = one, epz = zero;
     scalar_mult(epx, epy, epz, px, w.py, one, w.bits_e, w.int_ex, w.int_ey,
                 w.int_ez);
@@ -180,7 +180,7 @@ class Bip340Verify {
     // -- 6. Verify R is on the curve and finite --------------------------
     assert_point_on_curve(rx, w.ry);
 
-    // R.z * rz_inv = 1  ⟺  R is not the point at infinity.
+    // R.z * rz_inv = 1  <=>  R is not the point at infinity.
     lc_.assert_eq(lc_.mul(rpz, w.rz_inv), one);
 
     // -- 7. Check R.x == rx (projective) ---------------------------------
@@ -205,7 +205,7 @@ class Bip340Verify {
   }
 
  private:
-  /// Verify that (x, y) is on the curve: y² = x³ + a·x + b.
+  /// Verify that (x, y) is on the curve: y^2 = x^3 + a*x + b.
   /// For secp256k1, a = 0, b = 7.
   void assert_point_on_curve(EltW x, EltW y) const {
     auto y2 = lc_.mul(y, y);
@@ -233,7 +233,7 @@ class Bip340Verify {
       typename LogicCircuit::BitW b_bit(bits[i], lc_.f_);
       lc_.assert_is_bit(b_bit);
 
-      // Select point to add: if bit == 1 → P, else → infinity.
+      // Select point to add: if bit == 1 -> P, else -> infinity.
       EltW tx = lc_.mux(b_bit, px, zero);
       EltW ty = lc_.mux(b_bit, py, one);
       EltW tz = lc_.mux(b_bit, pz, zero);

@@ -23,6 +23,7 @@
 
 #include "algebra/convolution.h"
 #include "algebra/fft.h"
+#include "util/power_of_two.h"
 
 namespace proofs {
 
@@ -41,7 +42,7 @@ class CRTConvolution {
         f_(f),
         n_(n),
         m_(m),
-        padding_(choose_padding(m)),
+        padding_(next_power_of_two(m)),
         y_fft_(padding_, crt_.zero()),
         omega_order_(crt_.omega_order()),
         omega_(crt_.omega()) {
