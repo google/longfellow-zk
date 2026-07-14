@@ -9,9 +9,7 @@ import json
 import os
 import unittest
 
-from bip340_circuit import (
-    make_bip340_witness,
-)
+from bip340 import semantic_facts
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 GOLDEN_PATH = os.path.join(
@@ -66,18 +64,20 @@ class TestBip340Golden(unittest.TestCase):
                 continue
 
             # Recompute and compare.
-            w = make_bip340_witness(sig, pk, msg)
+            facts = semantic_facts(pk, msg, sig)
+            self.assertIsNotNone(facts, f"Vector {i}: no semantic facts")
+            assert facts is not None
 
-            def fe_hex(idx: int) -> str:
-                return hex(int(w[idx]))[2:].upper().zfill(64)
+            def fe_hex(value: int) -> str:
+                return hex(value)[2:].upper().zfill(64)
 
-            self.assertEqual(fe_hex(3), fact['e_hex'],
+            self.assertEqual(fe_hex(facts['e']), fact['e_hex'],
                              f"Vector {i}: e mismatch")
-            self.assertEqual(fe_hex(10), fact['py_hex'],
+            self.assertEqual(fe_hex(facts['py']), fact['py_hex'],
                              f"Vector {i}: py mismatch")
-            self.assertEqual(fe_hex(11), fact['ry_hex'],
+            self.assertEqual(fe_hex(facts['ry']), fact['ry_hex'],
                              f"Vector {i}: ry mismatch")
-            self.assertEqual(fe_hex(12), fact['rz_inv_hex'],
+            self.assertEqual(fe_hex(facts['rz_inv']), fact['rz_inv_hex'],
                              f"Vector {i}: rz_inv mismatch")
 
 

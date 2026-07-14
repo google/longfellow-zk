@@ -17,6 +17,16 @@ P256K1_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 P256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 P256K1_B = 7
 
+
+class Bip340SemanticFacts(TypedDict):
+    """Affine facts shared with the C++ BIP-340 golden fixtures."""
+
+    e: int
+    py: int
+    ry: int
+    rz_inv: int
+
+
 # secp256k1 generator (affine).
 _GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
 _GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
@@ -133,6 +143,39 @@ def verify(pk_bytes: bytes, msg: bytes, sig_bytes: bytes) -> bool:
     if not _is_even(Ry):
         return False
     return Rx == r
+
+
+def semantic_facts(
+        pk_bytes: bytes,
+        msg: bytes,
+        sig_bytes: bytes,
+) -> Optional[Bip340SemanticFacts]:
+    """Compute affine facts that are invariant across Sage and C++ models."""
+    if len(pk_bytes) != 32 or len(sig_bytes) != 64:
+        return None
+
+    r_bytes = sig_bytes[:32]
+    s = _int_from_bytes(sig_bytes[32:])
+    px = _int_from_bytes(pk_bytes)
+    lifted = lift_x(px)
+    if lifted is None:
+        return None
+
+    e = _int_from_bytes(_tagged_hash(r_bytes + pk_bytes + msg)) % P256K1_N
+    curve = _get_curve()
+    point = curve(lifted[0], lifted[1])
+    result = int(s) * _get_G() - int(e) * point
+    if result.is_zero():
+        return None
+
+    rz = int(result[2])
+    rz_inv = int(sage.all.GF(P256K1_P)(rz) ** -1)
+    return {
+        'e': e % P256K1_P,
+        'py': lifted[1],
+        'ry': int(result[1]),
+        'rz_inv': rz_inv,
+    }
 
 
 class _TestVector(TypedDict):
