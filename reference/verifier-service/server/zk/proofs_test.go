@@ -15,6 +15,7 @@
 package zk
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -44,6 +45,21 @@ func TestVerifyProofRequest(t *testing.T) {
 func TestGetZKSpecs(t *testing.T) {
 	specs := GetZKSpecs()
 	if len(specs) == 0 {
-		t.Error("expected some ZK specs, but got none")
+		t.Fatal("expected some ZK specs, but got none")
+	}
+
+	encoded, err := json.Marshal(specs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var spec map[string]any
+	if err := json.Unmarshal(encoded, &spec); err != nil {
+		t.Fatal(err)
+	}
+	if spec["block_enc_hash"] != float64(4151) {
+		t.Errorf("block_enc_hash = %v, want 4151", spec["block_enc_hash"])
+	}
+	if spec["block_enc_sig"] != float64(4096) {
+		t.Errorf("block_enc_sig = %v, want 4096", spec["block_enc_sig"])
 	}
 }
