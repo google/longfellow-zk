@@ -13,4 +13,4 @@
 # limitations under the License.
 
 add_library(testing_main test_main.cc)
-
+target_link_libraries(testing_main benchmark::benchmark)

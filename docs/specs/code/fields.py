@@ -36,3 +36,7 @@ GF2_16, GF2_16_inclusion_map = GF2_128.subfield(16, name="g", map=True)
 # Construct quadratic extension fields.
 Fp64_2 = _make_quadratic_extension(Fp64)
 Fp256_2 = _make_quadratic_extension(Fp256)
+
+# secp256k1 base field.
+P256K1_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+Fp256k1 = GF(P256K1_P)

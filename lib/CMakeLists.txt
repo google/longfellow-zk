@@ -84,6 +84,7 @@ add_subdirectory(circuits/logic)
 add_subdirectory(circuits/mac)
 add_subdirectory(circuits/mdoc)
 add_subdirectory(circuits/sha)
+add_subdirectory(circuits/bip340)
 
 # experiments and tests, not used in production, may be buggy
 add_subdirectory(circuits/tests/anoncred)
