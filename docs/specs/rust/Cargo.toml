@@ -1,0 +1,14 @@
+[package]
+name = "reference"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"
+sha2 = { version = "0.10", features = ["asm"] }
+aes = "0.8.4"
+
+[dev-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
