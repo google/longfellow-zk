@@ -22,7 +22,7 @@ jobs:
       with:
         persist-credentials: false
     - name: Run tests
-      working-directory: docs/specs/code
+      working-directory: docs/specs/sage
       run: |
         sage --python -m mypy *.py tests/*.py
         sage --python -m unittest --verbose
