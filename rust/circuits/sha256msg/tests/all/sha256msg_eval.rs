@@ -91,7 +91,13 @@ fn test_eval_sha256msg_shared_corruptors() {
             "Corruptor '{}' failed to cause assertion failure",
             c.name
         );
-        res.assert_any_failed_at(c.expected_path);
+        let failed = res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }
 
@@ -124,7 +130,7 @@ fn test_exploit_nblocks_too_large() {
         expected_hash,
     };
     let assertion = sha256msg.assert_message_hash(&given_wires, &[wit_wires]);
-    assertion.assert_any_failed_at("nblocks_max");
+    assertion.assert_any_failed_at("assert_message_hash/assert_nblocks/nblocks_max");
 }
 
 #[test]
@@ -156,7 +162,7 @@ fn test_exploit_nblocks_zero() {
         expected_hash,
     };
     let assertion = sha256msg.assert_message_hash(&given_wires, &[wit_wires]);
-    assertion.assert_any_failed_at("nblocks_nz");
+    assertion.assert_any_failed_at("assert_message_hash/assert_nblocks/nblocks_nz");
 }
 
 #[test]
@@ -204,7 +210,7 @@ fn test_eval_nblocks_failures() {
         let nblocks = bv.of_u8(0);
         let length_bytes = bv.of_u64(10);
         let assertion = sha256msg.assert_nblocks(&nblocks, &length_bytes);
-        assertion.assert_any_failed_at("nblocks_nz");
+        assertion.assert_any_failed_at("assert_nblocks/nblocks_nz");
     }
 
     // nblocks = 3 (violates nblocks_max for MAX_BLOCKS = 2)
@@ -212,7 +218,7 @@ fn test_eval_nblocks_failures() {
         let nblocks = bv.of_u8(3);
         let length_bytes = bv.of_u64(10);
         let assertion = sha256msg.assert_nblocks(&nblocks, &length_bytes);
-        assertion.assert_any_failed_at("nblocks_max");
+        assertion.assert_any_failed_at("assert_nblocks/nblocks_max");
     }
 
     // nblocks = 1, length_bytes = 56 (violates limit_upper because 56 + 9 = 65 > 64)
@@ -220,7 +226,7 @@ fn test_eval_nblocks_failures() {
         let nblocks = bv.of_u8(1);
         let length_bytes = bv.of_u64(56);
         let assertion = sha256msg.assert_nblocks(&nblocks, &length_bytes);
-        assertion.assert_any_failed_at("limit_upper");
+        assertion.assert_any_failed_at("assert_nblocks/limit_upper");
     }
 
     // nblocks = 2, length_bytes = 10 (violates limit_lower because 2 * 64 = 128 > 10 + 72 = 82)
@@ -228,6 +234,6 @@ fn test_eval_nblocks_failures() {
         let nblocks = bv.of_u8(2);
         let length_bytes = bv.of_u64(10);
         let assertion = sha256msg.assert_nblocks(&nblocks, &length_bytes);
-        assertion.assert_any_failed_at("limit_lower");
+        assertion.assert_any_failed_at("assert_nblocks/limit_lower");
     }
 }

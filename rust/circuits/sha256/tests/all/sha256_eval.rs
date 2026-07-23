@@ -96,6 +96,12 @@ fn test_eval_sha256_tampering() {
             "Corruptor '{}' failed to cause assertion error",
             c.name
         );
-        res.assert_any_failed_at(c.expected_path);
+        let failed = res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }

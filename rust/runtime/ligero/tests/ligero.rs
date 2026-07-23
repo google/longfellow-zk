@@ -22,7 +22,7 @@ use runtime_ligero::{
     LigeroCommitment, LigeroConfig, LigeroError, LigeroLinearConstraint, LigeroParam, LigeroProof,
     LigeroProver, LigeroQuadraticConstraint, LigeroVerifier,
 };
-use runtime_merkle::Digest;
+use runtime_merkle::{Digest, MerkleError};
 use runtime_random::{RandomEngine, Transcript};
 
 struct SimpleRng {
@@ -398,7 +398,23 @@ fn test_ligero_verifier_failures_generic<
             &make_interpolator,
             f,
         );
-        assert!(matches!(verify_res, Err(LigeroError::MerkleCheckFailed(_))));
+        match (W, verify_res) {
+            (
+                2,
+                Err(LigeroError::MerkleCheckFailed(MerkleError::ProofLengthMismatch {
+                    expected: 46,
+                    found: 45,
+                })),
+            ) => {}
+            (
+                4,
+                Err(LigeroError::MerkleCheckFailed(MerkleError::RootMismatch { expected, found })),
+            ) => {
+                assert_eq!(expected, bad_comm.root);
+                assert_ne!(found, bad_comm.root);
+            }
+            (_, other) => panic!("wrong error for corrupted Merkle commitment: {other:?}"),
+        }
     }
 
     // 2. wrong dot product
@@ -504,7 +520,12 @@ fn test_ligero_verifier_failures_generic<
             make_interpolator,
             f,
         );
-        assert!(matches!(verify_res, Err(LigeroError::InvalidProof(_))));
+        assert_eq!(
+            verify_res,
+            Err(LigeroError::InvalidProof(
+                "linear constraint index out of bounds".to_string()
+            ))
+        );
     }
 
     // 7. out of bounds quadratic constraint fails cleanly without panicking
@@ -524,7 +545,12 @@ fn test_ligero_verifier_failures_generic<
             make_interpolator,
             f,
         );
-        assert!(matches!(verify_res, Err(LigeroError::InvalidProof(_))));
+        assert_eq!(
+            verify_res,
+            Err(LigeroError::InvalidProof(
+                "quadratic constraint index out of bounds".to_string()
+            ))
+        );
     }
 }
 

@@ -21,12 +21,25 @@ use crate::{
     CompilerArena,
 };
 
+fn dedup_assertions<'a, F: CompileField>(
+    arena: &'a CompilerArena<'a, F>,
+    assertions: &[AssertionItem<'a, F>],
+) -> Assertions<'a, F> {
+    let mut seen = rustc_hash::FxHashSet::default();
+    let unique: Vec<_> = assertions
+        .iter()
+        .filter(|item| seen.insert(item.expr.id))
+        .cloned()
+        .collect();
+    arena.alloc_slice(&unique)
+}
+
 /// A rewriter that strips all nested `WithAssertions` nodes from an expression
 /// tree, collecting them into a side channel (`collected`) while delegating all
 /// other node constructions to a generic `NEXT` rewriter (typically `Cse`).
 struct StripRewriter<'a, 'b, F: CompileField, NEXT> {
     next: &'b NEXT,
-    collected: std::cell::RefCell<Vec<ExprNode<'a, F>>>,
+    collected: std::cell::RefCell<Vec<AssertionItem<'a, F>>>,
 }
 
 impl<'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
@@ -70,12 +83,12 @@ impl<'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
 
     fn with_assertions(
         &self,
-        assertions: &RawAssertions<'a, F>,
+        assertions: &Assertions<'a, F>,
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         self.collected
             .borrow_mut()
-            .extend(assertions.iter().copied());
+            .extend(assertions.iter().cloned());
         // Strip the assertions by returning the inner expression directly
         x
     }
@@ -106,22 +119,15 @@ pub fn strip_all<'a, 'b, F: CompileField>(
     let new_sub_exprs = rewriter.collected.replace(Vec::new());
 
     if new_sub_exprs.is_empty() {
-        return stripped_slice;
+        return dedup_assertions(arena, stripped_slice);
     }
 
     let mut current_items = stripped_slice.to_vec();
-    for sub_expr in new_sub_exprs {
-        current_items.push(AssertionItem {
-            expr: sub_expr,
-            path: Vec::new(),
-        });
-    }
+    current_items.extend(new_sub_exprs);
 
     loop {
-        current_items.sort_by_key(|item| item.expr.id);
-        current_items.dedup_by_key(|item| item.expr.id);
-
-        let stripped_slice = crate::ir::walk(arena, arena.alloc_slice(&current_items), &rewriter);
+        let unique_items = dedup_assertions(arena, &current_items);
+        let stripped_slice = crate::ir::walk(arena, unique_items, &rewriter);
         let new_sub_exprs = rewriter.collected.replace(Vec::new());
 
         if new_sub_exprs.is_empty() {
@@ -130,18 +136,11 @@ pub fn strip_all<'a, 'b, F: CompileField>(
         }
 
         let mut next_items = stripped_slice.to_vec();
-        for sub_expr in new_sub_exprs {
-            next_items.push(AssertionItem {
-                expr: sub_expr,
-                path: Vec::new(),
-            });
-        }
+        next_items.extend(new_sub_exprs);
         current_items = next_items;
     }
 
-    current_items.sort_by_key(|item| item.expr.id);
-    current_items.dedup_by_key(|item| item.expr.id);
-    arena.alloc_slice(&current_items)
+    dedup_assertions(arena, &current_items)
 }
 
 /// Rewrite function performing algebraic simplification with CSE after
@@ -154,5 +153,6 @@ pub fn rewrite<'a, 'b, F: CompileField>(
     let stripped = strip_all(arena, x);
     let cse = Cse::new(arena);
     let algebraic = AlgebraicRewriter::new(f, cse);
-    crate::ir::walk(arena, stripped, &algebraic)
+    let rewritten = crate::ir::walk(arena, stripped, &algebraic);
+    dedup_assertions(arena, rewritten)
 }

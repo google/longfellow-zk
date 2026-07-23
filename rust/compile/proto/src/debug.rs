@@ -169,7 +169,11 @@ impl<E: std::fmt::Debug> CompiledEvalAssertions<E> {
         let failed_under_path: Vec<_> = self
             .failed_paths()
             .into_iter()
-            .filter(|p| p == expected_path || p.contains(expected_path))
+            .filter(|p| {
+                p == expected_path
+                    || p.strip_prefix(expected_path)
+                        .is_some_and(|suffix| suffix.starts_with('/'))
+            })
             .collect();
         assert!(
             failed_under_path.is_empty(),
@@ -177,16 +181,17 @@ impl<E: std::fmt::Debug> CompiledEvalAssertions<E> {
         );
     }
 
-    /// Asserts that at least one assertion failed at the given expected path prefix.
+    /// Asserts that at least one assertion failed at exactly `expected_path`.
     pub fn assert_any_failed_at(&self, expected_path: &str) {
         let failed_under_path: Vec<_> = self
             .failed_paths()
             .into_iter()
-            .filter(|p| p == expected_path || p.contains(expected_path))
+            .filter(|p| p == expected_path)
             .collect();
+        let actual_failed = self.failed_paths();
         assert!(
             !failed_under_path.is_empty(),
-            "Expected compiled assertion at '{expected_path}' to fail, but none failed."
+            "Expected compiled assertion at '{expected_path}' to fail, but actual failed paths were: {actual_failed:?}"
         );
     }
 }

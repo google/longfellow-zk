@@ -122,7 +122,7 @@ fn test_compile_sha256() {
             nlayers: 6,
             nwires: 30354,
             nterms: 118114,
-            nassertions: 6657,
+            nassertions: 6840,
         },
     );
     let gf2_c = Gf2_128Field::new();
@@ -139,7 +139,7 @@ fn test_compile_sha256() {
             nlayers: 12,
             nwires: 51473,
             nterms: 98993,
-            nassertions: 6716,
+            nassertions: 6840,
         },
     );
 }
@@ -189,6 +189,14 @@ fn test_compile_sha256_tampering() {
             eval_res.is_err(),
             "Corruptor '{}' failed to cause circuit evaluation error",
             c.name
+        );
+        let failed = eval_res.failed_paths();
+        let expected_path = c.expected_compiled_path();
+        assert!(
+            failed.iter().any(|path| path == &expected_path),
+            "Corruptor '{}' expected exact compiled failure path '{}', actual failures: {failed:?}",
+            c.name,
+            expected_path
         );
     }
 }

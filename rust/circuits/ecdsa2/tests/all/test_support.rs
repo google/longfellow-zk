@@ -89,7 +89,7 @@ pub fn all_ecdsa_corruptors<
         },
         EcdsaCorruptor {
             name: "out_of_range_ers0",
-            expected_path: "ecdsa/range_check/range_check.0",
+            expected_path: "ecdsa/range_check/range_check.0/valid_index",
             corrupt: Box::new({
                 let fr = fr.clone();
                 move |g, _d| {
@@ -239,7 +239,7 @@ pub fn all_ecdsa_corruptors<
         },
         EcdsaCorruptor {
             name: "round255_0",
-            expected_path: "ecdsa/ax_zero",
+            expected_path: "ecdsa/slice_wx",
             corrupt: Box::new({
                 let fr = fr.clone();
                 move |_g, d| {
@@ -249,7 +249,7 @@ pub fn all_ecdsa_corruptors<
         },
         EcdsaCorruptor {
             name: "round255_2",
-            expected_path: "ecdsa/az_zero",
+            expected_path: "ecdsa/slice_wz",
             corrupt: Box::new({
                 let fr = fr.clone();
                 move |_g, d| {

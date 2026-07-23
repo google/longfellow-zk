@@ -101,7 +101,7 @@ fn test_eval_mdoc_signature_shared_corruptors() {
     let lp256 = L::new(&f);
     let sig_circuit = MdocSignature::new(&lp256, &curve);
 
-    let corruptors = mdoc_signature_corruptors::all_mdoc_signature_corruptors();
+    let corruptors = mdoc_signature_corruptors::all_mdoc_signature_corruptors::<P256Field>();
     for c in corruptors {
         let mut sig_input = base_sig_input.clone();
         if let Some(ref f_input) = c.corrupt_input {
@@ -135,6 +135,12 @@ fn test_eval_mdoc_signature_shared_corruptors() {
             "Corruptor '{}' failed to cause assertion error",
             c.name
         );
-        res.assert_any_failed_at(c.expected_path);
+        let failed = res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }

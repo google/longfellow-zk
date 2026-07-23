@@ -77,10 +77,7 @@ fn test_compile_cbor_decoder_for_field<
         }
         let eval_res =
             compile_eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, field_id).unwrap();
-        assert!(
-            eval_res.is_err(),
-            "Invalid CBOR byte 31 failed to cause circuit error"
-        );
+        eval_res.assert_any_failed_at("cbor_decoder_assert/valid_cbor_byte");
     }
 }
 

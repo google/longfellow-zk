@@ -179,7 +179,7 @@ fn test_compile_keccak_f_1600() {
             nlayers: 7,
             nwires: 429806,
             nterms: 738606,
-            nassertions: 40358,
+            nassertions: 40600,
         },
     );
 }

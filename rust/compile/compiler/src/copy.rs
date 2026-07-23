@@ -188,7 +188,7 @@ where NEXT: RewriteT<'a, F>
     }
     fn with_assertions(
         &self,
-        _assertions: &crate::ir::RawAssertions<'a, F>,
+        _assertions: &crate::ir::Assertions<'a, F>,
         _x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         panic!("UnexpectedWithAssertion")

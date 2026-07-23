@@ -158,5 +158,13 @@ fn test_compile_sha256msg_tampering() {
             "Corruptor '{}' failed to cause circuit evaluation error",
             c.name
         );
+        let failed = eval_res.failed_paths();
+        let expected_path = c.expected_compiled_path();
+        assert!(
+            failed.iter().any(|path| path == &expected_path),
+            "Corruptor '{}' expected exact compiled failure path '{}', actual failures: {failed:?}",
+            c.name,
+            expected_path
+        );
     }
 }

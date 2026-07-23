@@ -19,10 +19,10 @@ use compile_algebra::{
 use compile_compiler::{
     algsimp::AlgebraicRewriter,
     cse::Cse,
-    ir::{Expr, RewriteT},
+    ir::{AssertionItem, Expr, RewriteT},
     CompilerArena,
 };
-use core_algebra::Nat;
+use core_algebra::{AlgebraicField, Nat};
 
 fn run_test<
     const W: usize,
@@ -51,4 +51,28 @@ fn run_test<
 fn test_rewrite_algebraic_simplification() {
     let f = P256Field::new();
     run_test::<4, P256Field>(&f);
+}
+
+#[test]
+fn test_rewrite_coalesces_algebraically_equal_assertions() {
+    let f = P256Field::new();
+    let source_arena = CompilerArena::new();
+    let cse = Cse::new(&source_arena);
+    let x = cse.input(1);
+    let linear_x = cse.linear(&f.one(), &x);
+    let assertions = source_arena.alloc_slice(&[
+        AssertionItem {
+            expr: x,
+            path: vec!["first".to_string()],
+        },
+        AssertionItem {
+            expr: linear_x,
+            path: vec!["second".to_string()],
+        },
+    ]);
+
+    let target_arena = CompilerArena::new();
+    let rewritten = compile_compiler::assertion::rewrite(&target_arena, &f, assertions);
+    assert_eq!(rewritten.len(), 1);
+    assert_eq!(rewritten[0].path, vec!["first"]);
 }

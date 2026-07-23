@@ -125,10 +125,13 @@ pub fn rewrite<'a, F: CompileField>(
     let mut nodes = vec![one_wexpr];
     let mut quad_asserts = Vec::new();
     let ememo = WireMemoizer::new();
+    let mut assertion_wires = rustc_hash::FxHashSet::default();
     for item in x.iter() {
         let wx = walk_eltw(f, &ememo, &mut nodes, item.expr);
-        let quad_node_idx = push_node(&mut nodes, WExpr::Assert0(wx));
-        quad_asserts.push((quad_node_idx, item.path.clone()));
+        if assertion_wires.insert(wx) {
+            let quad_node_idx = push_node(&mut nodes, WExpr::Assert0(wx));
+            quad_asserts.push((quad_node_idx, item.path.clone()));
+        }
     }
     (QuadCircuit { nodes }, quad_asserts)
 }

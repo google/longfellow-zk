@@ -823,7 +823,7 @@ fn test_zk_zero_layers() {
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
 
     // Try all 16 combinations of zero / non-zero across the 4 inputs
-    for mask in 0..16 {
+    for mask in 0u32..16 {
         let raw = make_raw_circuit(&f, 4, 2, 4, 2, &[], &[], vec![]);
         let circ = Circuit { raw, id: [0u8; 32] };
 
@@ -903,13 +903,20 @@ fn test_zk_zero_layers() {
                 verify_res.err()
             );
         } else {
-            assert!(
-                eval_res.is_err(),
-                "eval_circuit should fail when input mask {mask} is non-zero"
+            let first_nonzero = mask.trailing_zeros() as usize;
+            let expected_eval_error = format!(
+                "Circuit output at index {first_nonzero} is not zero: {:?}",
+                f.one()
             );
-            assert!(
-                prove_res.is_err(),
-                "prove should fail when input mask {mask} is non-zero"
+            assert_eq!(
+                eval_res.unwrap_err(),
+                expected_eval_error,
+                "eval_circuit failed at the wrong check for input mask {mask}"
+            );
+            assert_eq!(
+                prove_res.unwrap_err(),
+                format!("eval_circuit failed: {expected_eval_error}"),
+                "prove failed at the wrong check for input mask {mask}"
             );
         }
     }

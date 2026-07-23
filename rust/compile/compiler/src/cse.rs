@@ -158,7 +158,7 @@ impl<'a, F: CompileField> RewriteT<'a, F> for Cse<'a, F> {
 
     fn with_assertions(
         &self,
-        assertions: &RawAssertions<'a, F>,
+        assertions: &crate::ir::Assertions<'a, F>,
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         self.memo_expr(Expr::WithAssertions(assertions, *x))

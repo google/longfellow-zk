@@ -18,7 +18,7 @@ use compile_logic::{Logic, LogicIO};
 use crate::{
     algsimp::AlgebraicRewriter,
     cse::Cse,
-    ir::{position_in_input_array, AssertionItemRef, ExprNode, RewriteT},
+    ir::{position_in_input_array, AssertionItemRef, Expr, ExprNode, RewriteT},
     CompilerArena,
 };
 
@@ -125,14 +125,64 @@ where NEXT: RewriteT<'a, F>
 
     fn assert0(&self, name: &str, x: &Self::Wire) -> Self::Assertions {
         assert!(!name.is_empty(), "assert0 requires a non-empty name");
-        let raw = self.next.assert0(x);
+        let own_raw = self.next.assert0(x);
         let root_scope = self.next.empty_scope();
         let name_str = self.arena.alloc_str(name);
-        let scope = self.next.push(name_str, root_scope);
-        let items: Vec<AssertionItemRef<'a, F>> = raw
-            .iter()
-            .map(|&expr| AssertionItemRef { expr, scope })
-            .collect();
+        let own_scope = self.next.push(name_str, root_scope);
+
+        // Assertions attached to a wire are logically siblings of the
+        // assertion consuming that wire.  Collect them here, before an outer
+        // assert_all adds its scope, so they receive the same enclosing path
+        // without being incorrectly nested under `name`.
+        let mut items = Vec::new();
+        let mut seen_assertions = rustc_hash::FxHashSet::default();
+        let mut seen_nodes = rustc_hash::FxHashSet::default();
+        let mut stack = vec![*x];
+        while let Some(node) = stack.pop() {
+            if !seen_nodes.insert(node.id) {
+                continue;
+            }
+            match &node.v {
+                Expr::Input(_) | Expr::One | Expr::Constant(_) => {}
+                Expr::Sum(children, _) => stack.extend(children.iter().rev().copied()),
+                Expr::Linear(_, child) => stack.push(*child),
+                Expr::Quadratic(_, left, right) => {
+                    stack.push(*right);
+                    stack.push(*left);
+                }
+                Expr::WithAssertions(attached, inner) => {
+                    for item in attached.iter() {
+                        if seen_assertions.insert(item.expr.id) {
+                            let mut scope = self.next.empty_scope();
+                            for component in item.path.iter().rev() {
+                                let component = self.arena.alloc_str(component);
+                                scope = self.next.push(component, scope);
+                            }
+                            items.push(AssertionItemRef {
+                                expr: item.expr,
+                                scope,
+                            });
+                        }
+                    }
+                    stack.push(*inner);
+                    stack.extend(attached.iter().rev().map(|item| item.expr));
+                }
+            }
+        }
+
+        for &expr in own_raw {
+            if seen_assertions.insert(expr.id) {
+                items.push(AssertionItemRef {
+                    expr,
+                    scope: own_scope,
+                });
+            }
+        }
+
+        let item_exprs: Vec<_> = items.iter().map(|item| item.expr).collect();
+        let item_exprs = self.arena.alloc_slice(&item_exprs);
+        let raw = self.next.assertions(&[item_exprs]);
+        assert_eq!(items.len(), raw.len());
         CompilerAssertions {
             item_refs: self.arena.alloc_slice(&items),
             raw,
@@ -148,15 +198,19 @@ where NEXT: RewriteT<'a, F>
         let name_str = self.arena.alloc_str(name);
 
         let mut items = Vec::new();
+        let mut seen = rustc_hash::FxHashSet::default();
         for child_group in assertions {
             for item in child_group.item_refs {
-                let scope = self.next.push(name_str, item.scope);
-                items.push(AssertionItemRef {
-                    expr: item.expr,
-                    scope,
-                });
+                if seen.insert(item.expr.id) {
+                    let scope = self.next.push(name_str, item.scope);
+                    items.push(AssertionItemRef {
+                        expr: item.expr,
+                        scope,
+                    });
+                }
             }
         }
+        assert_eq!(items.len(), raw.len());
         CompilerAssertions {
             item_refs: self.arena.alloc_slice(&items),
             raw,
@@ -164,7 +218,13 @@ where NEXT: RewriteT<'a, F>
     }
 
     fn with_assertions(&self, assertions: Self::Assertions, x: &Self::Wire) -> Self::Wire {
-        self.next.with_assertions(&assertions.raw, x)
+        let items: Vec<_> = assertions
+            .item_refs
+            .iter()
+            .map(AssertionItemRef::to_item)
+            .collect();
+        let items = self.arena.alloc_slice(&items);
+        self.next.with_assertions(&items, x)
     }
 
     fn to_stringw_debug(&self, _x: &Self::Wire) -> String {

@@ -103,6 +103,13 @@ fn test_compile_mac_for_field<
             "Corruptor '{}' failed to cause circuit evaluation error",
             c.name
         );
+        let failed = eval_res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact compiled failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }
 

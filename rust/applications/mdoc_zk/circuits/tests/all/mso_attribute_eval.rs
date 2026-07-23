@@ -219,6 +219,12 @@ fn test_eval_mso_attribute_shared_corruptors() {
             "Corruptor '{}' failed to cause assertion failure",
             c.name
         );
-        res.assert_any_failed_at(c.expected_path);
+        let failed = res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }

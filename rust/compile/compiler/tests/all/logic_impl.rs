@@ -191,3 +191,46 @@ fn test_compiler_assertion_path_and_simplification() {
     );
     assert_eq!(simplified[1].path, vec!["root_block", "check_input1_zero"]);
 }
+
+#[test]
+fn test_assertion_paths_do_not_expand_through_shared_groups() {
+    let f = P256Field::new();
+    let arena = CompilerArena::new();
+    let l = CompilerLogic::new(&arena, &f);
+    let x = l.input(1);
+
+    let mut assertion = l.assert0("leaf", &x);
+    for _ in 0..32 {
+        assertion = l.assert_all("shared", &[assertion, assertion]);
+        assert_eq!(assertion.item_refs.len(), 1);
+        assert_eq!(assertion.raw.len(), 1);
+    }
+
+    let item = assertion.item_refs[0].to_item();
+    assert_eq!(item.path.len(), 33);
+    assert_eq!(item.path.last().unwrap(), "leaf");
+
+    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    assert_eq!(info.nassertions, 1);
+    assert_eq!(symbols.symbols.len(), 1);
+}
+
+#[test]
+fn test_duplicate_assertion_paths_keep_first_path() {
+    let f = P256Field::new();
+    let arena = CompilerArena::new();
+    let l = CompilerLogic::new(&arena, &f);
+    let x = l.input(1);
+
+    let first = l.assert0("first", &x);
+    let second = l.assert0("second", &x);
+    let root = l.assert_all("root", &[first, second]);
+
+    assert_eq!(root.item_refs.len(), 1);
+    assert_eq!(root.item_refs[0].to_item().path, vec!["root", "first"]);
+
+    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 0, 0);
+    assert_eq!(info.nassertions, 1);
+    assert_eq!(symbols.symbols.len(), 1);
+    assert_eq!(symbols.symbols[0].formatted_path(), "root/first");
+}

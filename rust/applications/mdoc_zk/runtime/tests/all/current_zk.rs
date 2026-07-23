@@ -246,13 +246,21 @@ fn run_current_mdoc_all_positive_cases(test_circuits: &TestCircuits) {
 }
 
 fn run_current_mdoc_all_negative_cases(test_circuits: &TestCircuits) {
+    let mut executed = 0;
+    let mut skipped_for_attribute_count = Vec::new();
     for case in mdoc_zk_testcases::vectors::ALL_TEST_CASES {
         if !case.name.starts_with("fail-") {
             continue;
         }
         let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(case.data);
         let nattrs = parsed.attrs.len();
-        if nattrs == 0 || nattrs > 4 {
+        assert_ne!(
+            nattrs, 0,
+            "negative vector unexpectedly contains no attributes: {}",
+            case.name
+        );
+        if nattrs > 4 {
+            skipped_for_attribute_count.push(case.name);
             continue;
         }
         let ns = if case.data.doc_type.starts_with("org.iso.18013.5.1") {
@@ -302,9 +310,9 @@ fn run_current_mdoc_all_negative_cases(test_circuits: &TestCircuits) {
             }
         }
 
-        let Some(provided) = test_circuits.get(nattrs) else {
-            continue;
-        };
+        let provided = test_circuits
+            .get(nattrs)
+            .unwrap_or_else(|| panic!("missing {nattrs}-attribute circuit for {}", case.name));
 
         let mut rng = runtime_random::DeterministicRng::new(42);
 
@@ -320,12 +328,25 @@ fn run_current_mdoc_all_negative_cases(test_circuits: &TestCircuits) {
             case.data.doc_type,
             &mut rng,
         );
-        assert!(
-            zkproof_res.is_err(),
-            "Prover unexpectedly succeeded for fail case: {}",
+        assert_eq!(
+            zkproof_res,
+            Err(mdoc_zk_runtime::MdocProverErrorCode::GeneralFailure),
+            "wrong prover failure for negative case: {}",
             case.name
         );
+        executed += 1;
     }
+
+    assert_eq!(
+        skipped_for_attribute_count,
+        [
+            "fail-birthdate_0971_09_01-mdoc[3].json",
+            "fail-birthdate_1871_09_01-mdoc[3].json",
+            "fail-birthdate_1971_09_01_extra_0-mdoc[3].json",
+        ],
+        "the current API supports at most four attributes; every other negative vector must execute"
+    );
+    assert_eq!(executed, 3, "unexpected negative-vector coverage");
 }
 
 fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
@@ -368,7 +389,7 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
 
     // 1. Wrong PKX
     let invalid_key_x_string = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -379,15 +400,15 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
             now,
             doc_type,
             &zkproof
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject wrong PKX"
     );
 
     // 2. Wrong PKY
     let invalid_key_y_formatted =
         "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -398,8 +419,8 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
             now,
             doc_type,
             &zkproof
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject wrong PKY"
     );
 
@@ -410,7 +431,7 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
     } else {
         bad_transcript[0] ^= 0xff;
     }
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -421,14 +442,14 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
             now,
             doc_type,
             &zkproof
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject wrong transcript"
     );
 
     // 4. Wrong Timestamp
     let bad_now = "2099-01-01T00:00:00Z";
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -439,14 +460,14 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
             bad_now,
             doc_type,
             &zkproof
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject wrong timestamp"
     );
 
     // 5. Wrong Doc Type
     let bad_doc_type = "org.iso.18013.5.1.fake";
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -457,13 +478,13 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
             now,
             bad_doc_type,
             &zkproof
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject wrong doc_type"
     );
 
     // 6. Empty Doc Type
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -474,15 +495,15 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
             now,
             "",
             &zkproof
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject empty doc_type"
     );
 
     // 7. Attribute Mismatch - Wrong Value
     let mut bad_attrs_val = req_attrs.clone();
     bad_attrs_val[0].cbor_value = vec![0x63, b'f', b'o', b'o']; // Text "foo"
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -493,15 +514,15 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
             now,
             doc_type,
             &zkproof
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject wrong attribute value"
     );
 
     // 8. Attribute Mismatch - Wrong ID
     let mut bad_attrs_id = req_attrs.clone();
     bad_attrs_id[0].id = vec![b'x'];
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -512,8 +533,8 @@ fn run_current_verifier_negative_cases(test_circuits: &TestCircuits) {
             now,
             doc_type,
             &zkproof
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject wrong attribute id"
     );
 
@@ -634,41 +655,42 @@ fn run_current_verifier_attribute_reordering_and_duplicates(test_circuits: &Test
         doc_type,
         &mut rng,
     );
-    if let Ok(zkproof) = zkproof_res {
-        let reordered = vec![two_attrs[1].clone(), two_attrs[0].clone()];
-        assert!(
-            run_mdoc_verifier_inner(
-                &provided.spec,
-                &provided.compressed,
-                &pubkey_x_string,
-                &pubkey_y_formatted,
-                transcript,
-                &reordered,
-                now,
-                doc_type,
-                &zkproof
-            )
-            .is_err(),
-            "Verifier should reject reordered attributes"
-        );
+    let zkproof =
+        zkproof_res.expect("prover must succeed before verifier attribute-order corruptions");
 
-        let duplicates = vec![two_attrs[0].clone(), two_attrs[0].clone()];
-        assert!(
-            run_mdoc_verifier_inner(
-                &provided.spec,
-                &provided.compressed,
-                &pubkey_x_string,
-                &pubkey_y_formatted,
-                transcript,
-                &duplicates,
-                now,
-                doc_type,
-                &zkproof
-            )
-            .is_err(),
-            "Verifier should reject duplicate attributes"
-        );
-    }
+    let reordered = vec![two_attrs[1].clone(), two_attrs[0].clone()];
+    assert_eq!(
+        run_mdoc_verifier_inner(
+            &provided.spec,
+            &provided.compressed,
+            &pubkey_x_string,
+            &pubkey_y_formatted,
+            transcript,
+            &reordered,
+            now,
+            doc_type,
+            &zkproof
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
+        "Verifier should reject reordered attributes"
+    );
+
+    let duplicates = vec![two_attrs[0].clone(), two_attrs[0].clone()];
+    assert_eq!(
+        run_mdoc_verifier_inner(
+            &provided.spec,
+            &provided.compressed,
+            &pubkey_x_string,
+            &pubkey_y_formatted,
+            transcript,
+            &duplicates,
+            now,
+            doc_type,
+            &zkproof
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
+        "Verifier should reject duplicate attributes"
+    );
 }
 
 fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
@@ -730,7 +752,7 @@ fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
         let random_bytes: Vec<u8> = (0..len)
             .map(|i| u8::try_from(i * 37 % 256).unwrap())
             .collect();
-        assert!(
+        assert_eq!(
             run_mdoc_verifier_inner(
                 &provided.spec,
                 &provided.compressed,
@@ -741,8 +763,8 @@ fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
                 now,
                 doc_type,
                 &random_bytes
-            )
-            .is_err(),
+            ),
+            Err(mdoc_zk_runtime::MdocVerifierErrorCode::HashParsingFailure),
             "Verifier should reject random proof of len {len}"
         );
     }
@@ -752,7 +774,7 @@ fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
         if idx < zkproof.len() {
             let mut flipped = zkproof.clone();
             flipped[idx] ^= 0x55;
-            assert!(
+            assert_eq!(
                 run_mdoc_verifier_inner(
                     &provided.spec,
                     &provided.compressed,
@@ -763,8 +785,8 @@ fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
                     now,
                     doc_type,
                     &flipped
-                )
-                .is_err(),
+                ),
+                Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
                 "Verifier should reject proof with byte flip at index {idx}"
             );
         }
@@ -773,7 +795,7 @@ fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
     // 4. Truncated proof
     if zkproof.len() > 100 {
         let truncated = &zkproof[..zkproof.len() - 100];
-        assert!(
+        assert_eq!(
             run_mdoc_verifier_inner(
                 &provided.spec,
                 &provided.compressed,
@@ -784,8 +806,8 @@ fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
                 now,
                 doc_type,
                 truncated
-            )
-            .is_err(),
+            ),
+            Err(mdoc_zk_runtime::MdocVerifierErrorCode::HashParsingFailure),
             "Verifier should reject truncated proof"
         );
     }
@@ -793,7 +815,7 @@ fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
     // 5. Extended proof with trailing garbage
     let mut extended = zkproof.clone();
     extended.extend_from_slice(&[0xaa; 100]);
-    assert!(
+    assert_eq!(
         run_mdoc_verifier_inner(
             &provided.spec,
             &provided.compressed,
@@ -804,8 +826,8 @@ fn run_current_verifier_bad_proofs(test_circuits: &TestCircuits) {
             now,
             doc_type,
             &extended
-        )
-        .is_err(),
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
         "Verifier should reject proof with trailing garbage"
     );
 }

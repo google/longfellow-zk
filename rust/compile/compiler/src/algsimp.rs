@@ -149,7 +149,7 @@ where NEXT: RewriteT<'a, F>
 
     fn with_assertions(
         &self,
-        assertions: &crate::ir::RawAssertions<'a, F>,
+        assertions: &crate::ir::Assertions<'a, F>,
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         if assertions.is_empty() {

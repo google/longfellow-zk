@@ -16,7 +16,10 @@ use compile_algebra::{
     field::{CompileField, SupportsU64Conversions},
     gf2_128::Gf2_128Field,
 };
-use compile_logic::{eval::EvalLogic, Logic};
+use compile_logic::{
+    eval::{EvalLogic, EvalWire},
+    Logic,
+};
 
 fn run_test_eval_logic<F: CompileField + SupportsU64Conversions>(field: &F) {
     type L<'a, F> = EvalLogic<'a, F>;
@@ -73,51 +76,44 @@ fn run_test_eval_with_assertions_propagation<F: CompileField>(field: &F) {
     let val_ok = l.with_assertions(ok_assertion, &one);
     assert!(val_ok.error.is_ok());
 
-    // 2. An invalid assertion (one == zero) should propagate Err
+    // 2. An invalid attached assertion marks the wire invalid, while its
+    // provenance remains distinct from computation errors.
     let err_assertion = l.assert0("assert_one", &one);
     let val_err = l.with_assertions(err_assertion, &one);
     assert!(val_err.error.is_err());
 
-    // 3. Test propagation through all logic operations
-    // precious
-    assert!(l.precious(&val_err).error.is_err());
+    // 3. Test exact assertion propagation through all logic operations.
+    let assert_propagated = |wire: EvalWire<F>| {
+        assert!(wire.error.is_err());
+        let result = l.assert0("consumer", &wire);
+        result.assert_any_failed_at("assert_one");
+    };
 
-    // neg
-    assert!(l.neg(&val_err).error.is_err());
+    assert_propagated(l.precious(&val_err));
+    assert_propagated(l.neg(&val_err));
 
-    // add
-    assert!(l.add(&val_err, &zero).error.is_err());
-    assert!(l.add(&zero, &val_err).error.is_err());
+    assert_propagated(l.add(&val_err, &zero));
+    assert_propagated(l.add(&zero, &val_err));
 
-    // sub
-    assert!(l.sub(&val_err, &zero).error.is_err());
-    assert!(l.sub(&zero, &val_err).error.is_err());
+    assert_propagated(l.sub(&val_err, &zero));
+    assert_propagated(l.sub(&zero, &val_err));
 
-    // mul
-    assert!(l.mul(&val_err, &zero).error.is_err());
-    assert!(l.mul(&zero, &val_err).error.is_err());
+    assert_propagated(l.mul(&val_err, &zero));
+    assert_propagated(l.mul(&zero, &val_err));
 
-    // mulk
-    assert!(l.mulk(&field.one(), &val_err).error.is_err());
+    assert_propagated(l.mulk(&field.one(), &val_err));
 
-    // quadratic
-    assert!(l.quadratic(&field.one(), &val_err, &zero).error.is_err());
-    assert!(l.quadratic(&field.one(), &zero, &val_err).error.is_err());
+    assert_propagated(l.quadratic(&field.one(), &val_err, &zero));
+    assert_propagated(l.quadratic(&field.one(), &zero, &val_err));
 
-    // sum
-    assert!(l
-        .sum(&[zero.clone(), val_err.clone(), zero.clone()])
-        .error
-        .is_err());
+    assert_propagated(l.sum(&[zero.clone(), val_err.clone(), zero.clone()]));
 
-    // with_assertions (propagation of existing error inside x)
-    assert!(l.with_assertions(l.ok(), &val_err).error.is_err());
+    assert_propagated(l.with_assertions(l.ok(), &val_err));
 
-    // with_assertions (propagation of new error into valid x)
-    assert!(l
-        .with_assertions(l.assert0("check_one", &one), &zero)
-        .error
-        .is_err());
+    let newly_attached = l.with_assertions(l.assert0("check_one", &one), &zero);
+    let result = l.assert0("consumer", &newly_attached);
+    assert_eq!(result.failed_paths(), vec!["check_one"]);
+    assert_eq!(result.passed_paths(), vec!["consumer"]);
 }
 
 #[test]
@@ -191,4 +187,59 @@ fn test_eval_assertion_status_tracking() {
 
     combined.assert_any_failed_at("top/bad_zero");
     combined.assert_all_passed_at("top/good_zero");
+}
+
+#[test]
+fn test_eval_attached_assertion_keeps_exact_scoped_path() {
+    let field = Gf2_128Field::new();
+    let l = EvalLogic::new(&field);
+    let computed = l.one();
+    let witness = l.zero();
+
+    let sliced = l.slicing("slice", &witness, &computed);
+    let consumer = l.assert0("consumer", &sliced);
+    let root = l.assert_all("root", &[consumer]);
+
+    assert_eq!(root.all_paths(), vec!["root/slice", "root/consumer"]);
+    assert_eq!(root.failed_paths(), vec!["root/slice"]);
+    assert_eq!(root.passed_paths(), vec!["root/consumer"]);
+}
+
+#[test]
+fn test_eval_shared_attached_assertion_is_reported_once() {
+    let field = Gf2_128Field::new();
+    let l = EvalLogic::new(&field);
+    let bad = l.assert0("attached", &l.one());
+    let wire = l.with_assertions(bad, &l.zero());
+
+    let diamond = l.add(&wire, &wire);
+    let result = l.assert0("consumer", &diamond);
+
+    assert_eq!(result.failed_paths(), vec!["attached"]);
+    assert_eq!(result.passed_paths(), vec!["consumer"]);
+}
+
+#[test]
+fn test_eval_distinct_assertions_with_the_same_path_remain_distinct() {
+    let field = Gf2_128Field::new();
+    let l = EvalLogic::new(&field);
+    let left = l.with_assertions(l.assert0("same", &l.one()), &l.zero());
+    let right = l.with_assertions(l.assert0("same", &l.one()), &l.zero());
+
+    let result = l.assert0("consumer", &l.add(&left, &right));
+
+    assert_eq!(result.failed_paths(), vec!["same", "same"]);
+    assert_eq!(result.passed_paths(), vec!["consumer"]);
+}
+
+#[test]
+fn test_eval_shared_assertion_keeps_first_group_path() {
+    let field = Gf2_128Field::new();
+    let l = EvalLogic::new(&field);
+    let shared = l.assert0("leaf", &l.one());
+    let first = l.assert_all("first", std::slice::from_ref(&shared));
+    let second = l.assert_all("second", &[shared]);
+    let root = l.assert_all("root", &[first, second]);
+
+    assert_eq!(root.failed_paths(), vec!["root/first/leaf"]);
 }

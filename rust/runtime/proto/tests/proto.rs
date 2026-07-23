@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::ErrorKind;
+
 use core_algebra::{AlgebraicField, SupportsU64Conversions};
 use runtime_algebra::p256::P256Field;
 use runtime_proto::{
@@ -102,7 +104,9 @@ fn test_util_rejects_noncanonical_subfield_elt() {
     assert!(read_subfield_elt(&mut canonical, &sf).is_ok());
 
     let mut aliased = [1u8].as_slice();
-    assert!(read_subfield_elt(&mut aliased, &sf).is_err());
+    let err = read_subfield_elt(&mut aliased, &sf).unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::InvalidData);
+    assert_eq!(err.to_string(), "Non-canonical subfield element encoding");
 }
 
 #[test]
@@ -347,7 +351,12 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     duplicate_empty_run.extend_from_slice(&0u32.to_le_bytes());
     duplicate_empty_run.extend_from_slice(&canonical[36..]);
     let mut duplicate_run_input = duplicate_empty_run.as_slice();
-    assert!(LigeroProof::<2, _>::read(&mut duplicate_run_input, &geom, &f, &sf).is_err());
+    let err = LigeroProof::<2, _>::read(&mut duplicate_run_input, &geom, &f, &sf).unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::InvalidData);
+    assert_eq!(
+        err.to_string(),
+        "Non-canonical or invalid RLE run length in LigeroProof"
+    );
 
     // The same subfield element must not be accepted in the full-field run.
     let mut full_field_encoding = vec![0; 32]; // nonce
@@ -358,7 +367,12 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     full_field_encoding.extend_from_slice(&1u32.to_le_bytes());
     full_field_encoding.extend_from_slice(&[0; 32]);
     let mut full_field_input = full_field_encoding.as_slice();
-    assert!(LigeroProof::<2, _>::read(&mut full_field_input, &geom, &f, &sf).is_err());
+    let err = LigeroProof::<2, _>::read(&mut full_field_input, &geom, &f, &sf).unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::InvalidData);
+    assert_eq!(
+        err.to_string(),
+        "Non-canonical field encoding of subfield element in LigeroProof"
+    );
 }
 
 #[test]

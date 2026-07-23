@@ -318,7 +318,9 @@ fn test_namespace_mixup_exploit() {
         res.is_err(),
         "Expected tampered namespace/docType to fail circuit evaluation"
     );
-    res.assert_any_failed_at("assert_mso_doc_type");
+    res.assert_any_failed_at(
+        "assert_valid_presentation/assert_mso_doc_type/cbor_header/cbor_header.0/header_byte",
+    );
 }
 
 #[test]
@@ -366,7 +368,13 @@ fn test_eval_mdoc_hash_shared_corruptors() {
             "Corruptor '{}' failed to cause assertion error",
             c.name
         );
-        res.assert_any_failed_at(c.expected_path);
+        let failed = res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }
 
@@ -403,7 +411,9 @@ fn test_check_doc_type_suppression() {
     let wire_given_wrong = evaluate_given(&l, &bv, &given_wrong);
     let res_wrong = mdoc.assert_valid_presentation(&wire_given_wrong, &wire_derived);
     assert!(res_wrong.is_err());
-    res_wrong.assert_any_failed_at("assert_mso_doc_type");
+    res_wrong.assert_any_failed_at(
+        "assert_valid_presentation/assert_mso_doc_type/value_bytes/value_bytes.0/doc_type_byte",
+    );
 
     // 3. When suppress_doc_type_check is true, even with wrong expected_doc_type, evaluation
     //    succeeds (check suppressed).

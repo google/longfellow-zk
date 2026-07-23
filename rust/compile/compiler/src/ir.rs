@@ -82,10 +82,18 @@ impl<'a, F: CompileField> AssertionItemRef<'a, F> {
 }
 
 /// Assertion item coupling a root assertion expression with its scope path.
-#[derive(Debug)]
 pub struct AssertionItem<'a, F: CompileField> {
     pub expr: ExprNode<'a, F>,
     pub path: Vec<String>,
+}
+
+impl<F: CompileField> fmt::Debug for AssertionItem<'_, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AssertionItem")
+            .field("expr", &self.expr)
+            .field("path", &self.path)
+            .finish()
+    }
 }
 
 impl<'a, F: CompileField> Clone for AssertionItem<'a, F> {
@@ -104,6 +112,12 @@ impl<'a, F: CompileField> PartialEq for AssertionItem<'a, F> {
 }
 
 impl<'a, F: CompileField> Eq for AssertionItem<'a, F> {}
+
+impl<F: CompileField> Hash for AssertionItem<'_, F> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.expr.hash(state);
+    }
+}
 
 pub type Assertions<'a, F> = &'a [AssertionItem<'a, F>];
 
@@ -124,7 +138,7 @@ pub enum Expr<'a, F: CompileField> {
     // Slices are allocated directly in the compiler's arena (`bumpalo::Bump`)
     // instead of heap-allocated `BTreeSet` to avoid allocation/deallocation
     // overhead.
-    WithAssertions(RawAssertions<'a, F>, ExprNode<'a, F>),
+    WithAssertions(Assertions<'a, F>, ExprNode<'a, F>),
 }
 
 impl<F: CompileField> Copy for Expr<'_, F> {}
@@ -227,7 +241,7 @@ pub fn depth_expr<F: CompileField>(expr: &Expr<'_, F>) -> usize {
         Expr::Linear(_, x) => 1 + x.depth,
         Expr::Quadratic(_, x, y) => 1 + std::cmp::max(x.depth, y.depth),
         Expr::WithAssertions(a, x) => {
-            let a_depth = a.iter().map(|item| item.depth).max().unwrap_or(0);
+            let a_depth = a.iter().map(|item| item.expr.depth).max().unwrap_or(0);
             std::cmp::max(a_depth, x.depth)
         }
         Expr::Sum(elements, _) => elements.iter().map(depth_term).max().unwrap_or(0),
@@ -236,7 +250,7 @@ pub fn depth_expr<F: CompileField>(expr: &Expr<'_, F>) -> usize {
 
 pub fn extract_assertions<'a, F: CompileField>(
     x: &ExprNode<'a, F>,
-) -> (Vec<RawAssertions<'a, F>>, ExprNode<'a, F>) {
+) -> (Vec<Assertions<'a, F>>, ExprNode<'a, F>) {
     let mut current = *x;
     let assertions = std::iter::from_fn(|| {
         if let Expr::WithAssertions(a, y) = &current.v {
@@ -272,7 +286,7 @@ pub trait RewriteT<'a, F: CompileField> {
     fn quadratic(&self, elt: &F::E, x: &ExprNode<'a, F>, y: &ExprNode<'a, F>) -> ExprNode<'a, F>;
     fn with_assertions(
         &self,
-        assertions: &RawAssertions<'a, F>,
+        assertions: &Assertions<'a, F>,
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F>;
     fn empty_scope(&self) -> ScopeRef<'a>;
@@ -309,7 +323,7 @@ impl<'a, F: CompileField, T: RewriteT<'a, F>> RewriteT<'a, F> for &T {
     }
     fn with_assertions(
         &self,
-        assertions: &RawAssertions<'a, F>,
+        assertions: &Assertions<'a, F>,
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         (*self).with_assertions(assertions, x)
@@ -336,7 +350,7 @@ pub fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
             Expr::Quadratic(_, x, y) => vec![*x, *y],
             Expr::WithAssertions(a, x) => {
                 let mut children = vec![*x];
-                children.extend(a.iter().copied());
+                children.extend(a.iter().map(|item| item.expr));
                 children
             }
         }
@@ -381,14 +395,20 @@ pub fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
                     rewriter.quadratic(e, &walked_x, &walked_y)
                 }
                 Expr::WithAssertions(a, x) => {
-                    let walked_assertions_list: Vec<RawAssertions<'b, F>> = a
-                        .iter()
-                        .map(|child| {
-                            let walked_assertion = cache[child.id].unwrap();
-                            rewriter.assert0(&walked_assertion)
-                        })
-                        .collect();
-                    let walked_a = rewriter.assertions(&walked_assertions_list);
+                    let mut seen = rustc_hash::FxHashSet::default();
+                    let mut walked_assertions = Vec::new();
+                    for item in a.iter() {
+                        let walked_assertion = cache[item.expr.id].unwrap();
+                        for &expr in rewriter.assert0(&walked_assertion) {
+                            if seen.insert(expr.id) {
+                                walked_assertions.push(AssertionItem {
+                                    expr,
+                                    path: item.path.clone(),
+                                });
+                            }
+                        }
+                    }
+                    let walked_a = arena.alloc_slice(&walked_assertions);
                     let walked_x = cache[x.id].unwrap();
                     rewriter.with_assertions(&walked_a, &walked_x)
                 }

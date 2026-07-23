@@ -355,6 +355,8 @@ fn extract_debug_symbols<F: CompileField>(
     nodes: &[WExpr<F>],
     quad_asserts: &[(usize, Vec<String>)],
     wire_ids: &[WireId],
+    depth: &[usize],
+    max_depth: usize,
 ) -> crate::debug::CircuitDebugSymbols {
     let mut sym_list = Vec::new();
     for &(quad_idx, ref path) in quad_asserts {
@@ -366,14 +368,22 @@ fn extract_debug_symbols<F: CompileField>(
             if target_idx < wire_ids.len() {
                 let wid = wire_ids[target_idx].id_within_layer;
                 if wid != usize::MAX {
-                    let wire = crate::debug::WireRef::new(0, wid);
+                    let layer = max_depth
+                        .checked_sub(depth[target_idx])
+                        .expect("assertion target is deeper than the circuit");
+                    let wire = crate::debug::WireRef::new(layer, wid);
                     sym_list.push(crate::debug::AssertionSymbol::new(wire, path.clone()));
                 }
             }
         }
     }
-    sym_list.sort_by_key(|s| s.wire.index);
-    sym_list.dedup_by_key(|s| s.wire.index);
+    sym_list.sort_by_key(|s| (s.wire.layer, s.wire.index));
+    for pair in sym_list.windows(2) {
+        assert_ne!(
+            pair[0].wire, pair[1].wire,
+            "multiple assertions map to the same circuit wire"
+        );
+    }
     crate::debug::CircuitDebugSymbols::new(sym_list)
 }
 
@@ -390,6 +400,15 @@ pub fn schedule<F: CompileField + core_algebra::SerializableField>(
     crate::debug::CircuitDebugSymbols,
 ) {
     let mut nodes = c.nodes;
+    let nassertions = nodes
+        .iter()
+        .filter(|node| matches!(node, WExpr::Assert0(_)))
+        .count();
+    assert_eq!(
+        quad_asserts.len(),
+        nassertions,
+        "debug assertion records do not cover all circuit assertions"
+    );
     assert_all_needed(&nodes);
 
     let (depth, max_depth) = compute_node_depths(f, &mut nodes);
@@ -401,7 +420,12 @@ pub fn schedule<F: CompileField + core_algebra::SerializableField>(
 
     let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth);
 
-    let symbols = extract_debug_symbols(&nodes, quad_asserts, &wire_ids);
+    let symbols = extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth);
+    assert_eq!(
+        symbols.symbols.len(),
+        nassertions,
+        "debug symbols do not cover all circuit assertions"
+    );
 
     let (terms_in_layer, nwires_in_layer) =
         collect_quads(&nodes, &nodes_by_depth, max_depth, &wire_ids);
@@ -449,7 +473,7 @@ pub fn schedule<F: CompileField + core_algebra::SerializableField>(
         nlayers: c_layers.len(),
         nwires,
         nterms: total_terms,
-        nassertions: symbols.symbols.len(),
+        nassertions,
     };
 
     let layers: Vec<Layer<F>> = c_layers.into_iter().rev().collect();

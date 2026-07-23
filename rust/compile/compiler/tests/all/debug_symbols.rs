@@ -72,3 +72,82 @@ fn test_compiled_circuit_debug_symbols() {
         eval_res.assert_any_failed_at("root/block_b/check_w2");
     }
 }
+
+#[test]
+fn test_debug_symbols_record_assertion_layers() {
+    let f = P256Field::new();
+    let arena = CompilerArena::new();
+    let l = CompilerLogic::new(&arena, &f);
+
+    let x = l.input(1);
+    let square = l.mul(&x, &x);
+    let fourth_power = l.mul(&square, &square);
+
+    let input_assertion = l.assert0("input", &x);
+    let output_assertion = l.assert0("output", &fourth_power);
+    let root = l.assert_all("root", &[input_assertion, output_assertion]);
+
+    let (circuit, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 0, 0);
+    assert_eq!(info.nlayers, 2);
+    assert_eq!(info.nassertions, 2);
+    assert_eq!(symbols.symbols.len(), 2);
+
+    let input_symbol = symbols
+        .symbols
+        .iter()
+        .find(|symbol| symbol.formatted_path() == "root/input")
+        .unwrap();
+    assert_eq!(input_symbol.wire.layer, 1);
+
+    let output_symbol = symbols
+        .symbols
+        .iter()
+        .find(|symbol| symbol.formatted_path() == "root/output")
+        .unwrap();
+    assert_eq!(output_symbol.wire.layer, 0);
+
+    let runtime_f = RuntimeP256Field::new();
+    let failed = eval_circuit_fc(
+        &f,
+        &runtime_f,
+        &circuit,
+        &symbols,
+        &[runtime_f.one(), runtime_f.one()],
+        FieldID::P256,
+    )
+    .unwrap();
+    failed.assert_any_failed_at("root/input");
+}
+
+#[test]
+fn test_attached_assertion_keeps_its_path() {
+    let f = P256Field::new();
+    let arena = CompilerArena::new();
+    let l = CompilerLogic::new(&arena, &f);
+
+    let computed = l.input(1);
+    let witness = l.input(2);
+    let sliced = l.slicing("slice", &witness, &computed);
+    let consumer = l.assert0("consumer", &sliced);
+    let root = l.assert_all("root", &[consumer]);
+
+    let (circuit, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 0, 0);
+    assert_eq!(info.nassertions, 2);
+    assert_eq!(symbols.symbols.len(), 2);
+    assert!(symbols
+        .symbols
+        .iter()
+        .any(|symbol| symbol.formatted_path() == "root/slice"));
+
+    let runtime_f = RuntimeP256Field::new();
+    let failed = eval_circuit_fc(
+        &f,
+        &runtime_f,
+        &circuit,
+        &symbols,
+        &[runtime_f.one(), runtime_f.one(), runtime_f.zero()],
+        FieldID::P256,
+    )
+    .unwrap();
+    assert_eq!(failed.failed_paths(), vec!["root/slice"]);
+}

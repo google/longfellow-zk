@@ -63,6 +63,7 @@ pub fn eval_circuit<const W: usize, FR: RuntimeField<W> + core_algebra::Serializ
     };
 
     let mut current_v = vin;
+    let mut evaluations = Vec::new();
 
     for l in (0..raw.layers.len()).rev() {
         let noutput = if l == 0 {
@@ -71,19 +72,24 @@ pub fn eval_circuit<const W: usize, FR: RuntimeField<W> + core_algebra::Serializ
             raw.layers[l - 1].nw()
         };
 
-        match eval_layer(fr, l, noutput, &raw.layers[l], &raw.constants, &current_v) {
-            Ok(v) => current_v = v,
-            Err(err) => {
-                return crate::CompiledEvalAssertions {
-                    result: Err(err),
-                    evaluations: Vec::new(),
-                };
+        let (v, failed_wires) = eval_layer(fr, noutput, &raw.layers[l], &raw.constants, &current_v);
+        current_v = v;
+        evaluations.extend(failed_wires.into_iter().map(|index| {
+            let wire = crate::WireRef::new(l, index);
+            let path = symbols
+                .get_formatted_path(&wire)
+                .unwrap_or_else(|| format!("layer.{l}.wire.{index}"));
+            crate::EvaluatedCompiledAssertion {
+                wire,
+                path,
+                status: crate::CompiledAssertionStatus::Failed(
+                    "circuit assertion failed".to_string(),
+                ),
             }
-        }
+        }));
     }
 
-    let mut evaluations = Vec::new();
-    let mut overall_failed = false;
+    let mut overall_failed = !evaluations.is_empty();
 
     for (i, y) in current_v.iter().enumerate() {
         let wire = crate::WireRef::new(0, i);
@@ -121,14 +127,13 @@ pub fn eval_circuit<const W: usize, FR: RuntimeField<W> + core_algebra::Serializ
 
 fn eval_layer<FR: RuntimeField<W> + core_algebra::SerializableField, const W: usize>(
     fr: &FR,
-    _layer_idx: usize,
     noutput: usize,
     layer: &Layer<FR>,
     constants: &[ElementOf<FR>],
     vin: &[ElementOf<FR>],
-) -> Result<Vec<ElementOf<FR>>, EvalError> {
+) -> (Vec<ElementOf<FR>>, Vec<usize>) {
     let mut vout = vec![fr.zero(); noutput];
-    let mut failed = false;
+    let mut failed_wires = Vec::new();
 
     layer.for_each_term(
         constants,
@@ -138,7 +143,7 @@ fn eval_layer<FR: RuntimeField<W> + core_algebra::SerializableField, const W: us
 
             if fr.is_zero(&term.k) {
                 if !fr.is_zero(&y) {
-                    failed = true;
+                    failed_wires.push(term.g as usize);
                 }
             } else {
                 fr.fma(&mut vout[term.g as usize], &term.k, &y);
@@ -146,11 +151,9 @@ fn eval_layer<FR: RuntimeField<W> + core_algebra::SerializableField, const W: us
         },
     );
 
-    if failed {
-        Err(EvalError::AssertionFailure)
-    } else {
-        Ok(vout)
-    }
+    failed_wires.sort_unstable();
+    failed_wires.dedup();
+    (vout, failed_wires)
 }
 
 fn convert_circuit<FC: core_algebra::SerializableField, FR: core_algebra::SerializableField>(

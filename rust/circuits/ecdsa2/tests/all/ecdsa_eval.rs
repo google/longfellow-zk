@@ -131,7 +131,13 @@ fn test_ecdsa_signature_tampering_generic<
         let circuit_given = evaluate_given(&g, &logic);
         let circuit_derived = evaluate_derived(&d, &logic);
         let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
-        assertion.assert_any_failed_at(c.expected_path);
+        let failed = assertion.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }
 
