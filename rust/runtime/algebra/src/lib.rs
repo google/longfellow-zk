@@ -13,7 +13,6 @@
 // limitations under the License.
 pub mod arch;
 pub mod blas;
-pub mod convolution;
 pub mod fft;
 pub mod field;
 pub mod fp2;
@@ -24,6 +23,7 @@ pub mod lch14;
 pub mod lch14_reed_solomon;
 pub mod limb;
 pub mod mem;
+pub mod middle_product;
 pub mod nat;
 pub mod p256;
 pub(crate) mod permutations;

@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use runtime_algebra::{
-    convolution::{choose_padding, Convolver, FFTConvolution, FFTExtConvolution},
     field::RuntimeField,
     fp2::{Fp2Element, Fp2Field},
+    middle_product::{FFTExtMiddleProduct, FFTMiddleProduct, MiddleProduct},
     p256::P256Field,
     AlgebraicField,
 };
@@ -58,7 +58,7 @@ impl SimplePrg {
 }
 
 #[test]
-fn test_convolution_fft() {
+fn test_fft_middle_product() {
     let p256 = P256Field::new();
     let (f, omega, omega_order) = get_test_field_and_omega(&p256);
 
@@ -75,9 +75,9 @@ fn test_convolution_fft() {
         y.push(prg.next(&f));
     }
 
-    // Slow reference convolution
+    // Slow reference middle product
     let mut expected = vec![f.zero(); m];
-    for k in 0..m {
+    for k in (n - 1)..m {
         let mut s = f.zero();
         for i in 0..n {
             if k >= i && (k - i) < m {
@@ -88,20 +88,15 @@ fn test_convolution_fft() {
         expected[k] = s;
     }
 
-    // FFTConvolution
-    let padding = choose_padding(n + m - 1);
-    let mut y_padded = vec![f.zero(); padding];
-    y_padded[..m].clone_from_slice(&y);
+    let product = FFTMiddleProduct::<4, _>::new(n, m, &omega, omega_order, &y, &f);
+    let mut got = vec![f.zero(); m];
+    product.middle_product(&x, &mut got);
 
-    let convolver = FFTConvolution::<4, _>::new(n, padding, &omega, omega_order, &y_padded, &f);
-    let mut got = vec![f.zero(); padding];
-    convolver.convolution(&x, &mut got);
-
-    assert_eq!(&got[..m], &expected[..m]);
+    assert_eq!(&got[n - 1..m], &expected[n - 1..m]);
 }
 
 #[test]
-fn test_convolution_ext() {
+fn test_fft_ext_middle_product() {
     let p256 = P256Field::new();
     let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
 
@@ -134,9 +129,9 @@ fn test_convolution_ext() {
         y.push(prg.next(&p256));
     }
 
-    // Slow reference convolution
+    // Slow reference middle product
     let mut expected = vec![p256.zero(); m];
-    for k in 0..m {
+    for k in (n - 1)..m {
         let mut s = p256.zero();
         for i in 0..n {
             if k >= i && (k - i) < m {
@@ -147,15 +142,9 @@ fn test_convolution_ext() {
         expected[k] = s;
     }
 
-    // FFTExtConvolution
-    let padding = choose_padding(n + m - 1);
-    let mut y_padded = vec![p256.zero(); padding];
-    y_padded[..m].clone_from_slice(&y);
+    let product = FFTExtMiddleProduct::<4, _>::new(n, m, &omega, omega_order, &y, &p256, &fp2);
+    let mut got = vec![p256.zero(); m];
+    product.middle_product(&x, &mut got);
 
-    let convolver =
-        FFTExtConvolution::<4, _>::new(n, padding, &omega, omega_order, &y_padded, &p256, &fp2);
-    let mut got = vec![p256.zero(); padding];
-    convolver.convolution(&x, &mut got);
-
-    assert_eq!(&got[..m], &expected[..m]);
+    assert_eq!(&got[n - 1..m], &expected[n - 1..m]);
 }

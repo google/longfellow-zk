@@ -13,23 +13,24 @@
 // limitations under the License.
 
 use runtime_algebra::{
-    convolution::Convolver,
-    field::{AlgebraicField, RuntimeField, SupportsU64Conversions},
+    field::{AlgebraicField, RuntimeField, SupportsFFT, SupportsU64Conversions},
+    fp2::Fp2Field,
+    middle_product::MiddleProduct,
     p256::P256Field,
     reed_solomon::*,
-    Interpolator,
+    Interpolator, InterpolatorFactory,
 };
 
-struct SlowConvolver<const W: usize, F: RuntimeField<W>> {
+struct SlowMiddleProduct<const W: usize, F: RuntimeField<W>> {
     f: F,
     y: Vec<F::E>,
 }
 
-impl<const W: usize, F: RuntimeField<W>> Convolver<W, F> for SlowConvolver<W, F> {
-    fn convolution(&self, x: &[F::E], z: &mut [F::E]) {
+impl<const W: usize, F: RuntimeField<W>> MiddleProduct<W, F> for SlowMiddleProduct<W, F> {
+    fn middle_product(&self, x: &[F::E], z: &mut [F::E]) {
         let n = x.len();
         let m = z.len();
-        for (k, z_val) in z.iter_mut().enumerate().take(m) {
+        for (k, z_val) in z.iter_mut().enumerate().take(m).skip(n - 1) {
             let mut s = self.f.zero();
             for (i, x_val) in x.iter().enumerate().take(n) {
                 if k >= i && (k - i) < self.y.len() {
@@ -62,7 +63,7 @@ fn test_reed_solomon_slow() {
         f.zero(),
     ];
 
-    let rs = ReedSolomon::<4, _, _>::new(n, m, &f, |inverses| SlowConvolver {
+    let rs = ReedSolomon::<4, _, _>::new(n, m, &f, |inverses| SlowMiddleProduct {
         f: f.clone(),
         y: inverses.to_vec(),
     });
@@ -80,4 +81,22 @@ fn test_reed_solomon_slow() {
     for i in 0..5 {
         assert_eq!(y[n + i], expected[i], "Mismatch at index {}", n + i);
     }
+}
+
+#[test]
+fn test_fft_interpolator_can_encode_middle_product() {
+    let f = P256Field::new();
+    let f2: Fp2Field<'_, 4, _> = Fp2Field::new(&f);
+    let omega = <Fp2Field<'_, 4, P256Field> as SupportsFFT<4>>::omega(&f2);
+    let omega_order = <Fp2Field<'_, 4, P256Field> as SupportsFFT<4>>::omega_order(&f2);
+    let factory = FftInterpolatorFactory::new(&f, &f2, omega, omega_order);
+
+    assert!(!factory.can_encode(0, 2));
+    assert!(!factory.can_encode(3, 2));
+    assert!(!factory.can_encode(1, 1));
+    assert!(factory.can_encode(1, 2));
+
+    let max_size = usize::try_from(omega_order).unwrap();
+    assert!(factory.can_encode(max_size, max_size));
+    assert!(!factory.can_encode(max_size, max_size + 1));
 }

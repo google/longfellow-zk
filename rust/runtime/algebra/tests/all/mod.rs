@@ -14,12 +14,12 @@
 
 mod blas;
 mod cantor_basis;
-mod convolution;
 mod fft;
 mod fp2;
 mod fp_generic;
 mod gf2_128;
 mod lch14;
+mod middle_product;
 mod p256;
 mod q256;
 mod reed_solomon;

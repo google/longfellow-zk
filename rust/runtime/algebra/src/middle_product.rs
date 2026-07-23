@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// All of the classes in this package compute convolutions.
-// That is, given inputs arrays of field elements x, y, with |x|=n, |y|=m,
-// these methods compute the first m entries of
-//
-//    z[k] = \sum_{i=0}^{n-1} x[i] y[k-i]
-//
-// SlowConvolution uses an O(n*m) method for testing validation.
-//
-// FFTConvolution and FFTExtConvolution first pad y to length n and use advanced
-// FFT algorithms to compute the same in O(nlogn) time.
+//! Middle products of field-element arrays.
+//!
+//! Given arrays `x` and `y` with `|x| = n`, `|y| = m`, and `m >= n`, these
+//! types compute the ordinary product coefficients
+//!
+//! `z[k] = sum_{i=0}^{n-1} x[i] y[k-i]`
+//!
+//! for `n - 1 <= k < m`. Results are stored at the corresponding indices of an
+//! `m`-element output buffer. Entries below `n - 1` are unspecified because
+//! they may contain cyclic wraparound.
 
 use crate::{
     fft,
@@ -35,11 +35,17 @@ pub fn choose_padding(n: usize) -> usize {
     n.next_power_of_two()
 }
 
-pub trait Convolver<const W: usize, F: RuntimeField<W>> {
-    fn convolution(&self, x: &[F::E], z: &mut [F::E]);
+/// Computes a middle product against an operand fixed at construction time.
+pub trait MiddleProduct<const W: usize, F: RuntimeField<W>> {
+    /// Writes the middle-product coefficients to `z[n - 1..m]`.
+    ///
+    /// Here `n = x.len()` and `m = z.len()`. Entries below `n - 1` are
+    /// unspecified.
+    fn middle_product(&self, x: &[F::E], z: &mut [F::E]);
 }
 
-pub struct FFTConvolution<
+/// Computes middle products using an FFT over the base field.
+pub struct FFTMiddleProduct<
     'a,
     const W: usize,
     F: RuntimeField<W> + core_algebra::SupportsU64Conversions,
@@ -54,7 +60,7 @@ pub struct FFTConvolution<
 }
 
 impl<'a, const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversions>
-    FFTConvolution<'a, W, F>
+    FFTMiddleProduct<'a, W, F>
 {
     pub fn new(n: usize, m: usize, omega: &F::E, omega_order: u64, y: &[F::E], f: &'a F) -> Self {
         let padding = choose_padding(m);
@@ -80,14 +86,12 @@ impl<'a, const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversio
     }
 }
 
-impl<const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversions> Convolver<W, F>
-    for FFTConvolution<'_, W, F>
+impl<const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversions> MiddleProduct<W, F>
+    for FFTMiddleProduct<'_, W, F>
 {
-    // Computes (first m entries of) convolution of x with y, outputs in z:
-    // z[k] = \sum_{i=0}^{n-1} x[i] y[k-i].
-    // Note that y has already been FFT'd and divided by padding_ in
-    // constructor.
-    fn convolution(&self, x: &[F::E], z: &mut [F::E]) {
+    // Computes the middle product of x with y in z[n-1..m]. Note that y has
+    // already been FFT'd and divided by padding_ in the constructor.
+    fn middle_product(&self, x: &[F::E], z: &mut [F::E]) {
         assert_eq!(x.len(), self.n);
         assert_eq!(z.len(), self.m);
         let mut x_fft = vec![self.f.zero(); self.padding];
@@ -105,7 +109,8 @@ impl<const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversions> 
     }
 }
 
-pub struct FFTExtConvolution<
+/// Computes middle products using a real FFT over a quadratic extension.
+pub struct FFTExtMiddleProduct<
     'a,
     const W: usize,
     F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions,
@@ -124,7 +129,7 @@ impl<
         'a,
         const W: usize,
         F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions,
-    > FFTExtConvolution<'a, W, F>
+    > FFTExtMiddleProduct<'a, W, F>
 {
     pub fn new(
         n: usize,
@@ -160,13 +165,11 @@ impl<
 }
 
 impl<const W: usize, F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions>
-    Convolver<W, F> for FFTExtConvolution<'_, W, F>
+    MiddleProduct<W, F> for FFTExtMiddleProduct<'_, W, F>
 {
-    // Computes (first m entries of) convolution of x with y, stores in z:
-    // z[k] = \sum_{i=0}^{n-1} x[i] y[k-i].
-    // Note that y has already been FFT'd and divided by padding_ in
-    // constructor.
-    fn convolution(&self, x: &[F::E], z: &mut [F::E]) {
+    // Computes the middle product of x with y in z[n-1..m]. Note that y has
+    // already been FFT'd and divided by padding_ in the constructor.
+    fn middle_product(&self, x: &[F::E], z: &mut [F::E]) {
         assert_eq!(x.len(), self.n);
         assert_eq!(z.len(), self.m);
         let mut x_fft = vec![self.f.zero(); self.padding];

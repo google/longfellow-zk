@@ -12,30 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{convolution::Convolver, field::RuntimeField, utility::AlgebraUtil};
-
-// All of the classes in this package compute convolutions.
-// That is, given inputs arrays of field elements x, y, with |x|=n, |y|=m,
-// these methods compute the first m entries of
-//
-//    z[k] = \sum_{i=0}^{n-1} x[i] y[k-i]
+use crate::{field::RuntimeField, middle_product::MiddleProduct, utility::AlgebraUtil};
 
 /// The `ReedSolomon` class interpolates a polynomial given as input in point-eval
 /// form at a set of different points, thereby computing a form of RS encoding.
-/// Specifically, the input polynomial of degree d=n-1 is given as evaluations
-/// at 0, 1, 2, ..., n-1, and the output is the values at n, n+1, n+2, ...,
-/// n+m-1. The algorithm uses the following relation:
+///
+/// The API takes `n > 0` input evaluations `p(0), ..., p(n - 1)` and a total
+/// encoded length `m >= n`. [`Interpolator::interpolate`](crate::Interpolator::interpolate)
+/// receives an `m`-element buffer whose first `n` entries contain those input
+/// evaluations, and fills entries `n..m` with the `m - n` new evaluations
+/// `p(n), ..., p(m - 1)`.
+///
+/// The input polynomial has degree at most `d = n - 1`. The algorithm uses the
+/// following relation:
 ///
 ///   p(k) = (-1)^d (k-d)(k choose d) sum_{j=0}^{d} (1/k-j)(-1)^j (d choose
 /// j)p(j)
 ///
-/// which can be efficiently computed using a convolution, whose implementation
-/// is instantiated via the `make_convolver` closure parameter.
+/// which can be efficiently computed using a middle product, whose
+/// implementation is instantiated via the `make_middle_product` closure
+/// parameter.
 pub struct ReedSolomon<
     'a,
     const W: usize,
     F: RuntimeField<W> + core_algebra::SupportsU64Conversions,
-    C: Convolver<W, F>,
+    C: MiddleProduct<W, F>,
 > {
     f: &'a F,
     degree_bound: usize,
@@ -49,12 +50,17 @@ impl<
         'a,
         const W: usize,
         F: RuntimeField<W> + core_algebra::SupportsU64Conversions,
-        C: Convolver<W, F>,
+        C: MiddleProduct<W, F>,
     > ReedSolomon<'a, W, F, C>
 {
     /// n is the number of points provided
     /// m is the total number of points output (including the initial n points)
-    pub fn new(n: usize, m: usize, f: &'a F, make_convolver: impl FnOnce(&[F::E]) -> C) -> Self {
+    pub fn new(
+        n: usize,
+        m: usize,
+        f: &'a F,
+        make_middle_product: impl FnOnce(&[F::E]) -> C,
+    ) -> Self {
         assert!(n > 0, "ReedSolomon requires n > 0");
         assert!(
             m >= n,
@@ -65,7 +71,7 @@ impl<
         let mut inverses = vec![f.zero(); m];
         AlgebraUtil::batch_inverse_arithmetic(m, &mut inverses, f);
 
-        let c = make_convolver(&inverses);
+        let c = make_middle_product(&inverses);
 
         let mut leading_constant = vec![f.zero(); m - n + 1];
         let mut binom_i = vec![f.zero(); n];
@@ -121,7 +127,7 @@ impl<
 impl<
         const W: usize,
         F: RuntimeField<W> + core_algebra::SupportsU64Conversions,
-        C: Convolver<W, F>,
+        C: MiddleProduct<W, F>,
     > crate::Interpolator<W, F> for ReedSolomon<'_, W, F, C>
 {
     /// Given the values of a polynomial of degree at most n-1 at 0, 1, 2, ...,
@@ -137,9 +143,9 @@ impl<
         }
 
         let mut t = vec![self.f.zero(); self.m];
-        self.c.convolution(&x, &mut t);
+        self.c.middle_product(&x, &mut t);
 
-        // Multiply the leading constants by the convolution result
+        // Multiply the leading constants by the middle-product result
         for i in n..self.m {
             y[i] = self
                 .f
@@ -192,11 +198,11 @@ impl<
             + crate::field::SupportsQuadraticExtension<W>,
     > crate::interpolator::InterpolatorFactory<W, F> for FftInterpolatorFactory<'a, W, F>
 {
-    type Interpolator = ReedSolomon<'a, W, F, crate::convolution::FFTExtConvolution<'a, W, F>>;
+    type Interpolator = ReedSolomon<'a, W, F, crate::middle_product::FFTExtMiddleProduct<'a, W, F>>;
 
     fn make(&self, ylen: usize, block_enc: usize) -> Self::Interpolator {
         ReedSolomon::new(ylen, block_enc, self.f, |inverses| {
-            crate::convolution::FFTExtConvolution::new(
+            crate::middle_product::FFTExtMiddleProduct::new(
                 ylen,
                 block_enc,
                 &self.omega,
@@ -209,12 +215,19 @@ impl<
     }
 
     fn can_encode(&self, ylen: usize, block_enc: usize) -> bool {
-        // Multiplicative FFT interpolation uses polynomial convolution.
-        // To prevent aliasing/wrap-around during the convolution of the input (len `ylen`)
-        // with the interpolation kernel (len `block_enc`), the FFT size must be at least
-        // `ylen + block_enc - 1`. The nearest power of two of this size cannot exceed
-        // the order of the multiplicative group's largest power-of-two subgroup (`omega_order`).
-        let fft_size = (ylen + block_enc - 1).next_power_of_two();
-        (fft_size as u64) <= self.omega_order
+        // Let P be the cyclic FFT size. Since P >= m = block_enc, coefficients
+        // P..n+m-2 of the ordinary product can wrap only into 0..n-2. Thus the
+        // middle-product coefficients n-1..m-1 remain exact, so P =
+        // next_power_of_two(m) is sufficient. ReedSolomon additionally
+        // requires 0 < n <= m, and the current real FFT requires P >= 2.
+        ylen > 0
+            && block_enc >= ylen
+            && block_enc
+                .checked_next_power_of_two()
+                .is_some_and(|fft_size| {
+                    fft_size >= 2
+                        && u64::try_from(fft_size)
+                            .is_ok_and(|fft_size_u64| fft_size_u64 <= self.omega_order)
+                })
     }
 }
