@@ -95,7 +95,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         let ligero_param = LigeroParam::new(
             n_witness + pad_sz,
             self.circuit.raw.layers.len(),
-            self.config.clone(),
+            self.config,
             ctx.make_interpolator,
         );
         let sc_geom = runtime_proto::sumcheck::SumcheckProofGeometry {
@@ -125,7 +125,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         let ligero_param = LigeroParam::new(
             n_witness + pad_sz,
             self.circuit.raw.layers.len(),
-            self.config.clone(),
+            self.config,
             ctx.make_interpolator,
         );
         let mut lv = runtime_ligero::LigeroVerifier::new(tv, &ligero_param);
@@ -190,7 +190,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         let ligero_param = LigeroParam::new(
             n_witness + pad_sz,
             self.circuit.raw.layers.len(),
-            self.config.clone(),
+            self.config,
             ctx.make_interpolator,
         );
         let lqc = crate::common::setup_lqc(n_witness, &self.circuit);

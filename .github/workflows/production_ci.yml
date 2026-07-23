@@ -1,4 +1,4 @@
-name: Production Rust CI (Fast PR Check)
+name: Production Rust CI
 
 on:
   push:
@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 jobs:
-  fast-ci:
-    name: Fast Production Build & Test
+  build-and-test:
+    name: Build & Run All Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -25,10 +25,14 @@ jobs:
       - name: Ensure Rust toolchain is up to date
         run: rustup update stable
 
-      - name: Fast Compilation Check
+      - name: Compilation Check
         run: cargo check --all-targets
         working-directory: rust
 
-      - name: Fast Release Unit Tests
-        run: cargo test -r --workspace --exclude circuits-sha256msg --exclude circuits-sha256 --exclude circuits-mac
+      - name: Run clippy
+        run: cargo clippy --all-targets
+        working-directory: rust
+
+      - name: Run All Workspace Tests in Release Mode
+        run: cargo test -r --workspace --all-targets
         working-directory: rust

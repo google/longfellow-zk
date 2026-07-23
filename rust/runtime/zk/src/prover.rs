@@ -72,7 +72,7 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         let ligero_param = runtime_ligero::param::LigeroParam::new(
             witness.len(),
             self.circuit.raw.layers.len(),
-            self.config.clone(),
+            self.config,
             ctx.make_interpolator,
         );
 
