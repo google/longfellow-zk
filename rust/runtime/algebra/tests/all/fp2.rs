@@ -26,6 +26,10 @@ fn test_fp2_algebraic_properties() {
 
     let zero = field.zero();
     let one = field.one();
+    let imaginary_unit = field.i();
+
+    // P-256 explicitly supports the x^2 + 1 extension.
+    assert_eq!(field.mulf(&imaginary_unit, &imaginary_unit), field.mone());
 
     let a = Fp2Element {
         re: field.base_field().u64_to_element(1234567890u64),

@@ -24,10 +24,7 @@ use core_algebra::{
 };
 
 use crate::{
-    field::{
-        FieldElement, RuntimeField, RuntimeSerializableField, SupportsQuadraticExtension,
-        SupportsSampling,
-    },
+    field::{FieldElement, RuntimeField, RuntimeSerializableField, SupportsSampling},
     limb::{accum, accum_modular, lt, maybe_minus_m, maybe_plus_m, mul_accum, sub_limb},
     poly::InterpolationField,
     Limb, RuntimeNat,
@@ -622,11 +619,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
             }
         }
     }
-}
-
-impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
-    SupportsQuadraticExtension<W> for FpGenericField<W, L, ACCUM_L, Tag, S>
-{
 }
 
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    field::{RuntimeSerializableField, SupportsFFT},
+    field::{RuntimeSerializableField, SupportsFFT, SupportsQuadraticExtension},
     fp_generic::{FpGenericAccum, FpGenericElement, FpGenericField},
     Subfield,
 };
@@ -74,6 +74,10 @@ impl P256Field {
         )
     }
 }
+
+// The P-256 modulus is 3 modulo 4, so -1 is a quadratic nonresidue and
+// `x^2 + 1` defines a genuine quadratic extension.
+impl SupportsQuadraticExtension<4> for P256Field {}
 
 const P256_ROOT_OF_UNITY_RE: [u64; 4] = [
     0x985a65324b242562,

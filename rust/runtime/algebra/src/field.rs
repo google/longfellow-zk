@@ -83,6 +83,11 @@ pub trait SupportsSampling<const W: usize>: RuntimeField<W> {
 
 pub trait RuntimeBinaryField<const W: usize>: RuntimeField<W> {}
 
+/// Marker for base fields that support [`crate::fp2::Fp2Field`].
+///
+/// `Fp2Field` uses the fixed polynomial `x^2 + 1`, so implementors must ensure
+/// that `-1` is not a square in the base field. This property depends on the
+/// concrete modulus and cannot be inferred from a generic prime-field type.
 pub trait SupportsQuadraticExtension<const W: usize>: RuntimeField<W> {}
 
 pub trait SupportsFFT<const W: usize>: RuntimeField<W> {
