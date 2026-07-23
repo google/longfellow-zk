@@ -1,0 +1,34 @@
+name: Production Rust CI (Fast PR Check)
+
+on:
+  push:
+    branches:
+      - main
+      - rust
+  pull_request:
+    paths:
+      - 'rust/**'
+      - '.github/workflows/production_ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fast-ci:
+    name: Fast Production Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Ensure Rust toolchain is up to date
+        run: rustup update stable
+
+      - name: Fast Compilation Check
+        run: cargo check --all-targets
+        working-directory: rust
+
+      - name: Fast Release Unit Tests
+        run: cargo test -r --workspace --exclude circuits-sha256msg --exclude circuits-sha256 --exclude circuits-mac
+        working-directory: rust
