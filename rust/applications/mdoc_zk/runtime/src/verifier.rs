@@ -102,13 +102,13 @@ pub fn run_mdoc_verifier_inner(
     let (c_sig, c_hash) = crate::proto::decompress_circuits(circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
 
-    let verifier_hash = ZkVerifier::<2, _>::new(c_hash.clone(), config_hash);
+    let verifier_hash = ZkVerifier::<2, _>::new(c_hash, config_hash);
     let geom_hash = verifier_hash.geometry(&runtime_zk::common::ZkContext {
         f: &gf2,
         make_interpolator: &make_interpolator_hash,
     });
 
-    let verifier_sig = ZkVerifier::<4, _>::new(c_sig.clone(), config_sig);
+    let verifier_sig = ZkVerifier::<4, _>::new(c_sig, config_sig);
     let geom_sig = verifier_sig.geometry(&runtime_zk::common::ZkContext {
         f: &p256,
         make_interpolator: &make_interpolator_sig,
@@ -160,7 +160,7 @@ pub fn run_mdoc_verifier_inner(
         doc_type.as_bytes(),
     );
 
-    if pub_inputs_hash.len() != c_hash.raw.npublic_input {
+    if pub_inputs_hash.len() != verifier_hash.circuit.raw.npublic_input {
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
     }
 
@@ -193,7 +193,7 @@ pub fn run_mdoc_verifier_inner(
         av_val,
     );
 
-    if pub_inputs_sig.len() != c_sig.raw.npublic_input {
+    if pub_inputs_sig.len() != verifier_sig.circuit.raw.npublic_input {
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
     }
 

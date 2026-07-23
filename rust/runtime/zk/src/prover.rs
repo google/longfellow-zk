@@ -21,8 +21,8 @@ use crate::{common::ZkContext, ZkProof};
 
 /// The Zero-Knowledge Prover.
 pub struct ZkProver<const W: usize, F: ZkField<W>> {
-    circuit: core_proto::circuit::Circuit<F>,
-    config: runtime_ligero::param::LigeroConfig,
+    pub circuit: core_proto::circuit::Circuit<F>,
+    pub config: runtime_ligero::param::LigeroConfig,
 }
 
 pub struct ZkCommitResult<const W: usize, F: ZkField<W>> {

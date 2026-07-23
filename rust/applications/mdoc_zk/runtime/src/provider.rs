@@ -37,9 +37,10 @@ pub fn materialize(
                 .ok_or(MdocProverErrorCode::InvalidZkSpecVersion)?;
             let hash_hex = spec.combined_hash_hex();
             let compressed = mdoc_zk_artifacts::load_circuit_lfa2(&hash_hex);
-            let decompressed_bytes = zstd::decode_all(&compressed[..])
+            let zstd_decoder = zstd::stream::read::Decoder::new(&compressed[..])
                 .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
-            let archive = core_proto::archive::CircuitArchive::from_bytes(&decompressed_bytes)
+            let mut buf_stream = std::io::BufReader::new(zstd_decoder);
+            let archive = core_proto::archive::CircuitArchive::from_stream(&mut buf_stream)
                 .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
 
             Ok(ProvidedCircuit {

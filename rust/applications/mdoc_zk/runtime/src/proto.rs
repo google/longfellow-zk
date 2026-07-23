@@ -91,6 +91,8 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
     }
 }
 
+use std::io::BufRead;
+
 pub fn decompress_circuits(
     compressed: &[u8],
     p256: &runtime_algebra::p256::P256Field,
@@ -102,11 +104,19 @@ pub fn decompress_circuits(
     ),
     String,
 > {
-    let decompressed_bytes =
-        zstd::decode_all(compressed).map_err(|e| format!("Failed to decompress circuits: {e}"))?;
+    let zstd_decoder = zstd::stream::read::Decoder::new(compressed)
+        .map_err(|e| format!("Failed to initialize zstd decoder: {e}"))?;
+    let mut buf_stream = std::io::BufReader::new(zstd_decoder);
 
-    if decompressed_bytes.starts_with(core_proto::archive::LFA2_MAGIC) {
-        let archive = core_proto::archive::CircuitArchive::from_bytes(&decompressed_bytes)?;
+    let is_lfa2 = {
+        let peek = buf_stream
+            .fill_buf()
+            .map_err(|e| format!("Failed to read circuit header: {e}"))?;
+        peek.starts_with(core_proto::archive::LFA2_MAGIC)
+    };
+
+    if is_lfa2 {
+        let archive = core_proto::archive::CircuitArchive::from_stream(&mut buf_stream)?;
 
         let sig_entry = archive
             .get("sig")
@@ -122,8 +132,6 @@ pub fn decompress_circuits(
 
         Ok((c_sig, c_hash))
     } else {
-        let mut buf_stream = std::io::Cursor::new(&decompressed_bytes);
-
         let reader1 = core_proto::reader::CircuitReader::new(p256, core_proto::FieldID::P256);
         let c_sig = reader1.from_stream(&mut buf_stream, false)?;
 

@@ -76,8 +76,8 @@ impl std::error::Error for ZkVerificationError {}
 
 /// The Zero-Knowledge Verifier.
 pub struct ZkVerifier<const W: usize, F: ZkField<W>> {
-    circuit: core_proto::circuit::Circuit<F>,
-    config: LigeroConfig,
+    pub circuit: core_proto::circuit::Circuit<F>,
+    pub config: LigeroConfig,
 }
 
 impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {

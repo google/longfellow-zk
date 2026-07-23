@@ -119,7 +119,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
 
     let sf_sig = runtime_algebra::p256::P256Subfield::new(&p256);
 
-    let prover_hash = ZkProver::<2, _>::new(c_hash.clone(), config_hash);
+    let prover_hash = ZkProver::<2, _>::new(c_hash, config_hash);
     let (commit_hash, geom_hash) = prover_hash.commit(
         &witness_hash,
         &runtime_zk::common::ZkContext {
@@ -131,7 +131,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         &sf_hash,
     );
 
-    let prover_sig = ZkProver::<4, _>::new(c_sig.clone(), config_sig);
+    let prover_sig = ZkProver::<4, _>::new(c_sig, config_sig);
     let (commit_sig, geom_sig) = prover_sig.commit(
         &witness_sig,
         &runtime_zk::common::ZkContext {

@@ -21,7 +21,6 @@ pub type DigestBytes = [u8; 32];
 
 pub use crate::layer::{canonical_term, compare_term, Layer, Term, TermDelta};
 
-#[derive(Clone)]
 pub struct RawCircuit<F: SerializableField> {
     pub ninput: usize,
     pub npublic_input: usize,
@@ -32,7 +31,6 @@ pub struct RawCircuit<F: SerializableField> {
     pub layers: Vec<Layer<F>>,
 }
 
-#[derive(Clone)]
 pub struct Circuit<F: SerializableField> {
     pub raw: RawCircuit<F>,
     pub id: DigestBytes,
