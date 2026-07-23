@@ -81,7 +81,7 @@ pub fn parse_lfc2_bytes<F: Field + 'static, R: Read>(io: &mut R) -> std::io::Res
             let seg_len = read_uleb128(io)? as usize;
             let mut seg = Vec::with_capacity(seg_len);
             for _ in 0..seg_len {
-                seg.push((read_uleb128(io)? as usize) + 1); // 1-indexed to match Julia's segments
+                seg.push(read_uleb128(io)? as usize);
             }
             segments.push(seg);
         }
@@ -89,14 +89,14 @@ pub fn parse_lfc2_bytes<F: Field + 'static, R: Read>(io: &mut R) -> std::io::Res
         let token_len = read_uleb128(io)? as usize;
         let mut tokens = Vec::with_capacity(token_len);
         for _ in 0..token_len {
-            tokens.push((read_uleb128(io)? as usize) + 1); // 1-indexed to match Julia's segments
+            tokens.push(read_uleb128(io)? as usize);
         }
 
         let mut hc = Vec::new();
         let (mut g, mut h0, mut h1) = (0isize, 0isize, 0isize);
         for tok in tokens {
-            for &didx in &segments[tok - 1] {
-                let d = &deltas[didx - 1];
+            for &didx in &segments[tok] {
+                let d = &deltas[didx];
                 g += d.g;
                 h0 += d.h0;
                 h1 += d.h1;
