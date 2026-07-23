@@ -6,12 +6,14 @@ on:
     branches:
     - main
   pull_request:
+    branches:
+    - main
 
 jobs:
   build-and-deploy:
     permissions:
       contents: write
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
