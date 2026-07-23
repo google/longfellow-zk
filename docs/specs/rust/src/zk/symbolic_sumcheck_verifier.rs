@@ -95,13 +95,10 @@ fn verify_layer<F: Field + 'static>(
         beta,
     );
 
-    let next_claim0 = Var(pad.claims.c0) + plr.claims[0];
-    let next_claim1 = Var(pad.claims.c1) + plr.claims[1];
-
-    let prod_expr = (next_claim0.clone() * plr.claims[1]
-        + next_claim1.clone() * plr.claims[0]
+    let prod_expr = (Var(pad.claims.c0) * plr.claims[1]
+        + Var(pad.claims.c1) * plr.claims[0]
         + Var(pad.claims.cr)
-        - (plr.claims[0] * plr.claims[1]))
+        + (plr.claims[0] * plr.claims[1]))
         * eqq;
 
     claim -= prod_expr;
@@ -112,7 +109,10 @@ fn verify_layer<F: Field + 'static>(
 
     *claims_state = ClaimsState {
         logv: clr.logw,
-        claim: [next_claim0, next_claim1],
+        claim: [
+            Var(pad.claims.c0) + plr.claims[0],
+            Var(pad.claims.c1) + plr.claims[1],
+        ],
         hc: lchal_hc,
     };
 }

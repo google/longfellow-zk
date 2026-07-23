@@ -1,0 +1,17 @@
+[package]
+name = "circuits-memcmp"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-logic = { path = "../../compile/logic" }
+circuits-boolean = { path = "../boolean" }
+circuits-bitvec = { path = "../bitvec" }
+circuits-arithmetic = { path = "../arithmetic" }
+
+[dev-dependencies]
+compile-logic = { path = "../../compile/logic", features = ["testonly"] }

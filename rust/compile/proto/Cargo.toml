@@ -1,0 +1,13 @@
+[package]
+name = "compile-proto"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../algebra" }
+core-algebra = { path = "../../core/algebra" }
+core-proto = { path = "../../core/proto" }
+util = { path = "../../util" }

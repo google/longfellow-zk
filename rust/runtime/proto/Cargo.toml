@@ -1,0 +1,15 @@
+[package]
+name = "runtime-proto"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+util = { path = "../../util" }
+core-algebra = { path = "../../core/algebra" }
+core-proto = { path = "../../core/proto" }
+runtime-algebra = { path = "../algebra" }
+
+[dev-dependencies]

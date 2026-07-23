@@ -1,0 +1,47 @@
+[package]
+name = "runtime-algebra"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+core-algebra = { path = "../../core/algebra" }
+
+[dev-dependencies]
+num-bigint = "0.4"
+compile-algebra = { path = "../../compile/algebra" }
+num-traits = "0.2"
+criterion = "0.5"
+
+[[bench]]
+name = "p256_benchmark"
+harness = false
+
+[[bench]]
+name = "q256_benchmark"
+harness = false
+
+[[bench]]
+name = "fft_benchmark"
+harness = false
+
+[[bench]]
+name = "rfft_benchmark"
+harness = false
+
+[[bench]]
+name = "lch14_benchmark"
+harness = false
+
+[[bench]]
+name = "reed_solomon_benchmark"
+harness = false
+
+[features]
+testonly = []
+force-32bit-limbs = []
+limb32 = ["force-32bit-limbs"]
+force-generic-arch = []
+

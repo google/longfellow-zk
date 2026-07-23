@@ -1,0 +1,26 @@
+[package]
+name = "circuits-big-bitvec"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-logic = { path = "../../compile/logic" }
+core-algebra = { path = "../../core/algebra" }
+circuits-boolean = { path = "../boolean" }
+circuits-bitvec = { path = "../bitvec" }
+circuits-bignum = { path = "../bignum" }
+compile-eval = { path = "../../compile/eval", optional = true }
+runtime-algebra = { path = "../../runtime/algebra", optional = true }
+
+[features]
+testonly = [
+    "dep:compile-eval",
+    "dep:runtime-algebra",
+    "compile-logic/testonly",
+    "circuits-boolean/testonly",
+    "circuits-bitvec/testonly",
+]

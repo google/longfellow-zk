@@ -1,0 +1,17 @@
+[package]
+name = "compile-logic"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../algebra" }
+core-algebra = { path = "../../core/algebra" }
+util = { path = "../../util" }
+compile-eval = { path = "../eval", optional = true }
+runtime-algebra = { path = "../../runtime/algebra", optional = true }
+
+[features]
+testonly = ["dep:compile-eval", "dep:runtime-algebra", "runtime-algebra/testonly"]

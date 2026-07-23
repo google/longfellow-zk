@@ -1,0 +1,23 @@
+[package]
+name = "compile-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../algebra" }
+compile-logic = { path = "../logic" }
+compile-proto = { path = "../proto" }
+util = { path = "../../util" }
+core-algebra = { path = "../../core/algebra" }
+core-proto = { path = "../../core/proto" }
+rustc-hash = "2.1.0"
+bumpalo = "3.16.0"
+
+[dev-dependencies]
+compile-eval = { path = "../eval" }
+runtime-algebra = { path = "../../runtime/algebra" }
+
+

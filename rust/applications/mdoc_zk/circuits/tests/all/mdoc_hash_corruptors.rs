@@ -1,0 +1,125 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#![allow(dead_code)]
+
+use compile_algebra::CompileNat;
+use core_algebra::Nat;
+use mdoc_zk_circuits::hash::concrete::ConcreteGiven;
+
+pub struct MdocHashCorruptor {
+    pub name: &'static str,
+    pub expected_path: &'static str,
+    pub corrupt: Box<dyn Fn(&mut ConcreteGiven)>,
+}
+
+pub fn all_mdoc_hash_corruptors() -> Vec<MdocHashCorruptor> {
+    vec![
+        MdocHashCorruptor {
+            name: "corrupt_issuer_sig_e",
+            expected_path: "assert_valid_presentation",
+            corrupt: Box::new(|g| {
+                g.hash_input.issuer_sig_e = CompileNat::<4>::from_u64(0xdeadbeef);
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_preimage_byte",
+            expected_path: "assert_valid_presentation",
+            corrupt: Box::new(|g| {
+                g.preimage.value[10] ^= 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_doc_type_offset",
+            expected_path: "assert_mso_doc_type",
+            corrupt: Box::new(|g| {
+                g.doc_type_offset_in_preimage += 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_valid_from_offset",
+            expected_path: "assert_mso_validity",
+            corrupt: Box::new(|g| {
+                g.valid_from_offset_in_preimage += 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_valid_until_offset",
+            expected_path: "assert_mso_validity",
+            corrupt: Box::new(|g| {
+                g.valid_until_offset_in_preimage += 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_dev_key_info_offset",
+            expected_path: "assert_mso_device_key",
+            corrupt: Box::new(|g| {
+                g.dev_key_info_offset_in_preimage += 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_value_digests_offset",
+            expected_path: "assert_mso_value_digests",
+            corrupt: Box::new(|g| {
+                g.value_digests_offset_in_preimage += 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_mac_av",
+            expected_path: "assert_mac",
+            corrupt: Box::new(|g| {
+                g.mac_input.mac_av ^= 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_mac_e",
+            expected_path: "assert_mac",
+            corrupt: Box::new(|g| {
+                g.mac_e[0] ^= 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_mac_device_pkx",
+            expected_path: "assert_mac",
+            corrupt: Box::new(|g| {
+                g.mac_device_pkx[0] ^= 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_mac_device_pky",
+            expected_path: "assert_mac",
+            corrupt: Box::new(|g| {
+                g.mac_device_pky[0] ^= 1;
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_attribute_permutation_duplicate",
+            expected_path: "perm_neq",
+            corrupt: Box::new(|g| {
+                if let Some(attr) = g.attribute_given.get_mut(0) {
+                    attr.field_locator.permutation = 1 | (1 << 2) | (2 << 4) | (3 << 6);
+                }
+            }),
+        },
+        MdocHashCorruptor {
+            name: "corrupt_attribute_permutation_swap",
+            expected_path: "assert_attribute",
+            corrupt: Box::new(|g| {
+                if let Some(attr) = g.attribute_given.get_mut(0) {
+                    attr.field_locator.permutation = 1 | (0 << 2) | (2 << 4) | (3 << 6);
+                }
+            }),
+        },
+    ]
+}

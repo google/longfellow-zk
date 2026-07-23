@@ -1,0 +1,19 @@
+[package]
+name = "circuits-bit-plucker"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-logic = { path = "../../compile/logic" }
+circuits-analog-decoder = { path = "../analog_decoder" }
+circuits-bitvec = { path = "../bitvec" }
+core-algebra = { path = "../../core/algebra" }
+
+[dev-dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-compiler = { path = "../../compile/compiler" }
+circuits-boolean = { path = "../boolean" }
+compile-logic = { path = "../../compile/logic", features = ["testonly"] }

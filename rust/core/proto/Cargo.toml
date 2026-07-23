@@ -1,0 +1,19 @@
+[package]
+name = "core-proto"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+core-algebra = { path = "../algebra" }
+util = { path = "../../util" }
+sha2 = { version = "0.10", features = ["asm"] }
+
+[dev-dependencies]
+compile-compiler = { path = "../../compile/compiler" }
+circuits-boolean = { path = "../../circuits/boolean" }
+compile-logic = { path = "../../compile/logic" }
+compile-eval = { path = "../../compile/eval" }

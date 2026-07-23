@@ -1,0 +1,18 @@
+[package]
+name = "runtime-zk"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+runtime-algebra = { path = "../algebra" }
+runtime-proto = { path = "../proto" }
+runtime-random = { path = "../random" }
+runtime-sumcheck = { path = "../sumcheck" }
+runtime-ligero = { path = "../ligero" }
+core-proto = { path = "../../core/proto" }
+core-algebra = { path = "../../core/algebra" }
+[dev-dependencies]
+runtime-random = { path = "../random", features = ["testonly"] }

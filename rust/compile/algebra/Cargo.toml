@@ -1,0 +1,12 @@
+[package]
+name = "compile-algebra"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"
+core-algebra = { path = "../../core/algebra" }

@@ -1,0 +1,10 @@
+[package]
+name = "util"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+rustc-hash = "2.1.0"

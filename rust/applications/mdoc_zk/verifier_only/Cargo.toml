@@ -1,0 +1,14 @@
+[package]
+name = "mdoc-zk-verifier-only"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "verifier_only"
+path = "src/main.rs"
+
+[dependencies]
+mdoc-zk-runtime = { path = "../runtime" }

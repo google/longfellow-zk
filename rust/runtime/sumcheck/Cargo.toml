@@ -1,0 +1,24 @@
+[package]
+name = "runtime-sumcheck"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+runtime-algebra = { path = "../algebra" }
+runtime-proto = { path = "../proto" }
+runtime-random = { path = "../random" }
+core-proto = { path = "../../core/proto" }
+core-algebra = { path = "../../core/algebra" }
+
+[dev-dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-compiler = { path = "../../compile/compiler" }
+compile-logic = { path = "../../compile/logic" }
+criterion = "0.5"
+
+[[bench]]
+name = "sumcheck_bench"
+harness = false
