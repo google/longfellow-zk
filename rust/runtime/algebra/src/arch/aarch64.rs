@@ -17,6 +17,10 @@ compile_error!("AArch64 builds require ARMv8-A Cryptographic extension (+aes / P
 
 use std::arch::aarch64::*;
 
+#[cfg(all(
+    target_pointer_width = "64",
+    not(feature = "force-32bit-limbs")
+))]
 #[inline(always)]
 pub fn cmovne<const N: usize>(
     a: &mut [crate::limb::Limb; N],
@@ -103,6 +107,104 @@ pub fn cmovne<const N: usize>(
             core::arch::asm!(
                 "cmp {x}, {y}",
                 "csel {a}, {a}, {b}, eq",
+                x = in(reg) x,
+                y = in(reg) y,
+                a = inout(reg) ai,
+                b = in(reg) bi,
+                options(pure, nomem, nostack)
+            );
+        }
+        a[i] = ai;
+    }
+}
+
+#[cfg(any(target_pointer_width = "32", feature = "force-32bit-limbs"))]
+#[inline(always)]
+pub fn cmovne<const N: usize>(
+    a: &mut [crate::limb::Limb; N],
+    x: crate::limb::Limb,
+    y: crate::limb::Limb,
+    b: &[crate::limb::Limb; N],
+) {
+    #[cfg(target_arch = "aarch64")]
+    if N == 1 {
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:w}, {y:w}",
+                "csel {a0:w}, {a0:w}, {b0:w}, eq",
+                x = in(reg) x,
+                y = in(reg) y,
+                a0 = inout(reg) a[0],
+                b0 = in(reg) b[0],
+                options(pure, nomem, nostack)
+            );
+        }
+        return;
+    } else if N == 2 {
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:w}, {y:w}",
+                "csel {a0:w}, {a0:w}, {b0:w}, eq",
+                "csel {a1:w}, {a1:w}, {b1:w}, eq",
+                x = in(reg) x,
+                y = in(reg) y,
+                a0 = inout(reg) a[0],
+                a1 = inout(reg) a[1],
+                b0 = in(reg) b[0],
+                b1 = in(reg) b[1],
+                options(pure, nomem, nostack)
+            );
+        }
+        return;
+    } else if N == 3 {
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:w}, {y:w}",
+                "csel {a0:w}, {a0:w}, {b0:w}, eq",
+                "csel {a1:w}, {a1:w}, {b1:w}, eq",
+                "csel {a2:w}, {a2:w}, {b2:w}, eq",
+                x = in(reg) x,
+                y = in(reg) y,
+                a0 = inout(reg) a[0],
+                a1 = inout(reg) a[1],
+                a2 = inout(reg) a[2],
+                b0 = in(reg) b[0],
+                b1 = in(reg) b[1],
+                b2 = in(reg) b[2],
+                options(pure, nomem, nostack)
+            );
+        }
+        return;
+    } else if N == 4 {
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:w}, {y:w}",
+                "csel {a0:w}, {a0:w}, {b0:w}, eq",
+                "csel {a1:w}, {a1:w}, {b1:w}, eq",
+                "csel {a2:w}, {a2:w}, {b2:w}, eq",
+                "csel {a3:w}, {a3:w}, {b3:w}, eq",
+                x = in(reg) x,
+                y = in(reg) y,
+                a0 = inout(reg) a[0],
+                a1 = inout(reg) a[1],
+                a2 = inout(reg) a[2],
+                a3 = inout(reg) a[3],
+                b0 = in(reg) b[0],
+                b1 = in(reg) b[1],
+                b2 = in(reg) b[2],
+                b3 = in(reg) b[3],
+                options(pure, nomem, nostack)
+            );
+        }
+        return;
+    }
+    for i in 0..N {
+        let mut ai = a[i];
+        let bi = b[i];
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:w}, {y:w}",
+                "csel {a:w}, {a:w}, {b:w}, eq",
                 x = in(reg) x,
                 y = in(reg) y,
                 a = inout(reg) ai,

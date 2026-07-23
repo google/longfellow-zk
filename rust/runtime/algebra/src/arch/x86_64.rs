@@ -150,6 +150,14 @@ pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     unsafe { reduce_128(acc.0[0].0, acc.0[1].0, acc.0[2].0) }
 }
 
+#[cfg(any(
+    target_arch = "x86",
+    all(
+        target_arch = "x86_64",
+        target_pointer_width = "64",
+        not(feature = "force-32bit-limbs")
+    )
+))]
 #[inline(always)]
 pub fn cmovne<const N: usize>(
     a: &mut [crate::limb::Limb; N],
@@ -265,6 +273,106 @@ pub fn cmovne<const N: usize>(
             }
             a[i] = ai;
         }
+    }
+}
+
+#[cfg(all(
+    target_arch = "x86_64",
+    any(target_pointer_width = "32", feature = "force-32bit-limbs")
+))]
+#[inline(always)]
+pub fn cmovne<const N: usize>(
+    a: &mut [crate::limb::Limb; N],
+    x: crate::limb::Limb,
+    y: crate::limb::Limb,
+    b: &[crate::limb::Limb; N],
+) {
+    if N == 1 {
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:e}, {y:e}",
+                "cmovne {a0:e}, {b0:e}",
+                x = in(reg) x,
+                y = in(reg) y,
+                a0 = inout(reg) a[0],
+                b0 = in(reg) b[0],
+                options(pure, nomem, nostack)
+            );
+        }
+        return;
+    } else if N == 2 {
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:e}, {y:e}",
+                "cmovne {a0:e}, {b0:e}",
+                "cmovne {a1:e}, {b1:e}",
+                x = in(reg) x,
+                y = in(reg) y,
+                a0 = inout(reg) a[0],
+                a1 = inout(reg) a[1],
+                b0 = in(reg) b[0],
+                b1 = in(reg) b[1],
+                options(pure, nomem, nostack)
+            );
+        }
+        return;
+    } else if N == 3 {
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:e}, {y:e}",
+                "cmovne {a0:e}, {b0:e}",
+                "cmovne {a1:e}, {b1:e}",
+                "cmovne {a2:e}, {b2:e}",
+                x = in(reg) x,
+                y = in(reg) y,
+                a0 = inout(reg) a[0],
+                a1 = inout(reg) a[1],
+                a2 = inout(reg) a[2],
+                b0 = in(reg) b[0],
+                b1 = in(reg) b[1],
+                b2 = in(reg) b[2],
+                options(pure, nomem, nostack)
+            );
+        }
+        return;
+    } else if N == 4 {
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:e}, {y:e}",
+                "cmovne {a0:e}, {b0:e}",
+                "cmovne {a1:e}, {b1:e}",
+                "cmovne {a2:e}, {b2:e}",
+                "cmovne {a3:e}, {b3:e}",
+                x = in(reg) x,
+                y = in(reg) y,
+                a0 = inout(reg) a[0],
+                a1 = inout(reg) a[1],
+                a2 = inout(reg) a[2],
+                a3 = inout(reg) a[3],
+                b0 = in(reg) b[0],
+                b1 = in(reg) b[1],
+                b2 = in(reg) b[2],
+                b3 = in(reg) b[3],
+                options(pure, nomem, nostack)
+            );
+        }
+        return;
+    }
+    for i in 0..N {
+        let mut ai = a[i];
+        let bi = b[i];
+        unsafe {
+            core::arch::asm!(
+                "cmp {x:e}, {y:e}",
+                "cmovne {a:e}, {b:e}",
+                x = in(reg) x,
+                y = in(reg) y,
+                a = inout(reg) ai,
+                b = in(reg) bi,
+                options(pure, nomem, nostack)
+            );
+        }
+        a[i] = ai;
     }
 }
 
