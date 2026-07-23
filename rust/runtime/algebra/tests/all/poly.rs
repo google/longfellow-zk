@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod blas;
-mod cantor_basis;
-mod fft;
-mod fp2;
-mod fp_generic;
-mod gf2_128;
-mod lch14;
-mod middle_product;
-mod p256;
-mod poly;
-mod q256;
-mod reed_solomon;
-mod rfft;
-mod subfield;
+use runtime_algebra::{field::AlgebraicField, gf2_128::Gf2_128RuntimeField, Poly};
+
+#[test]
+fn test_zero_length_polynomial_rejects_evaluation() {
+    let f = Gf2_128RuntimeField::new();
+    let p = Poly::<0, 2, _>::zero(&f);
+    let x = f.zero();
+
+    assert!(
+        std::panic::catch_unwind(|| p.eval_monomial(&x, &f)).is_err(),
+        "accepted monomial evaluation of a zero-length polynomial"
+    );
+    assert!(
+        std::panic::catch_unwind(|| p.eval_newton(&x, &f)).is_err(),
+        "accepted Newton evaluation of a zero-length polynomial"
+    );
+}

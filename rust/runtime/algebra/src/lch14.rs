@@ -174,6 +174,12 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = crate::gf2_128::Gf2_128>> 
     // the unknown nonzero coefficients and the unknown n-k evaluations.
     pub fn bidirectional_fft(&self, l: usize, k: usize, b: &mut [F::E]) {
         assert!(l <= self.subfield.dimension());
+        let len = 1 << l;
+        assert!(k <= len, "bidirectional FFT requires k <= 2^l");
+        assert!(
+            b.len() >= len,
+            "bidirectional FFT buffer must contain at least 2^l elements"
+        );
         self.bidir_recur(l, 0, k, b);
     }
 

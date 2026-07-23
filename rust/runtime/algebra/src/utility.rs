@@ -22,6 +22,11 @@ impl AlgebraUtil {
         a: &mut [F::E],
         f: &F,
     ) {
+        assert!(n > 0, "batch inversion requires n > 0");
+        assert!(
+            n <= a.len(),
+            "batch inversion requires at least n output elements"
+        );
         a[0] = f.zero();
 
         let mut p = f.one();
@@ -41,5 +46,28 @@ impl AlgebraUtil {
             f.mul(&mut p, &bi);
             f.sub(&mut bi, &one);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AlgebraUtil;
+    use crate::{p256::P256Field, AlgebraicField};
+
+    #[test]
+    fn batch_inverse_rejects_invalid_bounds() {
+        let f = P256Field::new();
+
+        let mut empty = Vec::new();
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            AlgebraUtil::batch_inverse_arithmetic(0, &mut empty, &f);
+        }))
+        .is_err());
+
+        let mut short = vec![f.zero()];
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            AlgebraUtil::batch_inverse_arithmetic(2, &mut short, &f);
+        }))
+        .is_err());
     }
 }

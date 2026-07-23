@@ -84,6 +84,28 @@ fn test_reed_solomon_slow() {
 }
 
 #[test]
+fn test_reed_solomon_rejects_wrong_buffer_length() {
+    let f = P256Field::new();
+    let n = 2;
+    let m = 4;
+    let rs = ReedSolomon::<4, _, _>::new(n, m, &f, |inverses| SlowMiddleProduct {
+        f: f.clone(),
+        y: inverses.to_vec(),
+    });
+
+    for len in [m - 1, m + 1] {
+        let mut y = vec![f.zero(); len];
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                rs.interpolate(&mut y);
+            }))
+            .is_err(),
+            "accepted an interpolation buffer of length {len}"
+        );
+    }
+}
+
+#[test]
 fn test_fft_interpolator_can_encode_middle_product() {
     let f = P256Field::new();
     let f2: Fp2Field<'_, 4, _> = Fp2Field::new(&f);

@@ -134,6 +134,11 @@ impl<
     /// n-1, this computes the values at n, n+1, n+2, ..., m-1.
     /// (n points go in, m points come out)
     fn interpolate(&self, y: &mut [F::E]) {
+        assert_eq!(
+            y.len(),
+            self.m,
+            "ReedSolomon interpolation requires an m-element buffer"
+        );
         let n = self.degree_bound + 1;
 
         // Define x[i] = (-1)^i * \binom{n-1}{i} * p(i) for i=0 through n-1

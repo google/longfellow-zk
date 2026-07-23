@@ -51,6 +51,11 @@ impl<const W: usize, F: RuntimeBinaryField<W, E = crate::gf2_128::Gf2_128>> Inte
     for Lch14ReedSolomon<'_, W, F>
 {
     fn interpolate(&self, y: &mut [F::E]) {
+        assert_eq!(
+            y.len(),
+            self.m,
+            "LCH14 interpolation requires an m-element buffer"
+        );
         let fftn = self.n.next_power_of_two();
         let l = fftn.trailing_zeros() as usize;
 
