@@ -36,7 +36,7 @@ fn test_compile_lookup() {
     let res = table.eval(&x);
     let assertion = iologic.assert0("lookup_res", &res);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
 
     compile_compiler::top::dump_stats("lookup_eval_compile", &circuit, &stats);
 }

@@ -131,7 +131,7 @@ fn test_compile_ecdsa_generic<
 
     let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
 
-    let (circuit, stats, symbols) = compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, symbols) = compile(&arena, fc, assertion, 1, 0);
 
     dump_stats("ecdsa2", &circuit, &stats);
 
@@ -198,7 +198,7 @@ fn test_compile_ecdsa_signature_tampering_generic<
 
     let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
 
-    let (circuit, _stats, symbols) = compile(&arena, fc, assertion, 0, 0);
+    let (circuit, _stats, symbols) = compile(&arena, fc, assertion, 1, 0);
 
     // Verify valid inputs pass
     {

@@ -66,7 +66,7 @@ fn test_compile_ec_generic<
     let assertion = iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]);
 
     // Compile the circuit
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats("ec_add_double", &circuit, &stats);
 

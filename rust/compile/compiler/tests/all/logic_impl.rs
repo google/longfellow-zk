@@ -210,7 +210,7 @@ fn test_assertion_paths_do_not_expand_through_shared_groups() {
     assert_eq!(item.path.len(), 33);
     assert_eq!(item.path.last().unwrap(), "leaf");
 
-    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
     assert_eq!(info.nassertions, 1);
     assert_eq!(symbols.symbols.len(), 1);
 }
@@ -229,7 +229,7 @@ fn test_duplicate_assertion_paths_keep_first_path() {
     assert_eq!(root.item_refs.len(), 1);
     assert_eq!(root.item_refs[0].to_item().path, vec!["root", "first"]);
 
-    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 0, 0);
+    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 1, 0);
     assert_eq!(info.nassertions, 1);
     assert_eq!(symbols.symbols.len(), 1);
     assert_eq!(symbols.symbols[0].formatted_path(), "root/first");

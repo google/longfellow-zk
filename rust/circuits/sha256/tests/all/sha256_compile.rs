@@ -93,7 +93,7 @@ fn test_compile_sha256_for_field<
 
     let assertion = sha256.assert_transform_block(&given_wires, &derived_wires);
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -117,7 +117,7 @@ fn test_compile_sha256() {
         FieldID::P256,
         compile_eval::CircuitGeometry {
             ninput: 6657,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 176,
             nlayers: 6,
             nwires: 30354,
@@ -134,7 +134,7 @@ fn test_compile_sha256() {
         FieldID::Gf2_128,
         compile_eval::CircuitGeometry {
             ninput: 6657,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 128,
             nlayers: 12,
             nwires: 51473,
@@ -172,7 +172,7 @@ fn test_compile_sha256_tampering() {
     let derived_wires = circuits_sha256::allocate_derived(&bv, &mut pos);
 
     let assertion = sha256.assert_transform_block(&given_wires, &derived_wires);
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 1, 0);
 
     let corruptors = test_support::all_sha256_corruptors();
 

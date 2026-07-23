@@ -56,7 +56,7 @@ fn compile_circuit(
     let arena = CompilerArena::new();
     let assert_expr = build_fn(&arena, &fc);
 
-    let (circ_comp, _, _) = compile_compiler::top::compile(&arena, &fc, assert_expr, 0, 0);
+    let (circ_comp, _, _) = compile_compiler::top::compile(&arena, &fc, assert_expr, 1, 0);
 
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc, FieldID::P256);

@@ -72,7 +72,7 @@ fn test_circuit_archive_lfa1_roundtrip() {
     let a = iologic256.input(1);
     let ab = boolean256.of_eltw(a);
     let assertion256 = boolean256.assert_true("assert_a", &ab);
-    let (c_sig, _, _) = compile_compiler::top::compile(&arena256, &f256, assertion256, 0, 0);
+    let (c_sig, _, _) = compile_compiler::top::compile(&arena256, &f256, assertion256, 1, 0);
 
     let arena_gf2 = CompilerArena::new();
     let iologic_gf2 = CompilerLogic::new(&arena_gf2, &fgf2);
@@ -80,7 +80,7 @@ fn test_circuit_archive_lfa1_roundtrip() {
     let b = iologic_gf2.input(1);
     let bb = boolean_gf2.of_eltw(b);
     let assertion_gf2 = boolean_gf2.assert_true("assert_b", &bb);
-    let (c_hash, _, _) = compile_compiler::top::compile(&arena_gf2, &fgf2, assertion_gf2, 0, 0);
+    let (c_hash, _, _) = compile_compiler::top::compile(&arena_gf2, &fgf2, assertion_gf2, 1, 0);
 
     let w_sig = CircuitWriter::new(&f256, core_proto::FieldID::P256);
     let sig_bytes = w_sig.to_bytes_lfc1(&c_sig);
@@ -163,7 +163,7 @@ fn test_circuit_archive_legacy_concatenated_stream() {
     let a = iologic256.input(1);
     let ab = boolean256.of_eltw(a);
     let assertion256 = boolean256.assert_true("assert_a", &ab);
-    let (c_sig, _, _) = compile_compiler::top::compile(&arena256, &f256, assertion256, 0, 0);
+    let (c_sig, _, _) = compile_compiler::top::compile(&arena256, &f256, assertion256, 1, 0);
 
     let arena_gf2 = CompilerArena::new();
     let iologic_gf2 = CompilerLogic::new(&arena_gf2, &fgf2);
@@ -171,7 +171,7 @@ fn test_circuit_archive_legacy_concatenated_stream() {
     let b = iologic_gf2.input(1);
     let bb = boolean_gf2.of_eltw(b);
     let assertion_gf2 = boolean_gf2.assert_true("assert_b", &bb);
-    let (c_hash, _, _) = compile_compiler::top::compile(&arena_gf2, &fgf2, assertion_gf2, 0, 0);
+    let (c_hash, _, _) = compile_compiler::top::compile(&arena_gf2, &fgf2, assertion_gf2, 1, 0);
 
     let w_sig = CircuitWriter::new(&f256, core_proto::FieldID::P256);
     let sig_bytes = w_sig.to_bytes_lfc1(&c_sig);

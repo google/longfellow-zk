@@ -45,7 +45,7 @@ fn test_compile_keccak_f_1600_for_field<
 
     let assertion = sha3.assert_circuit(&given, &derived);
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -114,7 +114,7 @@ fn test_compile_keccak_f_1600_unrolled_for_field<
 
     let assertion = sha3.assert_eq_state(&s24_without_iota, &rhs);
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -157,7 +157,7 @@ fn test_compile_keccak_f_1600() {
         FieldID::Gf2_128,
         compile_eval::CircuitGeometry {
             ninput: 40001,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 40600,
             nlayers: 2,
             nwires: 119601,
@@ -174,7 +174,7 @@ fn test_compile_keccak_f_1600() {
         FieldID::P256,
         compile_eval::CircuitGeometry {
             ninput: 40001,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 600,
             nlayers: 7,
             nwires: 429806,
@@ -244,7 +244,7 @@ fn test_compile_keccak_f_1600_sliced_for_field<
     let (_s24, all_assertions) = sha3.assert_keccak_f_1600_sliced(&s0, &a_intermediates);
 
     let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, all_assertions, 0, 0);
+        compile_compiler::top::compile(&arena, fc, all_assertions, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 

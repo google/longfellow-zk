@@ -68,7 +68,7 @@ fn test_compile_gf2_128_mul_for_field<
     let assertion = bv.assert_eq("c_eq_target", &c, &target);
 
     // Compile!
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
     assert_eq!(stats, expected_stats);
@@ -100,7 +100,7 @@ fn test_compile_gf2_128_mul() {
         FieldID::Gf2_128,
         compile_eval::CircuitGeometry {
             ninput: 385,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 385,
             nwires: 1811,
             nterms: 10306,
@@ -118,7 +118,7 @@ fn test_compile_gf2_128_mul() {
         FieldID::P256,
         compile_eval::CircuitGeometry {
             ninput: 385,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 1,
             nwires: 19645,
             nterms: 27869,

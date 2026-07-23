@@ -32,7 +32,7 @@ fn test_circuit_compression_and_recompression() {
     }
     let assert_expr = logic.assert0("assert_x", &x);
 
-    let (original_circuit, _, _) = compile_compiler::top::compile(&arena, &f, assert_expr, 0, 0);
+    let (original_circuit, _, _) = compile_compiler::top::compile(&arena, &f, assert_expr, 1, 0);
 
     for layer in &original_circuit.raw.layers {
         assert!(

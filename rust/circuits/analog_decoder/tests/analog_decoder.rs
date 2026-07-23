@@ -36,7 +36,7 @@ fn test_compile_analog_decoder() {
     let (exactly_one, _decoded) = decoder.decode(&x);
     let assertion = exactly_one;
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
     compile_compiler::top::dump_stats("analog_decoder_compile", &circuit, &stats);
 }
 
@@ -57,7 +57,7 @@ fn test_compile_analog_decoder_binary() {
 
     let assertion = boolean.assert_true("assert_decoded0", &decoded[0]);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
 
     compile_compiler::top::dump_stats("analog_decoder_binary_compile", &circuit, &stats);
 }

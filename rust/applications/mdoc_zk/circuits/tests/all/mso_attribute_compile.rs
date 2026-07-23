@@ -41,7 +41,7 @@ where FC: mdoc_zk_circuits::MdocHashCompileField {
         verifier.assert_attribute(&given_wires, &derived_wires)
     };
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     (circuit, stats, symbols)
 }

@@ -49,7 +49,7 @@ fn test_compile_cbor_decoder_for_field<
     let full_assertion = iologic.assert_all("cbor_decoder_assert", &[add_assertion, not_invalid]);
 
     let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, full_assertion, 0, 0);
+        compile_compiler::top::compile(&arena, fc, full_assertion, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 

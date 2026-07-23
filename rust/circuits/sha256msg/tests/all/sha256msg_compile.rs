@@ -60,7 +60,7 @@ fn test_compile_sha256msg_for_field<
     let derived = circuits_sha256msg::concrete::derived(&given, MAX_BLOCKS);
 
     // Compile!
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -137,7 +137,7 @@ fn test_compile_sha256msg_tampering() {
         circuits_sha256msg::allocate_derived::<CompilerLogic<'_, P256Field>, 2>(&bv, &mut pos);
 
     let assertion = sha256msg.assert_message_hash::<2>(&given_wires, &derived_wires);
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 1, 0);
 
     let corruptors = test_support::all_sha256msg_corruptors();
 

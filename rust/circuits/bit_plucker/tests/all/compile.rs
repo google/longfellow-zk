@@ -39,7 +39,7 @@ fn test_compile_bit_plucker_for_field_n<
     let boolean = circuits_boolean::Boolean::new(&iologic);
     let assertion = boolean.assert_false("bit0_false", plucked.bit(0));
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats(&format!("{name}_{LOGN}"), &circuit, &stats);
 }

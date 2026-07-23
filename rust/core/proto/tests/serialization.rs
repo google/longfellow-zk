@@ -36,7 +36,7 @@ fn test_circuit_serialization_lfc2_roundtrip() {
     let x = boolean.xorb(&ab, &bb);
     let assertion = boolean.assert_true("assert_x", &x);
 
-    let (circuit, _, _) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, _, _) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
     let serialized = writer.to_bytes_lfc2(&circuit);
@@ -97,7 +97,7 @@ fn test_circuit_serialization_lfc1_roundtrip() {
     let x = boolean.xorb(&ab, &bb);
     let assertion = boolean.assert_true("assert_x", &x);
 
-    let (circuit, _, _) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, _, _) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
     let serialized = writer.to_bytes_lfc1(&circuit);
@@ -132,7 +132,7 @@ fn test_circuit_serialization_compatibility() {
     let x = boolean.xorb(&ab, &bb);
     let assertion = boolean.assert_true("assert_x", &x);
 
-    let (circuit, _, _) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, _, _) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
     let serialized_lfc1 = writer.to_bytes_lfc1(&circuit);

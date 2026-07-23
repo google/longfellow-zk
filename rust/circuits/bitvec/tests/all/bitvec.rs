@@ -32,7 +32,7 @@ fn test_compile_bitvec() {
     let (sum, _carry) = bv.unchecked_add(&a, &b);
     let assertion = bv.assert_false("sum_zero", &sum);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
     compile_compiler::top::dump_stats("bitvec_add_compile", &circuit, &stats);
 }
 
@@ -55,7 +55,7 @@ fn test_compile_bitvec_leq() {
     let leq = bv.leq(&a, &b);
     let assertion = boolean.assert_true("leq_true", &leq);
 
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 1, 0);
 
     // Let's test a = 65, b = 119
     let mut inputs = compile_eval::initial_inputs(&fr);
@@ -85,7 +85,7 @@ fn test_compile_bitvec_is_zero() {
     let is_zero = bv.is_zero(&a);
     let assertion = boolean.assert_true("zero_true", &is_zero);
 
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 1, 0);
 
     // Test a = 0 (should pass)
     let mut inputs = compile_eval::initial_inputs(&fr);
@@ -128,7 +128,7 @@ fn test_compile_bitvec_lt() {
     let boolean = Boolean::new(&iologic);
     let assertion = boolean.assert_true("lt_true", &bv.lt(&a, &b));
 
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 1, 0);
 
     // Test a = 65, b = 66 (should pass since 65 < 66)
     let mut inputs = compile_eval::initial_inputs(&fr);

@@ -63,7 +63,7 @@ where FC: MdocHashCompileField {
 
     let assertion = mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires);
 
-    compile_compiler::top::compile(&arena, fc, assertion, 0, 0)
+    compile_compiler::top::compile(&arena, fc, assertion, 1, 0)
 }
 
 fn push_bits<const W: usize, FR: RuntimeField<W>>(
@@ -248,7 +248,7 @@ fn test_mdoc_zk_circuits_hash_for_field<
 
     let assertion = mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires);
 
-    let (_circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (_circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats("mdoc_hash", &_circuit, &stats);
 }
@@ -322,9 +322,9 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     compile_compiler::top::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        0x7c, 0x04, 0x99, 0xe9, 0x93, 0xc5, 0xc9, 0x2e, 0xf6, 0x76, 0xaf, 0xde, 0x4a, 0xb7, 0x9e,
-        0x27, 0x3b, 0x7e, 0x45, 0xce, 0xdb, 0x82, 0xed, 0xc0, 0x27, 0xad, 0x50, 0x04, 0x52, 0xd8,
-        0xa0, 0x8a,
+        0x7f, 0xec, 0x95, 0x56, 0x51, 0x4f, 0x03, 0xfb, 0x2f, 0x83, 0x3c, 0xf2, 0xe5, 0xea, 0x7e,
+        0x87, 0x3e, 0x06, 0x2b, 0x4d, 0x83, 0x25, 0x1e, 0x7b, 0x91, 0x4e, 0x36, 0xfc, 0x43, 0xbe,
+        0x97, 0x26,
     ];
     assert_eq!(
         circuit.id, expected_id,

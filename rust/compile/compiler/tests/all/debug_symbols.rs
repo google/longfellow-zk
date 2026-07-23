@@ -39,7 +39,7 @@ fn test_compiled_circuit_debug_symbols() {
     let block_b = l.assert_all("block_b", &[assert2]);
     let root = l.assert_all("root", &[block_a, block_b]);
 
-    let (circuit, _info, symbols) = compile_compiler::top::compile(&arena, &f, root, 0, 0);
+    let (circuit, _info, symbols) = compile_compiler::top::compile(&arena, &f, root, 1, 0);
 
     assert_eq!(symbols.symbols.len(), 2);
     let paths: Vec<String> = symbols.symbols.iter().map(|s| s.formatted_path()).collect();
@@ -87,7 +87,7 @@ fn test_debug_symbols_record_assertion_layers() {
     let output_assertion = l.assert0("output", &fourth_power);
     let root = l.assert_all("root", &[input_assertion, output_assertion]);
 
-    let (circuit, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 0, 0);
+    let (circuit, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 1, 0);
     assert_eq!(info.nlayers, 2);
     assert_eq!(info.nassertions, 2);
     assert_eq!(symbols.symbols.len(), 2);
@@ -131,7 +131,7 @@ fn test_attached_assertion_keeps_its_path() {
     let consumer = l.assert0("consumer", &sliced);
     let root = l.assert_all("root", &[consumer]);
 
-    let (circuit, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 0, 0);
+    let (circuit, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 1, 0);
     assert_eq!(info.nassertions, 2);
     assert_eq!(symbols.symbols.len(), 2);
     assert!(symbols

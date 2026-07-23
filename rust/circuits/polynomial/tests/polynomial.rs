@@ -34,7 +34,7 @@ fn test_compile_polynomial() {
     let res = p.eval(&cc, &x);
     let assertion = iologic.assert0("poly_res", &res);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
 
     compile_compiler::top::dump_stats("polynomial_eval_compile", &circuit, &stats);
 }

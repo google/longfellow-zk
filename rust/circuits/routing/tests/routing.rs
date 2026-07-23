@@ -45,12 +45,12 @@ fn test_compile_routing() {
     }
     let assertion = iologic.assert_all("shifte_routing", &asserts);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
 
     compile_compiler::top::dump_stats("shifte_16_16_2", &circuit, &stats);
 
     assert_eq!(stats.ninput, 22);
-    assert_eq!(stats.npublic_input, 0); // Changed to 0 as public input tracking is disabled
+    assert_eq!(stats.npublic_input, 1);
     assert_eq!(stats.noutput, 16);
     assert_eq!(stats.nlayers, 3);
     assert_eq!(stats.nwires, 74);

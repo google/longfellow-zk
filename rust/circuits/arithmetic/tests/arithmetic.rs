@@ -41,7 +41,7 @@ fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) 
     let a2 = boolean.assert_false("no_carry", &carry);
     let assertion = iologic.assert_all("test_add", &[a1, a2]);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 1, 0);
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
@@ -67,7 +67,7 @@ fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) 
     let a2 = boolean.assert_false("no_carry", &carry);
     let assertion = iologic.assert_all("test_sub", &[a1, a2]);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 1, 0);
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
@@ -91,7 +91,7 @@ fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
     let res = arith.lt(&a, &b);
     let assertion = boolean.assert_false("lt_false", &res);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 1, 0);
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
@@ -115,7 +115,7 @@ fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) 
     let res = arith.leq(&a, &b);
     let assertion = boolean.assert_false("leq_false", &res);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 1, 0);
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
@@ -139,7 +139,7 @@ fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
     let res = arith.eqb(&a, &b);
     let assertion = boolean.assert_false("eq_false", &res);
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 1, 0);
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 

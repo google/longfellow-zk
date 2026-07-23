@@ -432,6 +432,10 @@ pub fn schedule<F: CompileField + core_algebra::SerializableField>(
 
     let ninput = validate_and_count_inputs(&nodes);
     assert!(
+        npublic_input >= 1,
+        "npublic_input must include the reserved constant One"
+    );
+    assert!(
         npublic_input <= ninput,
         "npublic_input ({npublic_input}) exceeds ninput ({ninput})"
     );

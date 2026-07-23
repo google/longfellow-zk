@@ -28,7 +28,7 @@ fn test_compile_mac_gf128_for_field<FC: CompileField + SerializableField>(fc: &F
     let assertion = mac_circuit.assert_mac(&given);
 
     // Compile!
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }

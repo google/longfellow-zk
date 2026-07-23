@@ -40,12 +40,12 @@ fn test_mdoc_zk_circuits_signature_generic(fc: &P256Field, _fr: &runtime_algebra
 
     let assertion = mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires);
 
-    let (_circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+    let (_circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
     assert_eq!(
         stats,
         compile_eval::CircuitGeometry {
             ninput: 4773,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 6,
             nlayers: 19,
             nwires: 167739,
@@ -90,7 +90,7 @@ where FC: MdocSigCompileField {
     let derived_wires = mdoc_zk_circuits::signature::allocate_derived(&iologic, &mut pos);
     let assertion = mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires);
 
-    compile_compiler::top::compile(&arena, fc, assertion, 0, 0)
+    compile_compiler::top::compile(&arena, fc, assertion, 1, 0)
 }
 
 fn push_nat_bits<F: AlgebraicField, N: Nat<4>>(
@@ -247,9 +247,9 @@ fn test_serialize_and_verify_mdoc_signature_circuit() {
     let (circuit, _stats) = mdoc_zk_circuits_signature_circuit(&p256_c);
 
     let expected_id: [u8; 32] = [
-        0xb7, 0xe1, 0xc2, 0x00, 0xe1, 0x88, 0x02, 0xf1, 0x92, 0xf1, 0xe3, 0x0d, 0xcb, 0x33, 0x36,
-        0x26, 0x31, 0x3e, 0x20, 0x25, 0xab, 0xb1, 0xa8, 0x0f, 0x88, 0x7c, 0x05, 0x49, 0x69, 0xd1,
-        0x8f, 0x0b,
+        0x2b, 0x08, 0x70, 0xbd, 0x6a, 0x14, 0x39, 0x85, 0xbe, 0x93, 0x79, 0x0f, 0x2c, 0xaa, 0x6b,
+        0x66, 0x81, 0x3e, 0x6b, 0xff, 0x27, 0xe8, 0x7a, 0xd6, 0xe9, 0x93, 0x0f, 0x62, 0x1b, 0xa2,
+        0x74, 0xe9,
     ];
     assert_eq!(
         circuit.id, expected_id,
