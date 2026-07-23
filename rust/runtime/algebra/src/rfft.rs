@@ -146,10 +146,10 @@ pub struct Twiddle<const W: usize, F: SupportsQuadraticExtension<W>> {
 }
 
 impl<const W: usize, F: SupportsQuadraticExtension<W>> Twiddle<W, F> {
-    pub fn new<const W2: usize>(
+    pub fn new(
         order: usize,
         omega_order: &Fp2Element<W, F>,
-        field_ext: &Fp2Field<'_, W, W2, F>,
+        field_ext: &Fp2Field<'_, W, F>,
     ) -> Self {
         let mut w = Vec::with_capacity(order / 2);
         let mut curr = field_ext.one();
@@ -160,11 +160,11 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> Twiddle<W, F> {
         Self { order, w }
     }
 
-    pub fn reroot<const W2: usize>(
+    pub fn reroot(
         omega_n: &Fp2Element<W, F>,
         n: u64,
         mut r: u64,
-        field_ext: &Fp2Field<'_, W, W2, F>,
+        field_ext: &Fp2Field<'_, W, F>,
     ) -> Fp2Element<W, F> {
         let mut omega_r = omega_n.clone();
         while r < n {
@@ -198,9 +198,9 @@ pub fn bitrev<T>(a: &mut [T]) {
 // The machinery in this file only works if the root is
 // on the unit circle, because we multiply by the conjugate
 // instead of by the inverse.
-fn validate_root<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>>(
+fn validate_root<const W: usize, F: SupportsQuadraticExtension<W>>(
     omega: &Fp2Element<W, F>,
-    c: &Fp2Field<'_, W, W2, F>,
+    c: &Fp2Field<'_, W, F>,
 ) {
     let conj = Fp2Element {
         re: omega.re.clone(),
@@ -218,9 +218,9 @@ fn validate_root<const W: usize, const W2: usize, F: SupportsQuadraticExtension<
 // (== c.i()) as opposed to the conjugate (0, -1).  There is nothing
 // wrong with c.conj(c.i()), but we hardcode the positive sign
 // in all the radix-4 butterflies.
-fn validate_i<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>>(
+fn validate_i<const W: usize, F: SupportsQuadraticExtension<W>>(
     ii: &Fp2Element<W, F>,
-    c: &Fp2Field<'_, W, W2, F>,
+    c: &Fp2Field<'_, W, F>,
 ) {
     assert_eq!(ii, &c.i(), "wrong sign for i(), need the conjugate root");
 }
@@ -569,11 +569,11 @@ fn hc2hc_b_4<const W: usize, F: SupportsQuadraticExtension<W>>(
     a[idx_i + 3 * s] = x3i;
 }
 
-pub fn r2hc<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>>(
+pub fn r2hc<const W: usize, F: SupportsQuadraticExtension<W>>(
     a: &mut [F::E],
     omega: &Fp2Element<W, F>,
     omega_order: u64,
-    c: &Fp2Field<'_, W, W2, F>,
+    c: &Fp2Field<'_, W, F>,
 ) {
     let n = a.len();
     let r = c.base_field();
@@ -640,11 +640,11 @@ pub fn r2hc<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>>(
     }
 }
 
-pub fn hc2r<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>>(
+pub fn hc2r<const W: usize, F: SupportsQuadraticExtension<W>>(
     a: &mut [F::E],
     omega: &Fp2Element<W, F>,
     omega_order: u64,
-    c: &Fp2Field<'_, W, W2, F>,
+    c: &Fp2Field<'_, W, F>,
 ) {
     let n = a.len();
     let r = c.base_field();

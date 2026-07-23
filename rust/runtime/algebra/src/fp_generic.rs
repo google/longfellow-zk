@@ -139,9 +139,43 @@ pub struct FpGenericField<
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
     FpGenericField<W, L, ACCUM_L, Tag, S>
 {
+    /// Constructs a Montgomery field for a caller-supplied prime modulus.
+    ///
+    /// This validates the representation invariants needed by the arithmetic
+    /// and serialization code. The caller remains responsible for supplying a
+    /// prime modulus; primality testing is intentionally outside this runtime
+    /// constructor.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the word, limb, accumulator, or modulus representation is
+    /// incompatible with this implementation.
     #[must_use]
     pub fn new_generic(modulo_words: [u64; W], id: usize, name: &str) -> Self {
+        assert!(W > 0, "field width must contain at least one word");
+        assert_eq!(
+            L,
+            W.checked_mul(crate::LIMBS_PER_U64)
+                .expect("field limb count overflow"),
+            "field limb count must match its serialized word width"
+        );
+        assert!(
+            ACCUM_L
+                >= L.checked_mul(2)
+                    .and_then(|n| n.checked_add(1))
+                    .expect("field accumulator size overflow"),
+            "accumulator must contain at least twice the field limbs plus one"
+        );
+        assert!(
+            ACCUM_L.checked_add(L).is_some_and(|n| n < 64),
+            "field and accumulator exceed the reduction scratch space"
+        );
+
         let modulo = crate::words64_to_limbs(&modulo_words);
+        assert!(
+            modulo[0] & 1 == 1 && !crate::limb::is_one_slice(&modulo),
+            "Montgomery modulus must be odd and greater than one"
+        );
         let mut neg_modulo = [0 as Limb; L];
         crate::limb::sub_limb(&mut neg_modulo, &modulo);
         let m_prime = compute_m_prime(modulo[0]);

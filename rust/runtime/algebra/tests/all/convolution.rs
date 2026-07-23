@@ -22,8 +22,8 @@ use runtime_algebra::{
 
 fn get_test_field_and_omega(
     p256: &P256Field,
-) -> (Fp2Field<'_, 4, 8, P256Field>, Fp2Element<4, P256Field>, u64) {
-    let f: Fp2Field<'_, 4, 8, _> = Fp2Field::new(p256);
+) -> (Fp2Field<'_, 4, P256Field>, Fp2Element<4, P256Field>, u64) {
+    let f: Fp2Field<'_, 4, _> = Fp2Field::new(p256);
     let re_bytes = [
         98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
         133, 252, 92, 102, 245, 132, 189, 142, 51, 13, 249,
@@ -93,7 +93,7 @@ fn test_convolution_fft() {
     let mut y_padded = vec![f.zero(); padding];
     y_padded[..m].clone_from_slice(&y);
 
-    let convolver = FFTConvolution::<8, _>::new(n, padding, &omega, omega_order, &y_padded, &f);
+    let convolver = FFTConvolution::<4, _>::new(n, padding, &omega, omega_order, &y_padded, &f);
     let mut got = vec![f.zero(); padding];
     convolver.convolution(&x, &mut got);
 
@@ -103,7 +103,7 @@ fn test_convolution_fft() {
 #[test]
 fn test_convolution_ext() {
     let p256 = P256Field::new();
-    let fp2: Fp2Field<'_, 4, 8, _> = Fp2Field::new(&p256);
+    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
 
     let re_bytes = [
         98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
@@ -153,7 +153,7 @@ fn test_convolution_ext() {
     y_padded[..m].clone_from_slice(&y);
 
     let convolver =
-        FFTExtConvolution::<4, 8, _>::new(n, padding, &omega, omega_order, &y_padded, &p256, &fp2);
+        FFTExtConvolution::<4, _>::new(n, padding, &omega, omega_order, &y_padded, &p256, &fp2);
     let mut got = vec![p256.zero(); padding];
     convolver.convolution(&x, &mut got);
 

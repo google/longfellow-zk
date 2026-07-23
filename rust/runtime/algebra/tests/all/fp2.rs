@@ -22,7 +22,7 @@ use runtime_algebra::{
 #[test]
 fn test_fp2_algebraic_properties() {
     let base = P256Field::new();
-    let field: Fp2Field<'_, 4, 8, _> = Fp2Field::new(&base);
+    let field: Fp2Field<'_, 4, _> = Fp2Field::new(&base);
 
     let zero = field.zero();
     let one = field.one();

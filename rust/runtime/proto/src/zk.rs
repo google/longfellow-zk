@@ -39,7 +39,7 @@ pub struct ZkProof<const W: usize, F: SerializableField> {
     pub com_proof: LigeroProof<W, F>,
 }
 
-impl<const W: usize, F: RuntimeField<W>> ZkProof<W, F> {
+impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
     pub fn write_to_buf<SF: Subfield<E = ElementOf<F>>>(
         &self,
         buf: &mut Vec<u8>,

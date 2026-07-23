@@ -272,3 +272,33 @@ fn test_accum_reduce_scaling_bug() {
         "accum_reduce did not match mul + add! Likely accum_scale scaling bug."
     );
 }
+
+#[test]
+#[should_panic(expected = "field limb count must match its serialized word width")]
+fn test_rejects_mismatched_limb_count() {
+    let _ = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 + 1 },
+        { 2 * (runtime_algebra::LIMBS_PER_U64 + 1) + 1 },
+    >::new_generic([0xffff_ffff_ffff_ffc5], 0, "InvalidField");
+}
+
+#[test]
+#[should_panic(expected = "accumulator must contain at least twice the field limbs plus one")]
+fn test_rejects_undersized_accumulator() {
+    let _ = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 },
+        { 2 * runtime_algebra::LIMBS_PER_U64 },
+    >::new_generic([0xffff_ffff_ffff_ffc5], 0, "InvalidField");
+}
+
+#[test]
+#[should_panic(expected = "Montgomery modulus must be odd and greater than one")]
+fn test_rejects_invalid_montgomery_modulus() {
+    let _ = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 },
+        { 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
+    >::new_generic([16], 0, "InvalidField");
+}

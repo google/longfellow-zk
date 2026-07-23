@@ -23,7 +23,7 @@ use runtime_algebra::{
 
 fn bench_fft(c: &mut Criterion) {
     let p256 = P256Field::new();
-    let fp2: Fp2Field<'_, 4, 8, _> = Fp2Field::new(&p256);
+    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
 
     let mut group = c.benchmark_group("FFT Forward");
     group.warm_up_time(std::time::Duration::from_millis(100));

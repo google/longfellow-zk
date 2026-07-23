@@ -104,11 +104,11 @@ pub trait SupportsNatConversions<const W: usize>: SerializableField {
     fn to_nat(&self, e: &Self::E) -> Self::N;
 }
 
-pub trait SupportsU64Conversions: SerializableField {
+pub trait SupportsU64Conversions: BareField {
     fn u64_to_element(&self, n: u64) -> Self::E;
 }
 
-pub trait SupportsU128Conversions: SerializableField {
+pub trait SupportsU128Conversions: BareField {
     fn u128_to_element(&self, n: u128) -> Self::E;
 }
 

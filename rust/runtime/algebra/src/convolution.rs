@@ -108,11 +108,10 @@ impl<const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversions> 
 pub struct FFTExtConvolution<
     'a,
     const W: usize,
-    const W2: usize,
     F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions,
 > {
     f: &'a F,
-    f_ext: &'a crate::fp2::Fp2Field<'a, W, W2, F>,
+    f_ext: &'a crate::fp2::Fp2Field<'a, W, F>,
     omega: crate::fp2::Fp2Element<W, F>,
     omega_order: u64,
     n: usize,
@@ -124,9 +123,8 @@ pub struct FFTExtConvolution<
 impl<
         'a,
         const W: usize,
-        const W2: usize,
         F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions,
-    > FFTExtConvolution<'a, W, W2, F>
+    > FFTExtConvolution<'a, W, F>
 {
     pub fn new(
         n: usize,
@@ -135,7 +133,7 @@ impl<
         omega_order: u64,
         y: &[F::E],
         f: &'a F,
-        f_ext: &'a crate::fp2::Fp2Field<'a, W, W2, F>,
+        f_ext: &'a crate::fp2::Fp2Field<'a, W, F>,
     ) -> Self {
         let padding = choose_padding(m);
         let mut y_fft = vec![f.zero(); padding];
@@ -161,11 +159,8 @@ impl<
     }
 }
 
-impl<
-        const W: usize,
-        const W2: usize,
-        F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions,
-    > Convolver<W, F> for FFTExtConvolution<'_, W, W2, F>
+impl<const W: usize, F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions>
+    Convolver<W, F> for FFTExtConvolution<'_, W, F>
 {
     // Computes (first m entries of) convolution of x with y, stores in z:
     // z[k] = \sum_{i=0}^{n-1} x[i] y[k-i].

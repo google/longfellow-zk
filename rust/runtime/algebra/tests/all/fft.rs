@@ -22,8 +22,8 @@ use runtime_algebra::{
 
 fn get_test_field_and_omega(
     p256: &P256Field,
-) -> (Fp2Field<'_, 4, 8, P256Field>, Fp2Element<4, P256Field>, u64) {
-    let f: Fp2Field<'_, 4, 8, _> = Fp2Field::new(p256);
+) -> (Fp2Field<'_, 4, P256Field>, Fp2Element<4, P256Field>, u64) {
+    let f: Fp2Field<'_, 4, _> = Fp2Field::new(p256);
     let re_bytes = [
         98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
         133, 252, 92, 102, 245, 132, 189, 142, 51, 13, 249,

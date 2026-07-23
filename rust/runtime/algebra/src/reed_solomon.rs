@@ -151,13 +151,12 @@ impl<
 pub struct FftInterpolatorFactory<
     'a,
     const W: usize,
-    const W2: usize,
     F: RuntimeField<W>
         + core_algebra::SupportsU64Conversions
         + crate::field::SupportsQuadraticExtension<W>,
 > {
     f: &'a F,
-    f2: &'a crate::fp2::Fp2Field<'a, W, W2, F>,
+    f2: &'a crate::fp2::Fp2Field<'a, W, F>,
     omega: crate::fp2::Fp2Element<W, F>,
     omega_order: u64,
 }
@@ -165,15 +164,14 @@ pub struct FftInterpolatorFactory<
 impl<
         'a,
         const W: usize,
-        const W2: usize,
         F: RuntimeField<W>
             + core_algebra::SupportsU64Conversions
             + crate::field::SupportsQuadraticExtension<W>,
-    > FftInterpolatorFactory<'a, W, W2, F>
+    > FftInterpolatorFactory<'a, W, F>
 {
     pub fn new(
         f: &'a F,
-        f2: &'a crate::fp2::Fp2Field<'a, W, W2, F>,
+        f2: &'a crate::fp2::Fp2Field<'a, W, F>,
         omega: crate::fp2::Fp2Element<W, F>,
         omega_order: u64,
     ) -> Self {
@@ -189,13 +187,12 @@ impl<
 impl<
         'a,
         const W: usize,
-        const W2: usize,
         F: RuntimeField<W>
             + core_algebra::SupportsU64Conversions
             + crate::field::SupportsQuadraticExtension<W>,
-    > crate::interpolator::InterpolatorFactory<W, F> for FftInterpolatorFactory<'a, W, W2, F>
+    > crate::interpolator::InterpolatorFactory<W, F> for FftInterpolatorFactory<'a, W, F>
 {
-    type Interpolator = ReedSolomon<'a, W, F, crate::convolution::FFTExtConvolution<'a, W, W2, F>>;
+    type Interpolator = ReedSolomon<'a, W, F, crate::convolution::FFTExtConvolution<'a, W, F>>;
 
     fn make(&self, ylen: usize, block_enc: usize) -> Self::Interpolator {
         ReedSolomon::new(ylen, block_enc, self.f, |inverses| {

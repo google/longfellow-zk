@@ -92,7 +92,7 @@ const P256_ROOT_OF_UNITY_IM: [u64; 4] = [
     0xb9e81e42bc97cc4d,
 ];
 
-impl SupportsFFT<8> for crate::fp2::Fp2Field<'_, 4, 8, P256Field> {
+impl SupportsFFT<4> for crate::fp2::Fp2Field<'_, 4, P256Field> {
     fn omega(&self) -> Self::E {
         crate::fp2::Fp2Element {
             re: self

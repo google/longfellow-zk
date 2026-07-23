@@ -18,14 +18,14 @@ pub trait FieldElement: Sized + Clone + Debug + Eq + Hash {}
 
 pub use core_algebra::AlgebraicField;
 
-pub trait RuntimeSerializableField<const W: usize>: core_algebra::SerializableField {
+pub trait RuntimeSerializableField<const W: usize>:
+    RuntimeField<W> + core_algebra::SerializableField
+{
     fn to_words64(&self, e: &Self::E) -> [u64; W];
     fn words64_to_element(&self, words: &[u64; W]) -> Result<Self::E, String>;
 }
 
-pub trait RuntimeField<const W: usize>:
-    core_algebra::AlgebraicField + RuntimeSerializableField<W>
-{
+pub trait RuntimeField<const W: usize>: core_algebra::AlgebraicField {
     type Accum: Clone + std::fmt::Debug;
 
     // Arithmetic operations

@@ -49,7 +49,7 @@ pub struct LigeroProof<const W: usize, F: SerializableField> {
     pub merkle: MerkleProof,
 }
 
-impl<const W: usize, F: RuntimeField<W>> LigeroProof<W, F> {
+impl<const W: usize, F: RuntimeField<W> + SerializableField> LigeroProof<W, F> {
     pub fn write_to_buf<SF: Subfield<E = ElementOf<F>>>(
         &self,
         bytes: &mut Vec<u8>,
