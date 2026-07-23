@@ -30,10 +30,27 @@ where NEXT: RewriteT<'a, F>
     }
 
     fn flatten_sum(&self, l: &[ExprNode<'a, F>]) -> Vec<ExprNode<'a, F>> {
+        let ordinary_sums: rustc_hash::FxHashSet<&[ExprNode<'a, F>]> = l
+            .iter()
+            .filter_map(|x| match &x.v {
+                Expr::Sum(inner_list, false) => Some(*inner_list),
+                _ => None,
+            })
+            .collect();
+
         let mut result = Vec::new();
         for x in l {
             match &x.v {
                 Expr::Sum(inner_list, false) => result.extend(inner_list.iter().copied()),
+                // `precious` normally protects a sum from flattening. If this
+                // parent also contains the identical ordinary sum, however,
+                // that occurrence is already being flattened. Flatten the
+                // precious alias as well so coefficient folding below sees
+                // both copies before the copy pass introduces depth-alignment
+                // gates.
+                Expr::Sum(inner_list, true) if ordinary_sums.contains(*inner_list) => {
+                    result.extend(inner_list.iter().copied());
+                }
                 _ => result.push(*x),
             }
         }

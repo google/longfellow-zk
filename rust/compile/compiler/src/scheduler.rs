@@ -396,6 +396,14 @@ pub fn schedule<F: CompileField + core_algebra::SerializableField>(
         collect_quads(&nodes, &nodes_by_depth, max_depth, &wire_ids);
 
     let ninput = validate_and_count_inputs(&nodes);
+    assert!(
+        npublic_input <= ninput,
+        "npublic_input ({npublic_input}) exceeds ninput ({ninput})"
+    );
+    assert!(
+        subfield_boundary <= ninput,
+        "subfield_boundary ({subfield_boundary}) exceeds ninput ({ninput})"
+    );
     let noutput = nwires_in_layer[max_depth - 1];
 
     check_connectivity(f, ninput, noutput, &terms_in_layer, &nwires_in_layer);
