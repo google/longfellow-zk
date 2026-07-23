@@ -90,9 +90,14 @@ impl BinarySubfield {
             subfield_bits <= 16,
             "BinarySubfield only supports up to 16 bits"
         );
+        assert_eq!(
+            subfield_bits % 8,
+            0,
+            "BinarySubfield dimension must be byte-aligned"
+        );
         let basis_elts: Vec<Gf2_128> = basis.iter().copied().map(Gf2_128::from).collect();
         let (u, linv, ldnz) = rref(&basis_elts, subfield_bits);
-        let serialized_size_bytes = subfield_bits.div_ceil(8);
+        let serialized_size_bytes = subfield_bits / 8;
 
         let mut basis_arr = [Gf2_128::default(); 16];
         basis_arr[..subfield_bits].copy_from_slice(&basis_elts);

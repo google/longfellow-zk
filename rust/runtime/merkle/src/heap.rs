@@ -150,8 +150,10 @@ pub fn verify_proof(
     leaves: &[(usize, Digest)],
 ) -> Result<(), MerkleError> {
     let leaf_indices: Vec<usize> = leaves.iter().map(|(idx, _)| *idx).collect();
-    let mut computed_nodes = vec![Digest::default(); 2 * num_leaves];
-    let mut is_node_known = vec![false; 2 * num_leaves];
+    // `None` means this node has not been supplied or derived.  Do not use a
+    // sentinel digest here: an all-zero digest is valid proof data and must
+    // never be confused with an uncomputed node.
+    let mut computed_nodes = vec![None; 2 * num_leaves];
 
     let is_node_on_path = mark_paths_to_root(num_leaves, &leaf_indices)?;
     let mut proof_idx = 0;
@@ -166,8 +168,7 @@ pub fn verify_proof(
                         found: proof.len(),
                     });
                 }
-                computed_nodes[2 * i + 1] = proof[proof_idx];
-                is_node_known[2 * i + 1] = true;
+                computed_nodes[2 * i + 1] = Some(proof[proof_idx]);
                 proof_idx += 1;
             } else if !is_node_on_path[2 * i] && is_node_on_path[2 * i + 1] {
                 if proof_idx >= proof.len() {
@@ -176,13 +177,15 @@ pub fn verify_proof(
                         found: proof.len(),
                     });
                 }
-                computed_nodes[2 * i] = proof[proof_idx];
-                is_node_known[2 * i] = true;
+                computed_nodes[2 * i] = Some(proof[proof_idx]);
                 proof_idx += 1;
             }
         }
     }
 
+    // A valid multi-proof has exactly the sibling nodes requested by the
+    // traversal.  Reject trailing entries rather than silently accepting a
+    // second encoding of the same opening.
     if proof_idx != proof.len() {
         return Err(MerkleError::ProofLengthMismatch {
             expected: proof_idx,
@@ -193,28 +196,24 @@ pub fn verify_proof(
     // 2. Populate the opened leaves
     for &(leaf_idx, leaf_digest) in leaves {
         let heap_idx = leaf_idx + num_leaves;
-        computed_nodes[heap_idx] = leaf_digest;
-        is_node_known[heap_idx] = true;
+        computed_nodes[heap_idx] = Some(leaf_digest);
     }
 
     // 3. Reconstruct internal nodes bottom-up
     for i in (1..num_leaves).rev() {
-        if is_node_known[2 * i] && is_node_known[2 * i + 1] {
-            computed_nodes[i] = hash2(&computed_nodes[2 * i], &computed_nodes[2 * i + 1]);
-            is_node_known[i] = true;
+        if let (Some(left), Some(right)) = (computed_nodes[2 * i], computed_nodes[2 * i + 1]) {
+            computed_nodes[i] = Some(hash2(&left, &right));
         }
     }
 
-    if !is_node_known[1] {
+    let computed_root = computed_nodes[1].ok_or(MerkleError::RootMismatch {
+        expected: *root,
+        found: Digest::default(),
+    })?;
+    if root != &computed_root {
         return Err(MerkleError::RootMismatch {
             expected: *root,
-            found: Digest::default(),
-        });
-    }
-    if root != &computed_nodes[1] {
-        return Err(MerkleError::RootMismatch {
-            expected: *root,
-            found: computed_nodes[1],
+            found: computed_root,
         });
     }
     Ok(())

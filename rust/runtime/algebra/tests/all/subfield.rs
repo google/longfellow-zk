@@ -112,6 +112,12 @@ fn test_subfield_gf2_128() {
 }
 
 #[test]
+#[should_panic(expected = "BinarySubfield dimension must be byte-aligned")]
+fn test_binary_subfield_requires_byte_aligned_dimension() {
+    let _ = BinarySubfield::new(&[1]);
+}
+
+#[test]
 fn test_gf2_16_basis_v1_properties() {
     let sf_basis = core_algebra::proto::GF2_16_BASIS_V1;
 

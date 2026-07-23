@@ -175,16 +175,23 @@ impl<const W: usize, F: RuntimeField<W>> LigeroProof<W, F> {
         let mut req = Vec::with_capacity(geom.nreq * geom.nrow);
         let mut ci = 0;
         let mut subfield_run = false;
+        let mut first_run = true;
         let total_elts = geom.nreq * geom.nrow;
 
         while ci < total_elts {
             let runlen = read_size_4bytes(bytes)?;
-            if runlen >= MAX_RUN_LEN || ci + runlen > total_elts {
+            // The writer uses an empty first run only when the first element
+            // belongs to the subfield.  Empty runs anywhere else are
+            // non-canonical (and two consecutive empty runs do not advance
+            // `ci`), so accepting them would permit multiple encodings of a
+            // proof and could loop forever on attacker-controlled input.
+            if (runlen == 0 && !first_run) || runlen >= MAX_RUN_LEN || ci + runlen > total_elts {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
-                    "Invalid RLE run length in LigeroProof",
+                    "Non-canonical or invalid RLE run length in LigeroProof",
                 ));
             }
+            first_run = false;
 
             for _ in 0..runlen {
                 if subfield_run {
@@ -192,6 +199,15 @@ impl<const W: usize, F: RuntimeField<W>> LigeroProof<W, F> {
                     req.push(elt);
                 } else {
                     let elt = read_elt_field(bytes, f)?;
+                    // Request elements in the subfield must use the compact
+                    // subfield encoding.  Otherwise the same value has both
+                    // a field and a subfield representation.
+                    if sf.contains(&elt) {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Non-canonical field encoding of subfield element in LigeroProof",
+                        ));
+                    }
                     req.push(elt);
                 }
             }

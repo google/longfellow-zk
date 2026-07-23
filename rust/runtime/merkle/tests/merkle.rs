@@ -125,6 +125,12 @@ fn test_merkle_heap_invalid_proofs() {
     // Verify valid proof passes
     assert!(verify_proof(n, &root, &proof_path, &opened_leaves).is_ok());
 
+    // A multiproof must consume every supplied authentication node.  Trailing
+    // nodes are a distinct, non-canonical encoding of the same opening.
+    let mut proof_with_trailing_node = proof_path.clone();
+    proof_with_trailing_node.push(Digest::default());
+    assert!(verify_proof(n, &root, &proof_with_trailing_node, &opened_leaves).is_err());
+
     // 1. Modifying a proof element should fail verification
     if !proof_path.is_empty() {
         let mut tampered_proof = proof_path.clone();

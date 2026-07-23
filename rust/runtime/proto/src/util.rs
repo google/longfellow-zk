@@ -87,6 +87,14 @@ pub fn read_subfield_elt<SF: Subfield>(bytes: &mut &[u8], sf: &SF) -> Result<SF:
             format!("Failed to parse subfield element: {e:?}"),
         )
     })?;
+    let mut canonical = vec![0u8; size];
+    sf.to_bytes_into(&elt, &mut canonical);
+    if canonical.as_slice() != chunk {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            "Non-canonical subfield element encoding",
+        ));
+    }
     Ok(elt)
 }
 

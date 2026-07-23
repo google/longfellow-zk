@@ -63,6 +63,49 @@ fn test_util_read_write_subfield_elt() {
 }
 
 #[test]
+fn test_util_rejects_noncanonical_subfield_elt() {
+    use runtime_algebra::{gf2_128::Gf2_128, Subfield};
+
+    struct AliasedSubfield;
+
+    impl Subfield for AliasedSubfield {
+        type E = Gf2_128;
+
+        fn to_bytes_into(&self, _e: &Self::E, dst: &mut [u8]) {
+            assert_eq!(dst.len(), 1);
+            dst[0] = 0;
+        }
+
+        fn contains(&self, _e: &Self::E) -> bool {
+            true
+        }
+
+        fn serialized_size_bytes(&self) -> usize {
+            1
+        }
+
+        fn bytes_to_element(&self, bytes: &[u8]) -> Result<Self::E, String> {
+            if bytes.len() != 1 {
+                return Err("Invalid size".to_string());
+            }
+            Ok(Gf2_128::from(0))
+        }
+
+        fn sample<R: FnMut(usize) -> Vec<u8>>(&self, _rng: R) -> Self::E {
+            Gf2_128::from(0)
+        }
+    }
+
+    let sf = AliasedSubfield;
+
+    let mut canonical = [0u8].as_slice();
+    assert!(read_subfield_elt(&mut canonical, &sf).is_ok());
+
+    let mut aliased = [1u8].as_slice();
+    assert!(read_subfield_elt(&mut aliased, &sf).is_err());
+}
+
+#[test]
 fn test_util_zero_field_element() {
     let f = P256Field::new();
     let zero = zero_field_element(&f).unwrap();
@@ -265,6 +308,57 @@ fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
     assert_eq!(decoded.y_quad_2, proof.y_quad_2);
     assert_eq!(decoded.req, proof.req);
     assert_eq!(decoded.merkle, proof.merkle);
+}
+
+#[test]
+fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
+    use runtime_algebra::{gf2_128::Gf2_128Field, subfield::BinarySubfield, Subfield};
+
+    let f = Gf2_128Field::new();
+    let sf = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
+    let geom = LigeroGeometry {
+        block: 0,
+        dblock: 0,
+        r: 0,
+        block_enc: 2,
+        nrow: 1,
+        nreq: 1,
+        mc_pathlen: 1,
+    };
+    let subfield_elt = sf.embed(1);
+
+    // A leading empty non-subfield run is the unique canonical way to encode
+    // a request sequence that begins with a subfield element.
+    let mut canonical = vec![0; 32]; // nonce
+    canonical.extend_from_slice(&0u32.to_le_bytes());
+    canonical.extend_from_slice(&1u32.to_le_bytes());
+    let mut subfield_bytes = vec![0; sf.serialized_size_bytes()];
+    sf.to_bytes_into(&subfield_elt, &mut subfield_bytes);
+    canonical.extend_from_slice(&subfield_bytes);
+    canonical.extend_from_slice(&1u32.to_le_bytes());
+    canonical.extend_from_slice(&[0; 32]); // one Merkle path digest
+
+    let mut canonical_input = canonical.as_slice();
+    assert!(LigeroProof::<2, _>::read(&mut canonical_input, &geom, &f, &sf).is_ok());
+
+    // A second empty run is a semantically redundant representation that used
+    // to make the parser spin indefinitely.
+    let mut duplicate_empty_run = canonical[..36].to_vec();
+    duplicate_empty_run.extend_from_slice(&0u32.to_le_bytes());
+    duplicate_empty_run.extend_from_slice(&canonical[36..]);
+    let mut duplicate_run_input = duplicate_empty_run.as_slice();
+    assert!(LigeroProof::<2, _>::read(&mut duplicate_run_input, &geom, &f, &sf).is_err());
+
+    // The same subfield element must not be accepted in the full-field run.
+    let mut full_field_encoding = vec![0; 32]; // nonce
+    full_field_encoding.extend_from_slice(&1u32.to_le_bytes());
+    let mut full_bytes = vec![0; core_algebra::SerializableField::serialized_size_bytes(&f)];
+    core_algebra::SerializableField::to_bytes_into(&f, &subfield_elt, &mut full_bytes);
+    full_field_encoding.extend_from_slice(&full_bytes);
+    full_field_encoding.extend_from_slice(&1u32.to_le_bytes());
+    full_field_encoding.extend_from_slice(&[0; 32]);
+    let mut full_field_input = full_field_encoding.as_slice();
+    assert!(LigeroProof::<2, _>::read(&mut full_field_input, &geom, &f, &sf).is_err());
 }
 
 #[test]
