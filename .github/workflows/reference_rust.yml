@@ -1,0 +1,38 @@
+name: Rust Reference Implementation CI
+
+on:
+  push:
+    branches:
+      - main
+      - rust
+  pull_request:
+    paths:
+      - 'docs/specs/rust/**'
+      - '.github/workflows/reference_rust.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check-and-test:
+    name: Check & Test Rust Reference Spec
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure Rust toolchain is up to date
+        run: rustup update stable
+
+      - name: Check build
+        run: cargo check --all-targets
+        working-directory: docs/specs/rust
+
+      - name: Run clippy
+        run: cargo clippy --all-targets
+        working-directory: docs/specs/rust
+
+      - name: Run unit and integration tests in release mode
+        run: cargo test -r
+        working-directory: docs/specs/rust
