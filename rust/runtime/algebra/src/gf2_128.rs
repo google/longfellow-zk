@@ -229,22 +229,6 @@ impl RuntimeField<2> for Gf2_128Field {
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E {
         arch_accum_reduce(acc)
     }
-
-    #[inline(always)]
-    fn pseudo_basis(&self, i: usize) -> Self::E {
-        assert!(i < 128, "i < dimension");
-        Gf2_128::from(1u128 << i)
-    }
-
-    #[inline(always)]
-    fn pseudo_dimension(&self) -> usize {
-        128
-    }
-
-    #[inline(always)]
-    fn pseudo_basis_unsafe(&self, i: usize) -> Self::E {
-        self.pseudo_basis(i)
-    }
 }
 
 impl crate::field::SupportsSampling<2> for Gf2_128Field {

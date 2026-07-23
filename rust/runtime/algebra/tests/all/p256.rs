@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use compile_algebra::{field::CompileField, p256::P256Field as P256CompileField};
+use compile_algebra::p256::P256Field as P256CompileField;
 use core_algebra::{AlgebraicField, Curve, SerializableField, SupportsU64Conversions};
-use runtime_algebra::{
-    field::{RuntimeField, RuntimeSerializableField},
-    p256::*,
-    poly::InterpolationField,
-};
+use runtime_algebra::{field::RuntimeSerializableField, p256::*, poly::InterpolationField};
 
 #[test]
 fn test_specific_mul() {
@@ -147,15 +143,7 @@ fn test_precomputed_agrees_with_algebra() {
     let field_unopt = P256CompileField::new();
     let field_opt = P256Field::new();
 
-    // 1. Check basis
-    for i in 0..255 {
-        assert_eq!(
-            field_unopt.to_bytes(&field_unopt.pseudo_basis(i)),
-            field_opt.to_bytes(&field_opt.pseudo_basis(i))
-        );
-    }
-
-    // 3. Check poly_evaluation_points
+    // Check poly_evaluation_points
     for i in 0..6 {
         let expected = field_unopt.u64_to_element(i as u64);
         assert_eq!(
@@ -164,7 +152,7 @@ fn test_precomputed_agrees_with_algebra() {
         );
     }
 
-    // 4. Check newton_denominators
+    // Check newton_denominators
     for i in 1..6 {
         let val = field_unopt.u64_to_element(i as u64);
         let expected_denom = field_unopt.invert(&val);

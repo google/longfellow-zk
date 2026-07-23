@@ -63,27 +63,18 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> FieldElement for Fp2Eleme
 #[derive(Clone, Debug)]
 pub struct Fp2Field<'a, const W: usize, F: SupportsQuadraticExtension<W>> {
     base: &'a F,
-    basis: Vec<Fp2Element<W, F>>,
     mone: Fp2Element<W, F>,
 }
 
 impl<'a, const W: usize, F: SupportsQuadraticExtension<W>> Fp2Field<'a, W, F> {
     /// Constructs the non-serializable quadratic extension of `base`.
     pub fn new(base: &'a F) -> Self {
-        let d = base.pseudo_dimension();
-        let mut basis = Vec::with_capacity(d);
-        for i in 0..d {
-            basis.push(Fp2Element {
-                re: base.pseudo_basis(i),
-                im: base.zero(),
-            });
-        }
         let mone = Fp2Element {
             re: base.mone(),
             im: base.zero(),
         };
 
-        Self { base, basis, mone }
+        Self { base, mone }
     }
 
     pub fn base_field(&self) -> &F {
@@ -201,22 +192,6 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> RuntimeField<W> for Fp2Fi
 
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E {
         acc.0.clone()
-    }
-
-    fn pseudo_basis(&self, i: usize) -> Self::E {
-        assert!(i < self.base.pseudo_dimension(), "i < dimension");
-        self.basis[i].clone()
-    }
-
-    fn pseudo_dimension(&self) -> usize {
-        self.base.pseudo_dimension()
-    }
-
-    fn pseudo_basis_unsafe(&self, i: usize) -> Self::E {
-        Fp2Element {
-            re: self.base.pseudo_basis_unsafe(i),
-            im: self.base.zero(),
-        }
     }
 }
 

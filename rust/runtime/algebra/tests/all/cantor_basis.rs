@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core_algebra::AlgebraicField;
+use core_algebra::{AlgebraicField, SupportsU128Conversions};
 use runtime_algebra::gf2_128::{Gf2_128, Gf2_128RuntimeField};
 
 fn solve_quadratic_equation(c: Gf2_128) -> Gf2_128 {
     let f = Gf2_128RuntimeField::new();
     let mut matrix = [[false; 129]; 128];
     for (col, m_row) in (0..128).enumerate() {
-        use runtime_algebra::field::RuntimeField;
-        let e = f.pseudo_basis(col);
+        let e = f.u128_to_element(1u128 << col);
         let e_sq = f.mulf(&e, &e);
         let res = f.addf(&e_sq, &e);
         for (row, m_r) in matrix.iter_mut().enumerate() {
@@ -68,7 +67,6 @@ fn solve_quadratic_equation(c: Gf2_128) -> Gf2_128 {
             sol_val |= 1u128 << i;
         }
     }
-    use core_algebra::SupportsU128Conversions;
     f.u128_to_element(sol_val)
 }
 

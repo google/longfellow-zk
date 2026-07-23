@@ -64,10 +64,6 @@ pub trait RuntimeField<const W: usize>: core_algebra::AlgebraicField {
     fn mac(&self, acc: &mut Self::Accum, x: &Self::E, y: &Self::E);
     fn add_accum(&self, a: &mut Self::Accum, b: &Self::Accum);
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E;
-
-    fn pseudo_basis(&self, i: usize) -> Self::E;
-    fn pseudo_dimension(&self) -> usize;
-    fn pseudo_basis_unsafe(&self, i: usize) -> Self::E;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

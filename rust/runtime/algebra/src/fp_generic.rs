@@ -595,25 +595,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
         maybe_minus_m(&mut res, a[ACCUM_L + L], &self.neg_modulo);
         self.mulf(&FpGenericElement(res, PhantomData), &self.accum_scale)
     }
-
-    fn pseudo_basis(&self, i: usize) -> Self::E {
-        assert!(i < W * 64);
-        let mut standard = [0 as Limb; L];
-        let limb_idx = i / crate::LIMB_BITS;
-        let bit_idx = i % crate::LIMB_BITS;
-        if limb_idx < L {
-            standard[limb_idx] = (1 as Limb) << bit_idx;
-        }
-        self.to_montgomery(&standard)
-    }
-
-    fn pseudo_dimension(&self) -> usize {
-        W * 64
-    }
-
-    fn pseudo_basis_unsafe(&self, i: usize) -> Self::E {
-        self.pseudo_basis(i)
-    }
 }
 
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
