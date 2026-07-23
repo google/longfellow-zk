@@ -1243,6 +1243,20 @@ lemma addE_rearrange (A B C D : ProjectivePoint F) (params : CurveParameters F)
   rw [toMathlibPoint_add B D params hB hD]
   abel
 
+lemma addE_rearrange_triple (A B C D E P6 : ProjectivePoint F) (params : CurveParameters F)
+    [h_ell : (params.toMathlib).IsElliptic] [CurveHasNoPointsOfOrder2 params]
+    [NeZero (2 : F)] [NeZero (3 : F)]
+    (hA : A.IsOnCurve params) (hB : B.IsOnCurve params) (hC : C.IsOnCurve params)
+    (hD : D.IsOnCurve params) (hE : E.IsOnCurve params) (hP6 : P6.IsOnCurve params) :
+    ProjectiveEquiv (addE (addE (addE A B params) C params) (addE (addE D E params) P6 params) params)
+    (addE (addE (addE A D params) (addE B E params) params) (addE C P6 params) params) := by
+  have h_AB := addE_on_curve A B params hA hB
+  have h_DE := addE_on_curve D E params hD hE
+  have h_step1 := addE_rearrange (addE A B params) C (addE D E params) P6 params h_AB hC h_DE hP6
+  have h_rearrange_inner := addE_rearrange A B D E params hA hB hD hE
+  have h_step2 := h_rearrange_inner.addE params (ProjectiveEquiv.refl (addE C P6 params))
+  exact ProjectiveEquiv.trans h_step1 h_step2
+
 end ProvenProperties
 
 /-!
@@ -1273,6 +1287,20 @@ theorem IsOnCurve_implies_projective (p : ProjectivePoint F) (q : AffinePoint F)
   _ = (q.X * q.X * q.X + params.a * q.X + params.b) * (p.Z * p.Z * p.Z) := by rw [hC]
   _ = (q.X * p.Z) * (q.X * p.Z) * (q.X * p.Z) + params.a * (q.X * p.Z) * p.Z * p.Z + params.b * p.Z * p.Z * p.Z := by ring
   _ = p.X * p.X * p.X + params.a * p.X * p.Z * p.Z + params.b * p.Z * p.Z * p.Z := by rw [hx]
+
+/--
+  Proves that if an affine point is on the curve, its direct projective representation
+  (with Z=1) is on the projective curve.
+-/
+theorem affine_to_projective_on_curve (q : AffinePoint F) (params : CurveParameters F)
+    (hq : q.IsOnCurve params) :
+    ProjectivePoint.IsOnCurve q.toProjective params := by
+  have h_sat := IsOnCurve_implies_projective q.toProjective q params (ProjectiveEquiv.refl _) hq
+  refine ⟨h_sat, ?_⟩
+  intro h_zero
+  change ({ X := q.X, Y := q.Y, Z := 1 : ProjectivePoint F }) = ({ X := 0, Y := 0, Z := 0 : ProjectivePoint F }) at h_zero
+  injection h_zero with _ _ hz
+  exact one_ne_zero hz
 
 /--
   Proves that projecting a projective point on the curve to affine coordinates
@@ -1356,6 +1384,17 @@ lemma bsmul_addE (s : List Bool) (p1 p2 : ProjectivePoint F) (params : CurvePara
   rw [toMathlibPoint_bsmul s p1 params hp1]
   rw [toMathlibPoint_bsmul s p2 params hp2]
   rw [nsmul_add]
+
+lemma bsmul_addE_triple (s : List Bool) (p1 p2 p3 : ProjectivePoint F) (params : CurveParameters F)
+    [CurveHasNoPointsOfOrder2 params] [h_ell : (params.toMathlib).IsElliptic] [NeZero (2 : F)] [NeZero (3 : F)]
+    (hp1 : p1.IsOnCurve params) (hp2 : p2.IsOnCurve params) (hp3 : p3.IsOnCurve params) :
+    ProjectiveEquiv (bsmul s (addE (addE p1 p2 params) p3 params) params)
+    (addE (addE (bsmul s p1 params) (bsmul s p2 params) params) (bsmul s p3 params) params) := by
+  have hp12 := addE_on_curve p1 p2 params hp1 hp2
+  have h_outer := bsmul_addE s (addE p1 p2 params) p3 params hp12 hp3
+  have h_inner := bsmul_addE s p1 p2 params hp1 hp2
+  have h_congr := h_inner.addE params (ProjectiveEquiv.refl (bsmul s p3 params))
+  exact ProjectiveEquiv.trans h_outer h_congr
 
 /--
   Shows that projective scalar multiplication commutes with elliptic curve doubling
@@ -1455,6 +1494,17 @@ lemma bsmul_mod_nat (k : Nat) (val : Nat) (P : ProjectivePoint F) (params : Curv
   rw [Nat.add_mul_mod_self_left (val % order) order (val / order)]
   rw [Nat.mod_mod]
 
+lemma bsmul_equiv_of_mod_eq (k : Nat) (A B : Nat) (P : ProjectivePoint F) (params : CurveParameters F) (order : Nat)
+    [CurveHasNoPointsOfOrder2 params] [h_ell : (params.toMathlib).IsElliptic] [NeZero (2 : F)] [NeZero (3 : F)]
+    (hp : P.IsOnCurve params) (h_order : ProjectiveEquiv (bsmul (padBits (natToBits order) k) P params) infinityPoint)
+    (h_eq : A % order = B % order) :
+    ProjectiveEquiv (bsmul (padBits (natToBits A) k) P params) (bsmul (padBits (natToBits B) k) P params) := by
+  have h_mod_A := ProjectiveEquiv.symm (bsmul_mod_nat k A P params order hp h_order)
+  have h_subst : ProjectiveEquiv (bsmul (padBits (natToBits (A % order)) k) P params) (bsmul (padBits (natToBits (B % order)) k) P params) := by
+    rw [h_eq]
+    exact ProjectiveEquiv.refl _
+  have h_mod_B := bsmul_mod_nat k B P params order hp h_order
+  exact ProjectiveEquiv.trans h_mod_A (ProjectiveEquiv.trans h_subst h_mod_B)
 
 /--
   Shows that doubling a projectively scalar multiplied point is equivalent to
@@ -1534,6 +1584,22 @@ lemma bsmul_inverse_gen {P : ProjectivePoint F} {params : CurveParameters F} {or
   rw [h_sum] at h_distrib
   exact ProjectiveEquiv.trans (ProjectiveEquiv.symm h_distrib) h_annihilate
 
+lemma bsmul_add_neg_cancel (k : Nat) (val : Nat) (P : ProjectivePoint F) (params : CurveParameters F) (order : Nat)
+    [CurveHasNoPointsOfOrder2 params] [h_ell : (params.toMathlib).IsElliptic] [NeZero (2 : F)] [NeZero (3 : F)]
+    (hp : P.IsOnCurve params) (h_order : ProjectiveEquiv (bsmul (padBits (natToBits order) k) P params) infinityPoint)
+    (h_order_pos : 0 < order) :
+    ProjectiveEquiv (addE (bsmul (padBits (natToBits val) k) P params) (bsmul (padBits (natToBits (order - (val % order))) k) P params) params) infinityPoint := by
+  have h_val_red : ProjectiveEquiv (bsmul (padBits (natToBits val) k) P params) (bsmul (padBits (natToBits (val % order)) k) P params) := by
+    exact ProjectiveEquiv.symm (bsmul_mod_nat k val P params order hp h_order)
+  have h_sum_equiv : ProjectiveEquiv
+    (addE (bsmul (padBits (natToBits val) k) P params) (bsmul (padBits (natToBits (order - (val % order))) k) P params) params)
+    (addE (bsmul (padBits (natToBits (val % order)) k) P params) (bsmul (padBits (natToBits (order - (val % order))) k) P params) params) := by
+    exact h_val_red.addE params (ProjectiveEquiv.refl _)
+  have h_cancel : ProjectiveEquiv (addE (bsmul (padBits (natToBits (val % order)) k) P params) (bsmul (padBits (natToBits (order - (val % order))) k) P params) params) infinityPoint := by
+    have h_lt : val % order < order := Nat.mod_lt val h_order_pos
+    exact bsmul_inverse_gen (val % order) h_lt hp h_order
+  exact ProjectiveEquiv.trans h_sum_equiv h_cancel
+
 /--
   Congruence lemma showing that projective scalar multiplication preserves projective equivalence of base points.
 -/
@@ -1599,6 +1665,23 @@ lemma bsmul_scale_nat (n : Nat) (val : Nat) (P : ProjectivePoint F) (params : Cu
       exact padBits_scale_double (val * 2^n) n
     rw [h_list_eq] at h_step3
     exact h_step3
+
+lemma bsmul_scale_helper (n : Nat) (b : Bool) (val : Nat) (P : ProjectivePoint F) (params : CurveParameters F)
+    [CurveHasNoPointsOfOrder2 params] [h_ell : (params.toMathlib).IsElliptic] [NeZero (2 : F)] [NeZero (3 : F)]
+    (hp : P.IsOnCurve params) (h_val : val = if b then 1 else 0) :
+    ProjectiveEquiv (bsmul ([true] ++ List.replicate n false) (bsmul [b] P params) params)
+    (bsmul (padBits (natToBits (val * 2^n)) (n+1)) P params) := by
+  have h_eq : bsmul [b] P params = bsmul (padBits (natToBits val) 1) P params := by
+    rw [h_val]
+    exact bsmul_bool_eq_nat b P params
+  have h_equiv : ProjectiveEquiv (bsmul [b] P params) (bsmul (padBits (natToBits val) 1) P params) := by
+    rw [h_eq]
+    exact ProjectiveEquiv.refl _
+  have h_scale := bsmul_scale_nat n val P params hp
+  have h_tx_scaled : ProjectiveEquiv (bsmul ([true] ++ List.replicate n false) (bsmul [b] P params) params)
+                                      (bsmul ([true] ++ List.replicate n false) (bsmul (padBits (natToBits val) 1) P params) params) := by
+    exact h_equiv.bsmul ([true] ++ List.replicate n false) params
+  exact ProjectiveEquiv.trans h_tx_scaled h_scale
 
 end Bsmul
 

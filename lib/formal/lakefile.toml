@@ -9,8 +9,8 @@ relaxedAutoImplicit = false
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-path = "../../../../third_party/lean4/mathlib4"
-rev = "v4.27.0"
+path = "../../../lean/mathlib4"
+rev = "v4.31.0"
 
 [[lean_lib]]
 name = "ECDSA"

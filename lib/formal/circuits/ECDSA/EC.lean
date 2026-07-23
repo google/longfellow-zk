@@ -93,7 +93,7 @@ def ProjectivePoint.SatisfiesCurveEquation {F : Type} [Field F] (p : ProjectiveP
   and is generally a point to avoid during curve operations.
 -/
 @[simps]
-instance [Zero F] : Zero (ProjectivePoint F) where
+instance {F : Type} [Zero F] : Zero (ProjectivePoint F) where
   zero := { X := 0, Y := 0, Z := 0 }
 
 @[simps]
