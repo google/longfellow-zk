@@ -1,0 +1,80 @@
+name: Build website, deploy to GH pages if on main
+permissions: read-all
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  build-and-deploy:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4 
+      with:
+        fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
+        submodules: recursive
+
+    - name: Setup Hugo
+      uses: peaceiris/actions-hugo@v3 
+      with:
+        hugo-version: '0.164.0'
+        extended: true
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        # The action defaults to search for the dependency file (package-lock.json,
+        # npm-shrinkwrap.json or yarn.lock) in the repository root, and uses its
+        # hash as a part of the cache key.
+        # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
+        cache-dependency-path: '**/package-lock.json'
+
+    - name: Setup Go (for mmark)
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.24' # Specify Go version
+
+    - name: Install mmark
+      run: |
+        go install github.com/mmarkdown/mmark@latest
+
+    - name: Setup Python (for xml2rfc)
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x' # Specify Python version
+
+    - name: Install xml2rfc
+      run: pip3 install xml2rfc
+
+    - name: Build Spec
+      working-directory: ./docs/specs
+      run: |
+        make
+        mv libzk.html ../static/spec/draft-google-cfrg-libzk-01.html
+
+    - name: Install Docsy dependencies
+      working-directory: ./docs
+      run: npm ci        
+
+    - name: Build
+      working-directory: ./docs
+      run: hugo --minify
+
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # pin@v4.0.0
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/public        
+

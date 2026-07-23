@@ -35,14 +35,17 @@
     "update:pkgs": "npx npm-check-updates -u"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.21",
-    "cross-env": "^7.0.3",
-    "hugo-extended": "0.147.9",
+    "autoprefixer": "^10.5.4",
+    "cross-env": "^10.1.0",
+    "hugo-extended": "0.164.0",
     "postcss-cli": "^11.0.1",
     "rtlcss": "^4.3.0"
   },
   "optionalDependencies": {
-    "npm-check-updates": "^18.0.1"
+    "npm-check-updates": "^22.2.9"
+  },
+  "overrides": {
+    "adm-zip": "^0.6.0"
   },
   "private": true,
   "prettier": {
