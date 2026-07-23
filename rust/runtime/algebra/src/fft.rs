@@ -14,6 +14,21 @@
 
 use crate::{field::RuntimeField, permutations};
 
+pub(crate) fn assert_valid_orders(transform_order: u64, root_order: u64) {
+    assert!(
+        transform_order.is_power_of_two(),
+        "FFT length must be a nonzero power of two"
+    );
+    assert!(
+        root_order.is_power_of_two(),
+        "FFT root order must be a nonzero power of two"
+    );
+    assert!(
+        transform_order <= root_order,
+        "FFT root order must be at least the transform length"
+    );
+}
+
 pub struct Twiddle<const W: usize, F: RuntimeField<W>> {
     pub order: usize,
     pub w: Vec<F::E>,
@@ -21,6 +36,10 @@ pub struct Twiddle<const W: usize, F: RuntimeField<W>> {
 
 impl<const W: usize, F: RuntimeField<W>> Twiddle<W, F> {
     pub fn new(order: usize, omega_order: &F::E, f: &F) -> Self {
+        assert!(
+            order.is_power_of_two(),
+            "twiddle order must be a nonzero power of two"
+        );
         let mut w = Vec::with_capacity(order / 2);
         let mut curr = f.one();
         for _ in 0..(order / 2) {
@@ -31,6 +50,7 @@ impl<const W: usize, F: RuntimeField<W>> Twiddle<W, F> {
     }
 
     pub fn reroot(omega_n: &F::E, n: u64, mut r: u64, f: &F) -> F::E {
+        assert_valid_orders(r, n);
         let mut omega_r = omega_n.clone();
         while r < n {
             let tmp = omega_r.clone();
@@ -64,6 +84,7 @@ pub fn butterflytw<const W: usize, F: RuntimeField<W>>(
 
 pub fn fftb<const W: usize, F: RuntimeField<W>>(a: &mut [F::E], omega_j: &F::E, j: u64, f: &F) {
     let n = a.len();
+    assert_valid_orders(n as u64, j);
     if n > 1 {
         let omega_n = Twiddle::<W, F>::reroot(omega_j, j, n as u64, f);
         let roots = Twiddle::<W, F>::new(n, &omega_n, f);
@@ -97,6 +118,7 @@ pub fn fftf<const W: usize, F: RuntimeField<W>>(
     omega_order: u64,
     f: &F,
 ) {
+    assert_valid_orders(a.len() as u64, omega_order);
     let inv = f.invert(omega);
     fftb(a, &inv, omega_order, f);
 }

@@ -14,7 +14,7 @@
 
 use compile_algebra::gf2_128::Gf2_128Field as UnoptField;
 use core_algebra::{AlgebraicField, SerializableField, SupportsU128Conversions};
-use runtime_algebra::{gf2_128::*, poly::InterpolationField, Subfield};
+use runtime_algebra::{gf2_128::*, poly::InterpolationField, Subfield, SupportsSampling};
 
 #[test]
 fn test_gf2_128_optimized_vs_unoptimized() {
@@ -152,4 +152,18 @@ fn test_serialization() {
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
     let sub_bytes = sf.to_bytes(&one);
     assert_eq!(sub_bytes.len(), sf.serialized_size_bytes());
+}
+
+#[test]
+#[should_panic(expected = "cannot invert zero")]
+fn test_invert_zero_panics() {
+    let field = Gf2_128RuntimeField::new();
+    field.invert(&field.zero());
+}
+
+#[test]
+#[should_panic(expected = "sampling callback returned an unexpected number of bytes")]
+fn test_sampling_rejects_wrong_byte_count() {
+    let field = Gf2_128RuntimeField::new();
+    field.sample(|requested| vec![0; requested + 1]);
 }

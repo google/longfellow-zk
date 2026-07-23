@@ -33,8 +33,6 @@ pub struct FpField<T> {
     modulo: BigUint,
     basis: Vec<Elt<T>>,
     dimension: usize,
-    sample_bytes_needed: usize,
-    sample_mask: BigUint,
     _marker: PhantomData<T>,
 }
 
@@ -43,6 +41,11 @@ impl<T> FpField<T> {
     pub fn new_field<const W: usize>(params: FpParameters<W>) -> Self {
         let modulo = params.modulo.to_biguint();
         let bits = modulo.bits();
+        assert!(modulo > BigUint::one(), "field modulus must exceed one");
+        assert!(
+            params.length_bytes >= (bits as usize).div_ceil(8),
+            "serialized field size is too small for the modulus"
+        );
         let dimension = (bits - 1) as usize;
 
         let mut basis = Vec::with_capacity(dimension);
@@ -53,17 +56,11 @@ impl<T> FpField<T> {
             });
         }
 
-        let exact_bits = bits as usize;
-        let sample_bytes_needed = exact_bits.div_ceil(8);
-        let sample_mask = (BigUint::from(1u32) << exact_bits) - 1u32;
-
         Self {
             length_bytes: params.length_bytes,
             modulo,
             basis,
             dimension,
-            sample_bytes_needed,
-            sample_mask,
             _marker: PhantomData,
         }
     }
@@ -163,7 +160,7 @@ impl<const W: usize, T> SupportsNatConversions<W> for FpField<T> {
     }
 
     fn to_nat(&self, e: &Self::E) -> Self::N {
-        crate::CompileNat(e.n.clone())
+        crate::CompileNat::from_biguint(&e.n)
     }
 }
 
@@ -266,8 +263,13 @@ impl<T> core_algebra::HasLookupPoints for FpField<T> {
 
 impl<T> core_algebra::SupportsU64Conversions for FpField<T> {
     fn u64_to_element(&self, n: u64) -> Self::E {
+        let value = BigUint::from(n);
+        assert!(
+            value < self.modulo,
+            "integer is not a canonical field element"
+        );
         Elt {
-            n: BigUint::from(n),
+            n: value,
             _marker: std::marker::PhantomData,
         }
     }
@@ -275,8 +277,13 @@ impl<T> core_algebra::SupportsU64Conversions for FpField<T> {
 
 impl<T> core_algebra::SupportsU128Conversions for FpField<T> {
     fn u128_to_element(&self, n: u128) -> Self::E {
+        let value = BigUint::from(n);
+        assert!(
+            value < self.modulo,
+            "integer is not a canonical field element"
+        );
         Elt {
-            n: BigUint::from(n),
+            n: value,
             _marker: std::marker::PhantomData,
         }
     }

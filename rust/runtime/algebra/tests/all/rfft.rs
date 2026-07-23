@@ -89,3 +89,16 @@ fn test_rfft_vs_fft() {
         omega = fp2.mulf(&omega, &omega0_pow4);
     }
 }
+
+#[test]
+fn test_rfft_rejects_non_power_of_two_length() {
+    let p256 = P256Field::new();
+    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
+    let omega = fp2.omega();
+    let mut values = vec![p256.zero(); 3];
+
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        r2hc(&mut values, &omega, fp2.omega_order(), &fp2);
+    }))
+    .is_err());
+}

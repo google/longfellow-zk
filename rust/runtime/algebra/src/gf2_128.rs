@@ -52,6 +52,7 @@ const XINV: Gf2_128 = Gf2_128::new(0x8000_0000_0000_0000_0000_0000_0000_0043);
 #[inline(always)]
 fn invert(e: Gf2_128) -> Gf2_128 {
     let zero = Gf2_128::from_u128(0);
+    assert!(e != zero, "cannot invert zero");
     let one = Gf2_128::from_u128(1);
 
     let mut a_curr = e;
@@ -210,6 +211,11 @@ impl RuntimeField<2> for Gf2_128Field {
 impl crate::field::SupportsSampling<2> for Gf2_128Field {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let buf = rng(16);
+        assert_eq!(
+            buf.len(),
+            16,
+            "sampling callback returned an unexpected number of bytes"
+        );
         let val = u128::from_le_bytes(buf.try_into().unwrap());
         Gf2_128::from(val)
     }

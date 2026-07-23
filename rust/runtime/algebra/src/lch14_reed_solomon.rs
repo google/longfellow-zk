@@ -29,6 +29,15 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = crate::gf2_128::Gf2_128>>
     Lch14ReedSolomon<'a, W, F>
 {
     pub fn new(n: usize, m: usize, f: &'a F, subfield: &'a BinarySubfield) -> Self {
+        assert!(n > 0, "LCH14 input length must be positive");
+        assert!(
+            m >= n,
+            "LCH14 output length must be at least the input length"
+        );
+        assert!(
+            m <= 1 << subfield.dimension(),
+            "LCH14 output length exceeds the subfield size"
+        );
         Self {
             f,
             n,
@@ -99,6 +108,6 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = crate::gf2_128::Gf2_128>>
         // Since all evaluation points (including coset offsets) must belong to the subfield,
         // the total number of evaluation points (`block_enc`) cannot exceed the subfield size.
         let max_size = 1 << self.subfield.dimension();
-        ylen <= max_size && block_enc <= max_size
+        ylen > 0 && ylen <= block_enc && block_enc <= max_size
     }
 }

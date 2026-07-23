@@ -16,9 +16,16 @@ use core_algebra::Nat;
 use num_bigint::BigUint;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CompileNat<const W: usize>(pub BigUint);
+pub struct CompileNat<const W: usize>(pub(crate) BigUint);
 
 impl<const W: usize> CompileNat<W> {
+    fn assert_fits(val: &BigUint) {
+        assert!(
+            val.bits() <= (W * 64) as u64,
+            "CompileNat value exceeds its {W}-word width"
+        );
+    }
+
     #[must_use]
     pub fn bit_width(&self) -> usize {
         W * 64
@@ -26,6 +33,7 @@ impl<const W: usize> CompileNat<W> {
 
     #[must_use]
     pub fn from_biguint(val: &num_bigint::BigUint) -> Self {
+        Self::assert_fits(val);
         Self(val.clone())
     }
 
@@ -43,10 +51,10 @@ impl<const W: usize> std::fmt::Debug for CompileNat<W> {
 
 impl<const W: usize> Nat<W> for CompileNat<W> {
     fn to_limbs(&self) -> [u64; W] {
+        Self::assert_fits(&self.0);
         let mut limbs = [0u64; W];
         let digits = self.0.to_u64_digits();
-        let limit = std::cmp::min(W, digits.len());
-        limbs[..limit].copy_from_slice(&digits[..limit]);
+        limbs[..digits.len()].copy_from_slice(&digits);
         limbs
     }
 
@@ -60,10 +68,11 @@ impl<const W: usize> Nat<W> for CompileNat<W> {
     }
 
     fn from_u64(val: u64) -> Self {
-        Self(BigUint::from(val))
+        Self::from_biguint(&BigUint::from(val))
     }
 
     fn to_bytes_le(&self) -> Vec<u8> {
+        Self::assert_fits(&self.0);
         let mut bytes = self.0.to_bytes_le();
         bytes.resize(W * 8, 0u8);
         bytes
@@ -89,12 +98,12 @@ impl<const W: usize> Nat<W> for CompileNat<W> {
 
 impl<const W: usize> From<BigUint> for CompileNat<W> {
     fn from(val: BigUint) -> Self {
-        Self(val)
+        Self::from_biguint(&val)
     }
 }
 
 impl<const W: usize> From<u64> for CompileNat<W> {
     fn from(val: u64) -> Self {
-        Self(BigUint::from(val))
+        Self::from_biguint(&BigUint::from(val))
     }
 }

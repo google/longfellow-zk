@@ -13,10 +13,12 @@
 // limitations under the License.
 
 use compile_algebra::{
-    field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
+    field::{
+        CompileField, SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions,
+    },
     fp::{FpField, FpParameters},
 };
-use core_algebra::{AlgebraicField, SerializableField};
+use core_algebra::{AlgebraicField, Nat, SerializableField};
 use num_bigint::BigUint;
 
 struct TestFpTag;
@@ -156,6 +158,60 @@ fn test_large_number_creation() {
         let b = f.nat_to_element(&compile_algebra::CompileNat::<6>::from(b_val));
         assert_eq!(b, f.u64_to_element(2));
     }
+}
+
+#[test]
+fn test_integer_conversions_reject_noncanonical_values() {
+    let f = FpField::<TestFpTag>::new_field(FpParameters {
+        length_bytes: 2,
+        modulo: compile_algebra::CompileNat::<6>::from(1009u64),
+    });
+
+    assert_eq!(
+        f.u64_to_element(1008),
+        f.nat_to_element(&compile_algebra::CompileNat::<6>::from(1008u64))
+    );
+    assert!(std::panic::catch_unwind(|| f.u64_to_element(1009)).is_err());
+    assert!(std::panic::catch_unwind(|| f.u64_to_element(1010)).is_err());
+    assert!(std::panic::catch_unwind(|| f.u128_to_element(1009)).is_err());
+    assert!(std::panic::catch_unwind(|| f.u128_to_element(1010)).is_err());
+}
+
+#[test]
+fn test_compile_nat_enforces_word_width() {
+    let max_value = (BigUint::from(1u32) << 384) - 1u32;
+    let max_nat = compile_algebra::CompileNat::<6>::from_biguint(&max_value);
+    assert_eq!(max_nat.to_bytes_le().len(), 6 * 8);
+
+    let oversized = BigUint::from(1u32) << 384;
+    assert!(std::panic::catch_unwind(|| {
+        compile_algebra::CompileNat::<6>::from_biguint(&oversized)
+    })
+    .is_err());
+    assert!(
+        std::panic::catch_unwind(|| compile_algebra::CompileNat::<6>::from(oversized)).is_err()
+    );
+}
+
+#[test]
+fn test_field_constructor_rejects_invalid_representation() {
+    for modulo in [0u64, 1u64] {
+        assert!(std::panic::catch_unwind(|| {
+            FpField::<TestFpTag>::new_field(FpParameters {
+                length_bytes: 1,
+                modulo: compile_algebra::CompileNat::<6>::from(modulo),
+            })
+        })
+        .is_err());
+    }
+
+    assert!(std::panic::catch_unwind(|| {
+        FpField::<TestFpTag>::new_field(FpParameters {
+            length_bytes: 2,
+            modulo: compile_algebra::CompileNat::<6>::from(65537u64),
+        })
+    })
+    .is_err());
 }
 
 #[test]

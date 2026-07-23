@@ -151,6 +151,10 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> Twiddle<W, F> {
         omega_order: &Fp2Element<W, F>,
         field_ext: &Fp2Field<'_, W, F>,
     ) -> Self {
+        assert!(
+            order.is_power_of_two(),
+            "twiddle order must be a nonzero power of two"
+        );
         let mut w = Vec::with_capacity(order / 2);
         let mut curr = field_ext.one();
         for _ in 0..(order / 2) {
@@ -166,6 +170,7 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> Twiddle<W, F> {
         mut r: u64,
         field_ext: &Fp2Field<'_, W, F>,
     ) -> Fp2Element<W, F> {
+        crate::fft::assert_valid_orders(r, n);
         let mut omega_r = omega_n.clone();
         while r < n {
             let tmp = omega_r.clone();
@@ -178,6 +183,10 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> Twiddle<W, F> {
 
 pub fn bitrev<T>(a: &mut [T]) {
     let n = a.len();
+    assert!(
+        n.is_power_of_two(),
+        "bit reversal length must be a nonzero power of two"
+    );
     let mut revi = 0;
     for i in 0..(n - 1) {
         if i < revi {
@@ -576,6 +585,7 @@ pub fn r2hc<const W: usize, F: SupportsQuadraticExtension<W>>(
     c: &Fp2Field<'_, W, F>,
 ) {
     let n = a.len();
+    crate::fft::assert_valid_orders(n as u64, omega_order);
     let r = c.base_field();
     #[cfg(debug_assertions)]
     validate_root(omega, c);
@@ -647,6 +657,7 @@ pub fn hc2r<const W: usize, F: SupportsQuadraticExtension<W>>(
     c: &Fp2Field<'_, W, F>,
 ) {
     let n = a.len();
+    crate::fft::assert_valid_orders(n as u64, omega_order);
     let r = c.base_field();
     #[cfg(debug_assertions)]
     validate_root(omega, c);

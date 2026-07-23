@@ -369,6 +369,7 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     }
 
     fn invert(&self, a: &Self::E) -> Self::E {
+        assert!(!self.is_zero(a), "cannot invert zero");
         let mut a_limbs = self.to_standard(a);
         let mut b_limbs = self.modulo;
         let mut u = self.one();
@@ -587,11 +588,14 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         loop {
             let buf = rng(W * 8);
+            assert_eq!(
+                buf.len(),
+                W * 8,
+                "sampling callback returned an unexpected number of bytes"
+            );
             let mut words = [0u64; W];
-            for (i, chunk) in buf.chunks_exact(8).enumerate() {
-                if i < W {
-                    words[i] = u64::from_le_bytes(chunk.try_into().unwrap());
-                }
+            for (word, chunk) in words.iter_mut().zip(buf.chunks_exact(8)) {
+                *word = u64::from_le_bytes(chunk.try_into().unwrap());
             }
             let res = crate::words64_to_limbs(&words);
             if lt(&res, &self.modulo) {

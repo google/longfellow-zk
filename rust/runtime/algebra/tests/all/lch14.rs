@@ -16,7 +16,9 @@ use runtime_algebra::{
     field::{AlgebraicField, RuntimeField},
     gf2_128::{Gf2_128, Gf2_128RuntimeField},
     lch14::*,
+    lch14_reed_solomon::{Lch14InterpolatorFactory, Lch14ReedSolomon},
     subfield::BinarySubfield,
+    InterpolatorFactory,
 };
 
 fn w_ref(f: &Gf2_128RuntimeField, subfield: &BinarySubfield, i: usize, x: &Gf2_128) -> Gf2_128 {
@@ -233,4 +235,25 @@ fn test_lch14_interpolation() {
             }
         }
     }
+}
+
+#[test]
+fn test_lch14_interpolator_rejects_invalid_dimensions() {
+    let f = Gf2_128RuntimeField::new();
+    let subfield = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
+    let factory = Lch14InterpolatorFactory::new(&f, &subfield);
+    let capacity = 1 << subfield.dimension();
+
+    assert!(!factory.can_encode(0, 1));
+    assert!(!factory.can_encode(2, 1));
+    assert!(factory.can_encode(1, 1));
+    assert!(factory.can_encode(capacity, capacity));
+    assert!(!factory.can_encode(capacity, capacity + 1));
+
+    assert!(std::panic::catch_unwind(|| Lch14ReedSolomon::new(0, 1, &f, &subfield)).is_err());
+    assert!(std::panic::catch_unwind(|| Lch14ReedSolomon::new(2, 1, &f, &subfield)).is_err());
+    assert!(std::panic::catch_unwind(|| {
+        Lch14ReedSolomon::new(capacity, capacity + 1, &f, &subfield)
+    })
+    .is_err());
 }

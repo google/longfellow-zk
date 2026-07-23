@@ -17,7 +17,7 @@ use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use runtime_algebra::{
     fp_generic::{FpGenericElement, FpGenericField, MontgomeryStrategy},
-    RuntimeField,
+    RuntimeField, SupportsSampling,
 };
 
 fn to_biguint_field<
@@ -299,4 +299,28 @@ fn test_rejects_invalid_montgomery_modulus() {
         { runtime_algebra::LIMBS_PER_U64 },
         { 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
     >::new_generic([16]);
+}
+
+#[test]
+#[should_panic(expected = "cannot invert zero")]
+fn test_invert_zero_panics() {
+    let field = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 },
+        { 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
+        (),
+    >::new_generic([0xffff_ffff_ffff_ffc5]);
+    field.invert(&field.zero());
+}
+
+#[test]
+#[should_panic(expected = "sampling callback returned an unexpected number of bytes")]
+fn test_sampling_rejects_wrong_byte_count() {
+    let field = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 },
+        { 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
+        (),
+    >::new_generic([0xffff_ffff_ffff_ffc5]);
+    field.sample(|requested| vec![0; requested - 1]);
 }

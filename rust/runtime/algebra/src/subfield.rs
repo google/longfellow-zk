@@ -225,6 +225,11 @@ impl Subfield for BinarySubfield {
         let size = self.serialized_size_bytes();
         let mut buf = [0u8; 8];
         let bytes = rng(size);
+        assert_eq!(
+            bytes.len(),
+            size,
+            "sampling callback returned an unexpected number of bytes"
+        );
         buf[..size].copy_from_slice(&bytes);
         let mut val = u64::from_le_bytes(buf);
         if self.len < 64 {

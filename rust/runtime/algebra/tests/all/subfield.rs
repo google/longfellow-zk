@@ -116,6 +116,13 @@ fn test_binary_subfield_requires_byte_aligned_dimension() {
 }
 
 #[test]
+#[should_panic(expected = "sampling callback returned an unexpected number of bytes")]
+fn test_subfield_sampling_rejects_wrong_byte_count() {
+    let subfield = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
+    subfield.sample(|requested| vec![0; requested + 1]);
+}
+
+#[test]
 fn test_gf2_16_basis_v1_properties() {
     let sf_basis = core_algebra::proto::GF2_16_BASIS_V1;
 
@@ -166,7 +173,10 @@ fn test_subfield_closed_under_multiplication() {
     let f = Gf2_128RuntimeField::new();
     let sf = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
 
-    // 1. Check all pairs of basis elements
+    assert!(sf.contains(&f.one()), "subfield must contain one");
+
+    // Multiplication is bilinear, so checking every pair of basis elements proves that the
+    // entire span is closed under multiplication.
     for &a in sf.basis() {
         for &b in sf.basis() {
             let prod = f.mulf(&a, &b);
@@ -174,13 +184,13 @@ fn test_subfield_closed_under_multiplication() {
         }
     }
 
+    // Exercise the conclusion directly on a deterministic sample of elements.
     let mut rng_state = 12345u64;
     let mut next_rng = || {
         rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1);
         rng_state
     };
 
-    // 2. Check 1000 random pairs
     for _ in 0..1000 {
         let a_val = next_rng() % 65536;
         let b_val = next_rng() % 65536;

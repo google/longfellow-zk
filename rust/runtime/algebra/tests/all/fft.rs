@@ -242,3 +242,20 @@ fn test_fft_impulse_addition() {
         }
     }
 }
+
+#[test]
+fn test_fft_rejects_invalid_orders() {
+    let p256 = P256Field::new();
+    let (f, omega, _) = get_test_field_and_omega(&p256);
+
+    for (len, root_order) in [(0, 8), (3, 8), (4, 3), (4, 2)] {
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut values = vec![f.zero(); len];
+                fftb(&mut values, &omega, root_order, &f);
+            }))
+            .is_err(),
+            "accepted FFT length {len} with root order {root_order}"
+        );
+    }
+}
