@@ -118,9 +118,9 @@ impl<F: CompilePrimeField + SupportsNatConversions<4>> Secp256r1<F> {
         let nat_gy = F::N::from_limbs(&limbs_gy);
 
         Self {
-            a: f.nat_to_element(&nat_a),
-            b: f.nat_to_element(&nat_b),
-            g: (f.nat_to_element(&nat_gx), f.nat_to_element(&nat_gy)),
+            a: f.reduce_nat(&nat_a),
+            b: f.reduce_nat(&nat_b),
+            g: (f.reduce_nat(&nat_gx), f.reduce_nat(&nat_gy)),
             order,
         }
     }

@@ -80,7 +80,7 @@ fn test_arithmetic() {
         let expected_sum = (BigUint::from(10u32) + BigUint::from(12u32)) % modulo;
         assert_eq!(
             sum,
-            f.nat_to_element(&compile_algebra::CompileNat::<6>::from(expected_sum))
+            f.reduce_nat(&compile_algebra::CompileNat::<6>::from(expected_sum))
         );
 
         // Subtraction: (10 - 12) mod p
@@ -92,7 +92,7 @@ fn test_arithmetic() {
         };
         assert_eq!(
             diff,
-            f.nat_to_element(&compile_algebra::CompileNat::<6>::from(expected_diff))
+            f.reduce_nat(&compile_algebra::CompileNat::<6>::from(expected_diff))
         );
 
         // Multiplication: (10 * 12) mod p
@@ -100,7 +100,7 @@ fn test_arithmetic() {
         let expected_prod = (BigUint::from(10u32) * BigUint::from(12u32)) % modulo;
         assert_eq!(
             prod,
-            f.nat_to_element(&compile_algebra::CompileNat::<6>::from(expected_prod))
+            f.reduce_nat(&compile_algebra::CompileNat::<6>::from(expected_prod))
         );
 
         // Inversion
@@ -121,7 +121,7 @@ fn test_negation() {
         let expected_neg = modulo - BigUint::from(5u32);
         assert_eq!(
             neg_a,
-            f.nat_to_element(&compile_algebra::CompileNat::<6>::from(expected_neg))
+            f.reduce_nat(&compile_algebra::CompileNat::<6>::from(expected_neg))
         );
         assert!(f.is_zero(&f.addf(&a, &neg_a)));
     }
@@ -146,16 +146,16 @@ fn test_to_from_bytes() {
 }
 
 #[test]
-fn test_large_number_creation() {
+fn test_large_number_reduction() {
     for case in get_test_fields() {
         let f = &case.field;
         let modulo = &case.modulo;
 
-        let a = f.nat_to_element(&compile_algebra::CompileNat::<6>::from(modulo.clone()));
+        let a = f.reduce_nat(&compile_algebra::CompileNat::<6>::from(modulo.clone()));
         assert!(f.is_zero(&a));
 
         let b_val = modulo + BigUint::from(2u32);
-        let b = f.nat_to_element(&compile_algebra::CompileNat::<6>::from(b_val));
+        let b = f.reduce_nat(&compile_algebra::CompileNat::<6>::from(b_val));
         assert_eq!(b, f.u64_to_element(2));
     }
 }
@@ -169,7 +169,7 @@ fn test_integer_conversions_reject_noncanonical_values() {
 
     assert_eq!(
         f.u64_to_element(1008),
-        f.nat_to_element(&compile_algebra::CompileNat::<6>::from(1008u64))
+        f.reduce_nat(&compile_algebra::CompileNat::<6>::from(1008u64))
     );
     assert!(std::panic::catch_unwind(|| f.u64_to_element(1009)).is_err());
     assert!(std::panic::catch_unwind(|| f.u64_to_element(1010)).is_err());

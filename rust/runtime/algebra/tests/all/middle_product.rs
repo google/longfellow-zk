@@ -148,3 +148,29 @@ fn test_fft_ext_middle_product() {
 
     assert_eq!(&got[n - 1..m], &expected[n - 1..m]);
 }
+
+#[test]
+fn test_middle_product_rejects_invalid_dimensions() {
+    let p256 = P256Field::new();
+    let (fp2, omega, omega_order) = get_test_field_and_omega(&p256);
+
+    for (n, m, y_len) in [(0, 1, 1), (2, 1, 1), (1, 2, 1)] {
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let y = vec![fp2.zero(); y_len];
+                FFTMiddleProduct::new(n, m, &omega, omega_order, &y, &fp2);
+            }))
+            .is_err(),
+            "accepted middle-product dimensions n={n}, m={m}, y_len={y_len}"
+        );
+    }
+
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let y = vec![p256.zero()];
+            FFTExtMiddleProduct::new(1, 1, &omega, omega_order, &y, &p256, &fp2);
+        }))
+        .is_err(),
+        "accepted a one-element real FFT middle product"
+    );
+}

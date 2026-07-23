@@ -35,7 +35,7 @@ pub fn all_mdoc_signature_corruptors() -> Vec<MdocSignatureCorruptor> {
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.issuer_sig_e = CompileNat::<4>::from_u64(0xdeadbeef);
-                g.issuer_sig_given.e = f.nat_to_element(&g.sig_input.issuer_sig_e);
+                g.issuer_sig_given.e = f.reduce_nat(&g.sig_input.issuer_sig_e);
             })),
         },
         MdocSignatureCorruptor {
@@ -44,7 +44,7 @@ pub fn all_mdoc_signature_corruptors() -> Vec<MdocSignatureCorruptor> {
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.issuer_pk.0 = CompileNat::<4>::from_u64(0xdeadbeef);
-                g.issuer_sig_given.pkxy.0 = f.nat_to_element(&g.sig_input.issuer_pk.0);
+                g.issuer_sig_given.pkxy.0 = f.reduce_nat(&g.sig_input.issuer_pk.0);
             })),
         },
         MdocSignatureCorruptor {
@@ -53,7 +53,7 @@ pub fn all_mdoc_signature_corruptors() -> Vec<MdocSignatureCorruptor> {
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.issuer_pk.1 = CompileNat::<4>::from_u64(0xdeadbeef);
-                g.issuer_sig_given.pkxy.1 = f.nat_to_element(&g.sig_input.issuer_pk.1);
+                g.issuer_sig_given.pkxy.1 = f.reduce_nat(&g.sig_input.issuer_pk.1);
             })),
         },
         MdocSignatureCorruptor {
@@ -78,7 +78,7 @@ pub fn all_mdoc_signature_corruptors() -> Vec<MdocSignatureCorruptor> {
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.device_sig_e = CompileNat::<4>::from_u64(0xdeadbeef);
-                g.device_sig_given.e = f.nat_to_element(&g.sig_input.device_sig_e);
+                g.device_sig_given.e = f.reduce_nat(&g.sig_input.device_sig_e);
             })),
         },
         MdocSignatureCorruptor {
@@ -87,7 +87,7 @@ pub fn all_mdoc_signature_corruptors() -> Vec<MdocSignatureCorruptor> {
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.device_pk.0 = CompileNat::<4>::from_u64(0xdeadbeef);
-                g.device_sig_given.pkxy.0 = f.nat_to_element(&g.sig_input.device_pk.0);
+                g.device_sig_given.pkxy.0 = f.reduce_nat(&g.sig_input.device_pk.0);
             })),
         },
         MdocSignatureCorruptor {
@@ -96,7 +96,7 @@ pub fn all_mdoc_signature_corruptors() -> Vec<MdocSignatureCorruptor> {
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.device_pk.1 = CompileNat::<4>::from_u64(0xdeadbeef);
-                g.device_sig_given.pkxy.1 = f.nat_to_element(&g.sig_input.device_pk.1);
+                g.device_sig_given.pkxy.1 = f.reduce_nat(&g.sig_input.device_pk.1);
             })),
         },
         MdocSignatureCorruptor {

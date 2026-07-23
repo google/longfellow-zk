@@ -121,7 +121,7 @@ fn test_compile_ecdsa_generic<
     let r_val = parse_hex::<W, FR::N>(r_str);
     let s_val = parse_hex::<W, FR::N>(s_str);
 
-    let pkxy_val_r = (fr.nat_to_element(&pkx_val), fr.nat_to_element(&pky_val));
+    let pkxy_val_r = (fr.reduce_nat(&pkx_val), fr.reduce_nat(&pky_val));
     let concrete_given_r = given(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
     let concrete_derived_r = derived(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
 

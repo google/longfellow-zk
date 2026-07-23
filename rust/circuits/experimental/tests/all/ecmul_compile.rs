@@ -68,10 +68,10 @@ fn test_compile_ecmul_generic<
 
     // Verify compiled circuit evaluation
     let tv = testvec::get_testvec();
-    let ax_val = fr.nat_to_element(&FR::N::from_bytes_le(&tv.ax.to_bytes_le()));
-    let ay_val = fr.nat_to_element(&FR::N::from_bytes_le(&tv.ay.to_bytes_le()));
-    let bx_val = fr.nat_to_element(&FR::N::from_bytes_le(&tv.bx.to_bytes_le()));
-    let by_val = fr.nat_to_element(&FR::N::from_bytes_le(&tv.by.to_bytes_le()));
+    let ax_val = fr.reduce_nat(&FR::N::from_bytes_le(&tv.ax.to_bytes_le()));
+    let ay_val = fr.reduce_nat(&FR::N::from_bytes_le(&tv.ay.to_bytes_le()));
+    let bx_val = fr.reduce_nat(&FR::N::from_bytes_le(&tv.bx.to_bytes_le()));
+    let by_val = fr.reduce_nat(&FR::N::from_bytes_le(&tv.by.to_bytes_le()));
 
     let concrete_given = ConcreteGiven {
         exp: tv.exp.clone(),

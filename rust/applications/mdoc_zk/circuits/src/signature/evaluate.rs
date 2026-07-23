@@ -41,8 +41,8 @@ where
     C: Curve<4, F = F, N = F::N>,
 {
     let issuer_pk = (
-        logic.konst(&f.nat_to_element(&given.sig_input.issuer_pk.0)),
-        logic.konst(&f.nat_to_element(&given.sig_input.issuer_pk.1)),
+        logic.konst(&f.reduce_nat(&given.sig_input.issuer_pk.0)),
+        logic.konst(&f.reduce_nat(&given.sig_input.issuer_pk.1)),
     );
     let big_bv = circuits_big_bitvec::BigBitvec::new(bv.logic());
     let issuer_sig_e = big_bv.of_nat::<4, 256, F>(&given.sig_input.issuer_sig_e);

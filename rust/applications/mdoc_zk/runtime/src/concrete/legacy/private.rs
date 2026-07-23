@@ -254,10 +254,10 @@ pub fn push_witness_sig(
 ) -> Vec<P256Element> {
     let mut builder = AssignmentBuilder::new(p256);
 
-    let issuer_sig_e_elt = p256.nat_to_element(&parsed.issuer_sig_digest);
+    let issuer_sig_e_elt = p256.reduce_nat(&parsed.issuer_sig_digest);
     let device_pk_elt = (
-        p256.nat_to_element(&parsed.device_pk.0),
-        p256.nat_to_element(&parsed.device_pk.1),
+        p256.reduce_nat(&parsed.device_pk.0),
+        p256.reduce_nat(&parsed.device_pk.1),
     );
 
     builder.push_elt(&issuer_sig_e_elt);

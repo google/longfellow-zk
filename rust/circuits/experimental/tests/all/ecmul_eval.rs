@@ -39,10 +39,10 @@ fn run_ecmul_eval_tests<
     let n = 256;
     let tv = testvec::get_testvec();
 
-    let ax_fp = f.nat_to_element(&F::N::from_bytes_le(&tv.ax.to_bytes_le()));
-    let ay_fp = f.nat_to_element(&F::N::from_bytes_le(&tv.ay.to_bytes_le()));
-    let bx_fp = f.nat_to_element(&F::N::from_bytes_le(&tv.bx.to_bytes_le()));
-    let by_fp = f.nat_to_element(&F::N::from_bytes_le(&tv.by.to_bytes_le()));
+    let ax_fp = f.reduce_nat(&F::N::from_bytes_le(&tv.ax.to_bytes_le()));
+    let ay_fp = f.reduce_nat(&F::N::from_bytes_le(&tv.ay.to_bytes_le()));
+    let bx_fp = f.reduce_nat(&F::N::from_bytes_le(&tv.bx.to_bytes_le()));
+    let by_fp = f.reduce_nat(&F::N::from_bytes_le(&tv.by.to_bytes_le()));
 
     let concrete_given = ConcreteGiven {
         exp: tv.exp.clone(),

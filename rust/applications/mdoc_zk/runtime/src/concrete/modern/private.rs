@@ -183,8 +183,8 @@ where
     let device_sig_given = circuits_ecdsa2::concrete::given::<4, F, Fn, C>(
         secp256r1,
         &(
-            runtime_field.nat_to_element(&parsed.device_pk.0),
-            runtime_field.nat_to_element(&parsed.device_pk.1),
+            runtime_field.reduce_nat(&parsed.device_pk.0),
+            runtime_field.reduce_nat(&parsed.device_pk.1),
         ),
         &parsed.device_sig_digest,
         &parsed.device_sig_r,
@@ -195,8 +195,8 @@ where
     let device_sig_derived = circuits_ecdsa2::concrete::derived(
         secp256r1,
         &(
-            runtime_field.nat_to_element(&parsed.device_pk.0),
-            runtime_field.nat_to_element(&parsed.device_pk.1),
+            runtime_field.reduce_nat(&parsed.device_pk.0),
+            runtime_field.reduce_nat(&parsed.device_pk.1),
         ),
         &parsed.device_sig_digest,
         &parsed.device_sig_r,

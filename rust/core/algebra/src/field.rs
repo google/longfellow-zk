@@ -97,7 +97,11 @@ pub trait HasLookupPoints: BareField {
 pub trait SupportsNatConversions<const W: usize>: SerializableField {
     type N: crate::Nat<W>;
 
-    fn nat_to_element(&self, n: &Self::N) -> Self::E;
+    /// Maps a fixed-width natural number into the field using the field's native reduction.
+    ///
+    /// For prime fields this reduces modulo the field modulus. This is not a canonical decoding
+    /// operation; use field deserialization when noncanonical values must be rejected.
+    fn reduce_nat(&self, n: &Self::N) -> Self::E;
     fn to_nat(&self, e: &Self::E) -> Self::N;
 }
 

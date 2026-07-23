@@ -151,7 +151,7 @@ impl<T> CompileField for FpField<T> {
 impl<const W: usize, T> SupportsNatConversions<W> for FpField<T> {
     type N = crate::CompileNat<W>;
 
-    fn nat_to_element(&self, n: &Self::N) -> Self::E {
+    fn reduce_nat(&self, n: &Self::N) -> Self::E {
         let value = &n.0 % &self.modulo;
         Elt {
             n: value,

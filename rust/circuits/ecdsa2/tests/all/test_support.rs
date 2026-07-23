@@ -44,14 +44,14 @@ pub(crate) fn sign_and_generate_given_derived<
     let rx = field.to_nat(&r_normalized.0);
 
     // Convert rx to scalar field to get r = rx mod order
-    let rx_scalar = scalar_field.nat_to_element(&rx);
+    let rx_scalar = scalar_field.reduce_nat(&rx);
     let r = scalar_field.to_nat(&rx_scalar);
 
     // s = k^-1 * (e + r * d)
-    let e_scalar = scalar_field.nat_to_element(e);
+    let e_scalar = scalar_field.reduce_nat(e);
     let r_scalar = rx_scalar;
-    let d_scalar = scalar_field.nat_to_element(d);
-    let k_scalar = scalar_field.nat_to_element(k);
+    let d_scalar = scalar_field.reduce_nat(d);
+    let k_scalar = scalar_field.reduce_nat(k);
     let rd = scalar_field.mulf(&r_scalar, &d_scalar);
     let e_rd = scalar_field.addf(&e_scalar, &rd);
     let k_inv = scalar_field.invert(&k_scalar);

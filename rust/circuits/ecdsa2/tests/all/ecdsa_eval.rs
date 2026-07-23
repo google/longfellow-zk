@@ -72,7 +72,7 @@ fn test_ecdsa_secp256r1_generic<
     let r_val = parse_hex::<W, F::N>(r_str);
     let s_val = parse_hex::<W, F::N>(s_str);
 
-    let pkxy_r = (f.nat_to_element(&pkx_val), f.nat_to_element(&pky_val));
+    let pkxy_r = (f.reduce_nat(&pkx_val), f.reduce_nat(&pky_val));
     let concrete_given = given(curve, &pkxy_r, &e_val, &r_val, &s_val, f, fn_field);
     let concrete_derived = derived(curve, &pkxy_r, &e_val, &r_val, &s_val, f, fn_field);
 

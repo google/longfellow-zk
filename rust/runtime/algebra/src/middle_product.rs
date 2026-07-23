@@ -35,6 +35,12 @@ pub fn choose_padding(n: usize) -> usize {
     n.next_power_of_two()
 }
 
+fn assert_valid_dimensions(n: usize, m: usize, y_len: usize) {
+    assert!(n > 0, "middle product requires n > 0");
+    assert!(m >= n, "middle product requires m >= n");
+    assert_eq!(y_len, m, "middle product requires y.len() == m");
+}
+
 /// Computes a middle product against an operand fixed at construction time.
 pub trait MiddleProduct<const W: usize, F: RuntimeField<W>> {
     /// Writes the middle-product coefficients to `z[n - 1..m]`.
@@ -63,6 +69,7 @@ impl<'a, const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversio
     FFTMiddleProduct<'a, W, F>
 {
     pub fn new(n: usize, m: usize, omega: &F::E, omega_order: u64, y: &[F::E], f: &'a F) -> Self {
+        assert_valid_dimensions(n, m, y.len());
         let padding = choose_padding(m);
         let mut y_fft = vec![f.zero(); padding];
         y_fft[..m].clone_from_slice(y);
@@ -140,6 +147,8 @@ impl<
         f: &'a F,
         f_ext: &'a crate::fp2::Fp2Field<'a, W, F>,
     ) -> Self {
+        assert_valid_dimensions(n, m, y.len());
+        assert!(m >= 2, "real FFT middle product requires m >= 2");
         let padding = choose_padding(m);
         let mut y_fft = vec![f.zero(); padding];
         y_fft[..m].clone_from_slice(y);

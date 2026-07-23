@@ -147,8 +147,8 @@ pub fn given<
     };
 
     let issuer_pkxy = (
-        f.nat_to_element(&sig_input.issuer_pk.0),
-        f.nat_to_element(&sig_input.issuer_pk.1),
+        f.reduce_nat(&sig_input.issuer_pk.0),
+        f.reduce_nat(&sig_input.issuer_pk.1),
     );
     let issuer_sig_given = circuits_ecdsa2::concrete::given(
         curve,
@@ -161,8 +161,8 @@ pub fn given<
     );
 
     let device_pkxy = (
-        f.nat_to_element(&sig_input.device_pk.0),
-        f.nat_to_element(&sig_input.device_pk.1),
+        f.reduce_nat(&sig_input.device_pk.0),
+        f.reduce_nat(&sig_input.device_pk.1),
     );
     let device_sig_given = circuits_ecdsa2::concrete::given(
         curve,
@@ -199,8 +199,8 @@ pub fn derived<
     input: &ConcreteGiven<F, F::N>,
 ) -> Result<ConcreteDerived<F>, String> {
     let issuer_pkxy = (
-        f.nat_to_element(&input.sig_input.issuer_pk.0),
-        f.nat_to_element(&input.sig_input.issuer_pk.1),
+        f.reduce_nat(&input.sig_input.issuer_pk.0),
+        f.reduce_nat(&input.sig_input.issuer_pk.1),
     );
     let issuer_sig_derived = circuits_ecdsa2::concrete::derived(
         curve,
@@ -213,8 +213,8 @@ pub fn derived<
     );
 
     let device_pkxy = (
-        f.nat_to_element(&input.sig_input.device_pk.0),
-        f.nat_to_element(&input.sig_input.device_pk.1),
+        f.reduce_nat(&input.sig_input.device_pk.0),
+        f.reduce_nat(&input.sig_input.device_pk.1),
     );
     let device_sig_derived = circuits_ecdsa2::concrete::derived(
         curve,

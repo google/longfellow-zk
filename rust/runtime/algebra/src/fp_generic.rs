@@ -498,8 +498,19 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 {
     type N = RuntimeNat<W>;
 
-    fn nat_to_element(&self, n: &Self::N) -> Self::E {
-        self.words64_to_element(n.limbs()).unwrap()
+    fn reduce_nat(&self, n: &Self::N) -> Self::E {
+        let limbs = crate::words64_to_limbs(n.limbs());
+        if lt(&limbs, &self.modulo) {
+            return self.to_montgomery(&limbs);
+        }
+
+        // `accum_reduce` converts a raw product to Montgomery form by removing one factor of R.
+        // Multiplying the standard representation by R² first therefore yields nR mod p.
+        let standard = FpGenericElement(limbs, PhantomData);
+        let r2 = FpGenericElement(self.r2, PhantomData);
+        let mut acc = self.zero_accum();
+        self.mac(&mut acc, &standard, &r2);
+        self.accum_reduce(&acc)
     }
 
     fn to_nat(&self, e: &Self::E) -> Self::N {

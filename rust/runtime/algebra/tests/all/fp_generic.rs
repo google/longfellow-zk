@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core_algebra::{AlgebraicField, SerializableField, SupportsU64Conversions};
+use core_algebra::{
+    AlgebraicField, Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions,
+};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use runtime_algebra::{
@@ -323,4 +325,71 @@ fn test_sampling_rejects_wrong_byte_count() {
         (),
     >::new_generic([0xffff_ffff_ffff_ffc5]);
     field.sample(|requested| vec![0; requested - 1]);
+}
+
+#[test]
+fn test_reduce_nat() {
+    test_reduce_nat_for_field::<
+        2,
+        { 2 * runtime_algebra::LIMBS_PER_U64 },
+        { 2 * 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
+    >([0xffff_ffff_ffff_ff61, 0xffff_ffff_ffff_ffff]);
+
+    // Use the same 128-bit prime in a three-word representation. This makes the input range
+    // roughly 2^64 times larger than the modulus and exercises reductions with large quotients.
+    test_reduce_nat_for_field::<
+        3,
+        { 3 * runtime_algebra::LIMBS_PER_U64 },
+        { 2 * 3 * runtime_algebra::LIMBS_PER_U64 + 1 },
+    >([0xffff_ffff_ffff_ff61, 0xffff_ffff_ffff_ffff, 0]);
+}
+
+fn test_reduce_nat_for_field<const N: usize, const L: usize, const ACCUM_L: usize>(
+    modulo_words: [u64; N],
+) {
+    let field = FpGenericField::<N, L, ACCUM_L, ()>::new_generic(modulo_words);
+    let modulus = BigUint::from_bytes_le(&vec_of_limbs(&modulo_words));
+    let limit = BigUint::one() << (64 * N);
+
+    let mut values = vec![
+        BigUint::zero(),
+        BigUint::one(),
+        &modulus - 1u32,
+        modulus.clone(),
+        &modulus + 1u32,
+        &limit - 1u32,
+    ];
+    for multiplier in [2u32, 3, 17, 257, 65_537] {
+        let multiple = &modulus * multiplier;
+        for offset in [0u32, 1, 2, 17] {
+            let value = &multiple + offset;
+            if value < limit {
+                values.push(value);
+            }
+        }
+    }
+
+    let mut state = 0x6a09_e667_f3bc_c909u64;
+    for _ in 0..512 {
+        let mut words = [0u64; N];
+        for word in &mut words {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            *word = state;
+        }
+        values.push(BigUint::from_bytes_le(&vec_of_limbs(&words)));
+    }
+
+    for value in values {
+        let mut bytes = value.to_bytes_le();
+        bytes.resize(N * 8, 0);
+        let nat = runtime_algebra::RuntimeNat::<N>::from_bytes_le(&bytes);
+        let reduced = field.reduce_nat(&nat);
+        assert_eq!(
+            to_biguint_field(&field, &reduced),
+            &value % &modulus,
+            "incorrect reduction for {value} modulo {modulus}"
+        );
+    }
 }

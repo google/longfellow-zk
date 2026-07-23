@@ -288,7 +288,7 @@ impl core_algebra::SupportsNatConversions<2> for Gf2_128Field {
     type N = crate::RuntimeNat<2>;
 
     #[inline(always)]
-    fn nat_to_element(&self, n: &Self::N) -> Self::E {
+    fn reduce_nat(&self, n: &Self::N) -> Self::E {
         let limbs = n.limbs();
         Gf2_128::from(u128::from(limbs[0]) | (u128::from(limbs[1]) << 64))
     }
