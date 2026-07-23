@@ -15,11 +15,6 @@
 pub use core_algebra::AlgebraicField;
 use num_bigint::BigUint;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FieldError {
-    OutOfBounds,
-}
-
 /// Trait for fields used at circuit compile-time. Inherits from
 /// [`core_algebra::AlgebraicField`] to define its associated
 /// [`core_algebra::BareField::E`] type and algebraic operations.
@@ -50,20 +45,6 @@ pub trait CompileField:
         let mut prod = a.clone();
         self.mul(&mut prod, b);
         self.add(e1, &prod);
-    }
-
-    fn fms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = a.clone();
-        self.mul(&mut prod, b);
-        self.sub(&mut prod, e1);
-        *e1 = prod;
-    }
-
-    fn fnma(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = a.clone();
-        self.mul(&mut prod, b);
-        self.add(&mut prod, e1);
-        *e1 = self.neg(&prod);
     }
 
     fn fnms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {

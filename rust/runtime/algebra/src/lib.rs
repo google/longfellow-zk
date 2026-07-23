@@ -37,8 +37,7 @@ pub(crate) mod utility;
 
 pub use core_algebra::{AlgebraicField, Curve as RuntimeCurve, ElementOf};
 pub use field::{
-    FieldElement, FieldError, RuntimeBinaryField, RuntimeField, SupportsFFT,
-    SupportsQuadraticExtension, SupportsSampling,
+    RuntimeBinaryField, RuntimeField, SupportsFFT, SupportsQuadraticExtension, SupportsSampling,
 };
 pub use interpolator::{Interpolator, InterpolatorFactory};
 pub use limb::{

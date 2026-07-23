@@ -110,14 +110,6 @@ impl AlgebraicField for Gf2_128Field {
 }
 
 impl SerializableField for Gf2_128Field {
-    fn name(&self) -> String {
-        "GF2_128_REF".to_string()
-    }
-
-    fn id(&self) -> usize {
-        4
-    }
-
     fn is_binary(&self) -> bool {
         true
     }

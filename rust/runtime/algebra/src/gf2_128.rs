@@ -13,10 +13,10 @@
 // limitations under the License.
 
 pub use crate::arch::{
-    gf2_128_accum_reduce as arch_accum_reduce, gf2_128_add_accum as arch_add_accum,
-    gf2_128_mac as arch_mac, gf2_128_mul as arch_mul, Gf2_128, Gf2_128Accum,
+    gf2_128_accum_reduce as arch_accum_reduce, gf2_128_mac as arch_mac, gf2_128_mul as arch_mul,
+    Gf2_128, Gf2_128Accum,
 };
-use crate::field::{AlgebraicField, FieldElement, RuntimeBinaryField, RuntimeField};
+use crate::field::{AlgebraicField, RuntimeBinaryField, RuntimeField};
 
 impl Gf2_128 {
     #[inline(always)]
@@ -46,8 +46,6 @@ impl From<u128> for Gf2_128 {
         Self::from_u128(v)
     }
 }
-
-impl FieldElement for Gf2_128 {}
 
 const XINV: Gf2_128 = Gf2_128::new(0x8000_0000_0000_0000_0000_0000_0000_0043);
 
@@ -131,13 +129,6 @@ impl core_algebra::BareField for Gf2_128Field {
     type E = Gf2_128;
 }
 
-impl core_algebra::Comparable for Gf2_128Field {
-    #[inline(always)]
-    fn compare(&self, a: &Self::E, b: &Self::E) -> std::cmp::Ordering {
-        a.to_u128().cmp(&b.to_u128())
-    }
-}
-
 impl core_algebra::AlgebraicField for Gf2_128Field {
     #[inline(always)]
     fn zero(&self) -> Self::E {
@@ -196,16 +187,6 @@ impl RuntimeField<2> for Gf2_128Field {
     }
 
     #[inline(always)]
-    fn fms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        self.fma(e1, a, b);
-    }
-
-    #[inline(always)]
-    fn fnma(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        self.fma(e1, a, b);
-    }
-
-    #[inline(always)]
     fn fnms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
         self.fma(e1, a, b);
     }
@@ -218,11 +199,6 @@ impl RuntimeField<2> for Gf2_128Field {
     #[inline(always)]
     fn mac(&self, acc: &mut Self::Accum, x: &Self::E, y: &Self::E) {
         arch_mac(acc, x, y);
-    }
-
-    #[inline(always)]
-    fn add_accum(&self, a: &mut Self::Accum, b: &Self::Accum) {
-        arch_add_accum(a, b);
     }
 
     #[inline(always)]
@@ -254,14 +230,6 @@ impl crate::poly::InterpolationField<2> for Gf2_128Field {
 }
 
 impl core_algebra::SerializableField for Gf2_128Field {
-    fn name(&self) -> String {
-        "GF2_128".to_string()
-    }
-
-    fn id(&self) -> usize {
-        4
-    }
-
     fn is_binary(&self) -> bool {
         true
     }

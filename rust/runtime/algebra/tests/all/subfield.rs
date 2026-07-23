@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core_algebra::{AlgebraicField, Comparable, SupportsU128Conversions};
+use core_algebra::{AlgebraicField, SupportsU128Conversions};
 use runtime_algebra::{gf2_128::Gf2_128RuntimeField, subfield::BinarySubfield, Subfield};
 
 struct SimpleRng(u64);
@@ -51,10 +51,8 @@ fn test_runtime_subfield_gf2_16() {
     }
 
     // 2. Check distinct
-    let mut sorted = elements.clone();
-    sorted.sort_by(|a, b| f.compare(a, b));
-    sorted.dedup();
-    assert_eq!(sorted.len(), n, "All elements must be distinct");
+    let distinct: std::collections::HashSet<_> = elements.iter().collect();
+    assert_eq!(distinct.len(), n, "All elements must be distinct");
 
     // 3. Check 0 and 1 are there
     let zero = f.zero();

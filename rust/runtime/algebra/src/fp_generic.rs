@@ -24,7 +24,7 @@ use core_algebra::{
 };
 
 use crate::{
-    field::{FieldElement, RuntimeField, RuntimeSerializableField, SupportsSampling},
+    field::{RuntimeField, RuntimeSerializableField, SupportsSampling},
     limb::{accum, accum_modular, lt, maybe_minus_m, maybe_plus_m, mul_accum, sub_limb},
     poly::InterpolationField,
     Limb, RuntimeNat,
@@ -111,8 +111,6 @@ impl<const L: usize, Tag> Hash for FpGenericElement<L, Tag> {
     }
 }
 
-impl<const L: usize, Tag> FieldElement for FpGenericElement<L, Tag> {}
-
 /// A prime finite field implementation parameterized by word width `W`, limb width `L`, and a
 /// branding `Tag`. Elements are stored and manipulated in Montgomery form with $R = 2^{64W} \pmod
 /// M$.
@@ -126,8 +124,6 @@ pub struct FpGenericField<
 > {
     modulo: [Limb; L],
     neg_modulo: [Limb; L],
-    id: usize,
-    name: String,
     m_prime: Limb,
     r2: [Limb; L],
     r: [Limb; L],
@@ -151,7 +147,7 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     /// Panics if the word, limb, accumulator, or modulus representation is
     /// incompatible with this implementation.
     #[must_use]
-    pub fn new_generic(modulo_words: [u64; W], id: usize, name: &str) -> Self {
+    pub fn new_generic(modulo_words: [u64; W]) -> Self {
         assert!(W > 0, "field width must contain at least one word");
         assert_eq!(
             L,
@@ -195,8 +191,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
         Self {
             modulo,
             neg_modulo,
-            id,
-            name: name.to_string(),
             m_prime,
             r2,
             r,
@@ -418,14 +412,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
     SerializableField for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn id(&self) -> usize {
-        self.id
-    }
-
     fn is_binary(&self) -> bool {
         false
     }
@@ -533,22 +519,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     }
 
     #[inline(always)]
-    fn fms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = *a;
-        self.mul(&mut prod, b);
-        self.sub(&mut prod, e1);
-        *e1 = prod;
-    }
-
-    #[inline(always)]
-    fn fnma(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = *a;
-        self.mul(&mut prod, b);
-        self.add(&mut prod, e1);
-        *e1 = self.neg(&prod);
-    }
-
-    #[inline(always)]
     fn fnms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
         let mut prod = *a;
         self.mul(&mut prod, b);
@@ -566,11 +536,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
             let window = &mut acc.0[i..i + L + 2];
             mul_accum(window, 0, x.0[i], &y.0);
         }
-    }
-
-    #[inline(always)]
-    fn add_accum(&self, a: &mut Self::Accum, b: &Self::Accum) {
-        accum(&mut a.0, 0, &b.0);
     }
 
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E {

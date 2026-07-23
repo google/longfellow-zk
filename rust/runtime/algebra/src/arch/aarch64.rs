@@ -383,15 +383,6 @@ pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
 }
 
 #[inline(always)]
-pub fn gf2_128_add_accum(a: &mut Gf2_128Accum, b: &Gf2_128Accum) {
-    unsafe {
-        a.0[0].0 = xor_poly(a.0[0].0, b.0[0].0);
-        a.0[1].0 = xor_poly(a.0[1].0, b.0[1].0);
-        a.0[2].0 = xor_poly(a.0[2].0, b.0[2].0);
-    }
-}
-
-#[inline(always)]
 pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     unsafe {
         let t0 = acc.0[0].0;

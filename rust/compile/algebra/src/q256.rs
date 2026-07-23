@@ -26,7 +26,6 @@ fn q256_params() -> FpParameters<4> {
             )
             .unwrap(),
         ),
-        id: 2,
     }
 }
 

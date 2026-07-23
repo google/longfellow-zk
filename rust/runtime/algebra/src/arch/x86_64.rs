@@ -136,15 +136,6 @@ pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
 }
 
 #[inline(always)]
-pub fn gf2_128_add_accum(a: &mut Gf2_128Accum, b: &Gf2_128Accum) {
-    unsafe {
-        a.0[0].0 = _mm_xor_si128(a.0[0].0, b.0[0].0);
-        a.0[1].0 = _mm_xor_si128(a.0[1].0, b.0[1].0);
-        a.0[2].0 = _mm_xor_si128(a.0[2].0, b.0[2].0);
-    }
-}
-
-#[inline(always)]
 #[must_use]
 pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     unsafe { reduce_128(acc.0[0].0, acc.0[1].0, acc.0[2].0) }

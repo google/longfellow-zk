@@ -43,7 +43,6 @@ fn get_test_fields() -> Vec<TestFieldCase> {
             field: FpField::new_field(FpParameters {
                 length_bytes: len_bytes,
                 modulo: compile_algebra::CompileNat::<6>::from_biguint(&modulo),
-                id: len_bytes,
             }),
             modulo,
             length_bytes: len_bytes,
@@ -167,7 +166,6 @@ fn test_fp_basis() {
     let f_65537 = FpField::<TestFpTag>::new_field(FpParameters {
         length_bytes: 3,
         modulo: compile_algebra::CompileNat::<6>::from(65537u64),
-        id: 2,
     });
 
     assert_eq!(f_65537.pseudo_dimension(), 16);
@@ -191,7 +189,6 @@ fn test_fp_basis() {
     let f_65521 = FpField::<TestFpTag>::new_field(FpParameters {
         length_bytes: 2,
         modulo: compile_algebra::CompileNat::<6>::from(65521u64),
-        id: 3,
     });
 
     assert_eq!(f_65521.pseudo_dimension(), 15);

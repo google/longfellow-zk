@@ -24,7 +24,6 @@ use crate::field::{AlgebraicField, CompileField, SupportsNatConversions};
 pub struct FpParameters<const W: usize> {
     pub length_bytes: usize,
     pub modulo: crate::CompileNat<W>,
-    pub id: usize,
 }
 
 /// Represents the mathematical field
@@ -32,7 +31,6 @@ pub struct FpParameters<const W: usize> {
 pub struct FpField<T> {
     length_bytes: usize,
     modulo: BigUint,
-    id: usize,
     basis: Vec<Elt<T>>,
     dimension: usize,
     sample_bytes_needed: usize,
@@ -62,7 +60,6 @@ impl<T> FpField<T> {
         Self {
             length_bytes: params.length_bytes,
             modulo,
-            id: params.id,
             basis,
             dimension,
             sample_bytes_needed,
@@ -208,14 +205,6 @@ impl<T> std::fmt::Debug for Elt<T> {
 impl<T> crate::field::CompilePrimeField for FpField<T> {}
 
 impl<T> core_algebra::SerializableField for FpField<T> {
-    fn name(&self) -> String {
-        format!("Fp({})", self.modulo)
-    }
-
-    fn id(&self) -> usize {
-        self.id
-    }
-
     fn is_binary(&self) -> bool {
         false
     }

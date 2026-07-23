@@ -142,7 +142,6 @@ fn new_f1009_field() -> F1009Field {
     compile_algebra::fp::FpField::new_field(compile_algebra::fp::FpParameters {
         length_bytes: 2,
         modulo: compile_algebra::CompileNat::<4>::from(1009),
-        id: 1009,
     })
 }
 

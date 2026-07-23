@@ -67,11 +67,7 @@ impl Default for P256Field {
 impl P256Field {
     #[must_use]
     pub fn new() -> Self {
-        Self::new_generic(
-            P256_MODULUS,
-            1,
-            "Fp(115792089210356248762697446949407573530086143415290314195533631308867097853951)",
-        )
+        Self::new_generic(P256_MODULUS)
     }
 }
 

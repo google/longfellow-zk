@@ -268,14 +268,6 @@ impl CompileField for Gf2_128Field {
 }
 
 impl core_algebra::SerializableField for Gf2_128Field {
-    fn name(&self) -> String {
-        "GF2_128".to_string()
-    }
-
-    fn id(&self) -> usize {
-        4
-    }
-
     fn is_binary(&self) -> bool {
         true
     }

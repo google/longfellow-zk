@@ -54,7 +54,7 @@ fn test_generic_ops_helper<const N: usize, const L: usize, const ACCUM_L: usize>
 ) {
     let modulo = BigUint::from_bytes_le(&vec_of_limbs(&modulo_words));
     println!("Testing N = {N}, modulo = {modulo}");
-    let field = FpGenericField::<N, L, ACCUM_L, ()>::new_generic(modulo_words, 0, "TestField");
+    let field = FpGenericField::<N, L, ACCUM_L, ()>::new_generic(modulo_words);
 
     let a_bi = BigUint::from(a_val) % &modulo;
     let b_bi = BigUint::from(b_val) % &modulo;
@@ -95,9 +95,7 @@ fn test_generic_ops_helper<const N: usize, const L: usize, const ACCUM_L: usize>
 
     let mut acc = field.zero_accum();
     field.mac(&mut acc, &a, &b);
-    let mut acc2 = field.zero_accum();
-    field.mac(&mut acc2, &b, &a);
-    field.add_accum(&mut acc, &acc2);
+    field.mac(&mut acc, &b, &a);
     let accum_res = field.accum_reduce(&acc);
     let expected_accum_res = field.addf(&prod, &prod);
     assert_eq!(
@@ -253,7 +251,7 @@ fn test_accum_reduce_scaling_bug() {
         { 4 * runtime_algebra::LIMBS_PER_U64 },
         { 9 * runtime_algebra::LIMBS_PER_U64 },
         (),
-    >::new_generic(modulo_words, 0, "P256TestField");
+    >::new_generic(modulo_words);
 
     let a = field.u64_to_element(123456789);
     let b = field.u64_to_element(987654321);
@@ -280,7 +278,7 @@ fn test_rejects_mismatched_limb_count() {
         1,
         { runtime_algebra::LIMBS_PER_U64 + 1 },
         { 2 * (runtime_algebra::LIMBS_PER_U64 + 1) + 1 },
-    >::new_generic([0xffff_ffff_ffff_ffc5], 0, "InvalidField");
+    >::new_generic([0xffff_ffff_ffff_ffc5]);
 }
 
 #[test]
@@ -290,7 +288,7 @@ fn test_rejects_undersized_accumulator() {
         1,
         { runtime_algebra::LIMBS_PER_U64 },
         { 2 * runtime_algebra::LIMBS_PER_U64 },
-    >::new_generic([0xffff_ffff_ffff_ffc5], 0, "InvalidField");
+    >::new_generic([0xffff_ffff_ffff_ffc5]);
 }
 
 #[test]
@@ -300,5 +298,5 @@ fn test_rejects_invalid_montgomery_modulus() {
         1,
         { runtime_algebra::LIMBS_PER_U64 },
         { 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
-    >::new_generic([16], 0, "InvalidField");
+    >::new_generic([16]);
 }

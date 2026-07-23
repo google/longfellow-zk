@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::field::{AlgebraicField, FieldElement, RuntimeField, SupportsQuadraticExtension};
+use crate::field::{AlgebraicField, RuntimeField, SupportsQuadraticExtension};
 
 pub struct Fp2Element<const W: usize, F: SupportsQuadraticExtension<W>> {
     pub re: F::E,
@@ -53,8 +53,6 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> std::hash::Hash for Fp2El
         self.im.hash(state);
     }
 }
-
-impl<const W: usize, F: SupportsQuadraticExtension<W>> FieldElement for Fp2Element<W, F> {}
 
 /// Arithmetic in the quadratic extension `F[i] / (i² + 1)`.
 ///
@@ -186,23 +184,8 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> RuntimeField<W> for Fp2Fi
         self.add(&mut acc.0, &p);
     }
 
-    fn add_accum(&self, a: &mut Self::Accum, b: &Self::Accum) {
-        a.0 = self.addf(&a.0, &b.0);
-    }
-
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E {
         acc.0.clone()
-    }
-}
-
-impl<const W: usize, F: SupportsQuadraticExtension<W> + crate::field::SupportsSampling<W>>
-    crate::field::SupportsSampling<W> for Fp2Field<'_, W, F>
-{
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
-        let mut rng_ref = &mut rng;
-        let re = self.base.sample(&mut rng_ref);
-        let im = self.base.sample(&mut rng_ref);
-        Fp2Element { re, im }
     }
 }
 

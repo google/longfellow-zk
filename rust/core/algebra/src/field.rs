@@ -70,9 +70,6 @@ pub trait AlgebraicField: BareField {
 }
 
 pub trait SerializableField: BareField {
-    // Metadata
-    fn name(&self) -> String;
-    fn id(&self) -> usize;
     fn is_binary(&self) -> bool;
 
     // Serialization
