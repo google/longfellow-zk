@@ -115,11 +115,12 @@ fn compile_term<F: CompileField>(
 
 use compile_logic::scope::{AssertionId, AssertionScope};
 
-/// Rewrite into a stylized Quad circuit with debug info mapping quad node index to assertion ID.
-pub fn rewrite<'a, F: CompileField>(
-    _arena: &'a crate::CompilerArena<'a, F>,
-    f: &F,
-    x: Assertions<'a, F>,
+/// Rewrite into a stylized Quad circuit with debug info mapping quad node index
+/// to assertion ID.
+pub fn rewrite<'src, 'dst, F: CompileField>(
+    _arena: &'dst crate::CompilerArena<'dst, F>,
+    f: &'dst F,
+    x: Assertions<'src, F>,
     tracker: &AssertionScope,
 ) -> (QuadCircuit<F>, Vec<(usize, AssertionId)>) {
     let one_wexpr = WExpr::Input {

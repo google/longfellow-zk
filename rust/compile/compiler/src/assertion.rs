@@ -43,13 +43,13 @@ fn dedup_assertions<'a, F: CompileField>(
 /// A rewriter that strips all nested `WithAssertions` nodes from an expression
 /// tree, collecting them into a side channel (`collected`) while delegating all
 /// other node constructions to a generic `NEXT` rewriter (typically `Cse`).
-struct StripRewriter<'a, 'b, F: CompileField, NEXT> {
-    next: &'b NEXT,
+struct StripRewriter<'re, 'a, F: CompileField, NEXT> {
+    next: &'re NEXT,
     collected: std::cell::RefCell<Vec<AssertionItem<'a, F>>>,
 }
 
-impl<'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
-    for StripRewriter<'a, '_, F, NEXT>
+impl<'re, 'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
+    for StripRewriter<'re, 'a, F, NEXT>
 {
     fn ok(&self) -> RawAssertions<'a, F> {
         self.next.ok()
@@ -101,19 +101,19 @@ impl<'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
 }
 
 /// Recursively walks the expression DAG and strips all `WithAssertions` nodes
-/// using a `Cse` rewriter, returning a single flattened assertion set in target arena ('b).
-pub fn strip_all<'a, 'b, F: CompileField>(
-    arena: &'b CompilerArena<'b, F>,
-    assertions: Assertions<'a, F>,
+/// using a `Cse` rewriter, returning a single flattened assertion set in target arena ('dst).
+pub fn strip_all<'src, 'dst, F: CompileField>(
+    arena: &'dst CompilerArena<'dst, F>,
+    assertions: Assertions<'src, F>,
     tracker: &AssertionScope,
-) -> Assertions<'b, F> {
+) -> Assertions<'dst, F> {
     let cse = Cse::new(arena);
     let rewriter = StripRewriter {
         next: &cse,
         collected: std::cell::RefCell::new(Vec::new()),
     };
 
-    // Perform initial walk from 'a to 'b
+    // Perform initial walk from source assertions to destination arena.
     let stripped_slice = crate::ir::walk(arena, assertions, &rewriter);
     let new_sub_exprs = rewriter.collected.replace(Vec::new());
 
@@ -143,13 +143,13 @@ pub fn strip_all<'a, 'b, F: CompileField>(
 }
 
 /// Rewrite function performing algebraic simplification with CSE after
-/// stripping all assertions from the DAG, rewriting into target arena ('b).
-pub fn rewrite<'a, F: CompileField>(
-    arena: &'a CompilerArena<'a, F>,
-    f: &'a F,
-    assertions: &[AssertionItem<'a, F>],
+/// stripping all assertions from the DAG, rewriting into target arena ('dst).
+pub fn rewrite<'src, 'dst, F: CompileField>(
+    arena: &'dst CompilerArena<'dst, F>,
+    f: &'dst F,
+    assertions: &'src [AssertionItem<'src, F>],
     tracker: &AssertionScope,
-) -> Assertions<'a, F> {
+) -> Assertions<'dst, F> {
     let stripped = strip_all(arena, assertions, tracker);
     let cse = Cse::new(arena);
     let algebraic = AlgebraicRewriter::new(f, cse);

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::gf2_128::Gf2_128Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use core_algebra::SerializableField;
 use core_proto::circuit::Circuit;
 use mdoc_zk_circuits::{
@@ -37,9 +36,7 @@ pub fn mdoc_zk_circuits_hash<FC>(
 where
     FC: MdocHashCompileField,
 {
-    let arena = CompilerArena::new();
-    let (assertions, tracker, pub_inputs_count, subfield_boundary_val) = {
-        let iologic = CompilerLogic::new(&arena, fc);
+    compile_compiler::top::compile_new(fc, |iologic| {
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
         let plucker_v8 =
@@ -68,22 +65,10 @@ where
             pub_inputs_count,
             subfield_boundary_val,
         )
-    };
-
-    let (circuit, stats, symbols) = compile_compiler::top::compile(
-        &arena,
-        fc,
-        assertions,
-        tracker,
-        pub_inputs_count,
-        subfield_boundary_val,
-    );
-
-    (circuit, stats, symbols)
+    })
 }
 
 pub fn generate_hash_circuit(
-    _arena: &CompilerArena<'_, Gf2_128Field>,
     f128_compile: &Gf2_128Field,
     num_attrs: usize,
 ) -> Result<(Circuit<Gf2_128Field>, runtime_ligero::param::LigeroConfig), String> {
