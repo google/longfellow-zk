@@ -85,6 +85,9 @@ add_subdirectory(circuits/mac)
 add_subdirectory(circuits/mdoc)
 add_subdirectory(circuits/sha)
 
+# Hidden PK circuit and tests, not used in production, may be buggy
+add_subdirectory(circuits/hidden_pk)
+
 # experiments and tests, not used in production, may be buggy
 add_subdirectory(circuits/tests/anoncred)
 add_subdirectory(circuits/tests/sha3)

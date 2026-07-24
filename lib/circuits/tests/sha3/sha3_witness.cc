@@ -80,4 +80,35 @@ void Sha3Witness::compute_witness_shake256(
   }
 }
 
+void Sha3Witness::compute_witness_keccak256(
+    const std::vector<uint8_t>& seed, std::vector<BlockWitness>& witnesses) {
+  constexpr size_t rate = 136;
+  uint64_t A[5][5];
+  std::memset(A, 0, sizeof(A));
+
+  uint8_t block[200] = {0};
+  size_t ptr = 0;
+
+  for (size_t i = 0; i < seed.size(); ++i) {
+    block[ptr++] = seed[i];
+    if (ptr == rate) {
+      Sha3Reference::xorin(A, block, rate);
+      BlockWitness bw;
+      compute_witness_block(A, bw);
+      witnesses.push_back(bw);
+      ptr = 0;
+      std::memset(block, 0, rate);
+    }
+  }
+
+  // Keccak-256 padding: 0x01 (SHAKE256 uses 0x1F, SHA3-256 uses 0x06).
+  block[ptr] ^= 0x01;
+  block[rate - 1] ^= 0x80;
+  Sha3Reference::xorin(A, block, rate);
+  BlockWitness bw;
+  compute_witness_block(A, bw);
+  witnesses.push_back(bw);
+  // No squeeze phase: 32-byte output < 136-byte rate, already in final state.
+}
+
 }  // namespace proofs
