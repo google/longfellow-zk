@@ -316,17 +316,17 @@ pub fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
             let rewritten = match &node.v {
                 Expr::Input(a) => rewriter.input(*a),
                 Expr::One => rewriter.one(),
-                Expr::Constant(ref e) => rewriter.constant(e),
+                Expr::Constant(e) => rewriter.constant(e),
                 Expr::Sum(list, precious) => {
                     let walked_list: Vec<ExprNode<'b, F>> =
                         list.iter().map(|child| cache[child.id].unwrap()).collect();
                     rewriter.sum(&walked_list, *precious)
                 }
-                Expr::Linear(ref e, x) => {
+                Expr::Linear(e, x) => {
                     let walked_x = cache[x.id].unwrap();
                     rewriter.linear(e, &walked_x)
                 }
-                Expr::Quadratic(ref e, x, y) => {
+                Expr::Quadratic(e, x, y) => {
                     let walked_x = cache[x.id].unwrap();
                     let walked_y = cache[y.id].unwrap();
                     rewriter.quadratic(e, &walked_x, &walked_y)
@@ -453,7 +453,7 @@ impl<'a, F: CompileField> HashedExpr<'a, F> {
 impl<F: CompileField> Clone for HashedExpr<'_, F> {
     fn clone(&self) -> Self {
         Self {
-            expr: self.expr.clone(),
+            expr: self.expr,
             hash: self.hash,
         }
     }

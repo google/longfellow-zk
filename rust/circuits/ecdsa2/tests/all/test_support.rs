@@ -74,14 +74,14 @@ pub fn all_ecdsa_corruptors<
     const W: usize,
     F: AlgebraicField + SupportsNatConversions<W> + core_algebra::HasLookupPoints + Clone + 'static,
 >(
-    fr: &F,
+    field: &F,
 ) -> Vec<EcdsaCorruptor<F>> {
     vec![
         EcdsaCorruptor {
             name: "flip_ers0",
             expected_path: "ecdsa/e_eq",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     g.ers[0] = fr.addf(&g.ers[0], &fr.one());
                 }
@@ -91,7 +91,7 @@ pub fn all_ecdsa_corruptors<
             name: "out_of_range_ers0",
             expected_path: "ecdsa/range_check/range_check.0/valid_index",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     g.ers[0] = fr.lookup_point(9, 8);
                 }
@@ -101,7 +101,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_rxy0",
             expected_path: "ecdsa/rx_eq",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     g.rxy.0 = fr.addf(&g.rxy.0, &fr.one());
                 }
@@ -111,7 +111,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_pkxy0",
             expected_path: "ecdsa/pkxinv",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     g.pkxy.0 = fr.addf(&g.pkxy.0, &fr.one());
                 }
@@ -121,7 +121,7 @@ pub fn all_ecdsa_corruptors<
             name: "zero_rxy0",
             expected_path: "ecdsa/rxinv",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     g.rxy.0 = fr.zero();
                 }
@@ -131,7 +131,7 @@ pub fn all_ecdsa_corruptors<
             name: "zero_pkxy0",
             expected_path: "ecdsa/pkxinv",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     g.pkxy.0 = fr.zero();
                 }
@@ -141,7 +141,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_yinv",
             expected_path: "ecdsa/yinv",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.yinv = fr.addf(&d.yinv, &fr.one());
                 }
@@ -151,7 +151,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_rxinv",
             expected_path: "ecdsa/rxinv",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.rxinv = fr.addf(&d.rxinv, &fr.one());
                 }
@@ -161,7 +161,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_nmsinv",
             expected_path: "ecdsa/nmsinv",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.nmsinv = fr.addf(&d.nmsinv, &fr.one());
                 }
@@ -171,7 +171,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_pkxinv",
             expected_path: "ecdsa/pkxinv",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.pkxinv = fr.addf(&d.pkxinv, &fr.one());
                 }
@@ -181,7 +181,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_pkxy1",
             expected_path: "ecdsa/is_on_curve",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     g.pkxy.1 = fr.addf(&g.pkxy.1, &fr.one());
                 }
@@ -191,7 +191,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_rxy1",
             expected_path: "ecdsa/is_on_curve",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     g.rxy.1 = fr.addf(&g.rxy.1, &fr.one());
                 }
@@ -201,7 +201,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_g_pk1",
             expected_path: "ecdsa/is_on_curve",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.slicing.g_pk.1 = fr.addf(&d.slicing.g_pk.1, &fr.one());
                 }
@@ -211,7 +211,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_g_r1",
             expected_path: "ecdsa/is_on_curve",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.slicing.g_r.1 = fr.addf(&d.slicing.g_r.1, &fr.one());
                 }
@@ -221,7 +221,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_pk_r1",
             expected_path: "ecdsa/is_on_curve",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.slicing.pk_r.1 = fr.addf(&d.slicing.pk_r.1, &fr.one());
                 }
@@ -231,7 +231,7 @@ pub fn all_ecdsa_corruptors<
             name: "flip_g_pk_r1",
             expected_path: "ecdsa/is_on_curve",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.slicing.g_pk_r.1 = fr.addf(&d.slicing.g_pk_r.1, &fr.one());
                 }
@@ -239,9 +239,9 @@ pub fn all_ecdsa_corruptors<
         },
         EcdsaCorruptor {
             name: "round255_0",
-            expected_path: "ecdsa/slice_wx",
+            expected_path: "slice_wx",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.slicing.round[255].0 = fr.addf(&d.slicing.round[255].0, &fr.one());
                 }
@@ -249,9 +249,9 @@ pub fn all_ecdsa_corruptors<
         },
         EcdsaCorruptor {
             name: "round255_2",
-            expected_path: "ecdsa/slice_wz",
+            expected_path: "slice_wz",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |_g, d| {
                     d.slicing.round[255].2 = fr.addf(&d.slicing.round[255].2, &fr.one());
                 }
@@ -261,7 +261,7 @@ pub fn all_ecdsa_corruptors<
             name: "nms_overflow",
             expected_path: "ecdsa/nms_lt_order",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     let p = fr.lookup_point(9, 1);
                     for i in 0..256 {
@@ -274,7 +274,7 @@ pub fn all_ecdsa_corruptors<
             name: "rx_nms_overflow",
             expected_path: "ecdsa/rx_lt_order",
             corrupt: Box::new({
-                let fr = fr.clone();
+                let fr = field.clone();
                 move |g, _d| {
                     let p = fr.lookup_point(9, 7);
                     for i in 0..256 {

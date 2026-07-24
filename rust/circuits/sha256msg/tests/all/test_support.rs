@@ -162,7 +162,7 @@ pub fn all_sha256msg_corruptors() -> Vec<Sha256MsgCorruptor> {
             name: "corrupt_encoded_length_field".into(),
             expected_path: "assert_message_hash/assert_length/len_eq/len_eq.0/chunk_eq".into(),
             corrupt: Box::new(|g, _d| {
-                let active_end = (g.nblocks as usize) * 64;
+                let active_end = g.nblocks * 64;
                 if active_end > 0 && active_end <= g.padded_preimage.len() {
                     g.padded_preimage[active_end - 1] ^= 1;
                 }

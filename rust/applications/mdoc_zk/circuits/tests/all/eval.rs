@@ -28,6 +28,7 @@ use mdoc_zk_circuits::{
     },
 };
 
+#[allow(clippy::too_many_arguments)]
 fn run_two_circuit_setup_generic<'a>(
     f: &P256Field,
     fn_field: &Q256Field,

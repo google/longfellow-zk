@@ -14,9 +14,10 @@
 
 //! Direct evaluation of circuit logic with exact assertion provenance.
 
+use std::{collections::HashMap, ops::Deref, sync::Arc};
+
 use compile_algebra::field::CompileField;
 use core_algebra::ElementOf;
-use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use crate::{
     scope::{AssertionId, AssertionScope, AssertionStatus},
@@ -149,9 +150,10 @@ impl<'a, F: CompileField> EvalLogic<'a, F> {
         self.wire(value, assertions)
     }
 
-    fn result(&self, items: AssertionMap) -> EvalAssertions<'a> {
+    fn result(&self, scoped: AssertionMap, unscoped: AssertionMap) -> EvalAssertions<'a> {
         EvalAssertions {
-            items,
+            scoped,
+            unscoped,
             tracker: self.tracker,
         }
     }
@@ -159,17 +161,22 @@ impl<'a, F: CompileField> EvalLogic<'a, F> {
 
 #[derive(Debug, Clone)]
 pub struct EvalAssertions<'a> {
-    pub items: AssertionMap,
+    pub scoped: AssertionMap,
+    pub unscoped: AssertionMap,
     pub tracker: &'a AssertionScope,
 }
 
 impl<'a> EvalAssertions<'a> {
+    pub fn all_items(&self) -> AssertionMap {
+        merge_assertions(&self.scoped, &self.unscoped)
+    }
+
     pub fn is_ok(&self) -> bool {
-        self.tracker.is_ok(&self.items)
+        self.tracker.is_ok(&self.all_items())
     }
 
     pub fn is_err(&self) -> bool {
-        self.tracker.is_err(&self.items)
+        self.tracker.is_err(&self.all_items())
     }
 
     pub fn unwrap(self) {
@@ -177,24 +184,24 @@ impl<'a> EvalAssertions<'a> {
     }
 
     pub fn failed_paths(&self) -> Vec<String> {
-        self.tracker.failed_paths(&self.items)
+        self.tracker.failed_paths(&self.all_items())
     }
 
     pub fn all_paths(&self) -> Vec<String> {
-        self.tracker.all_paths(&self.items)
+        self.tracker.all_paths(&self.all_items())
     }
 
     pub fn passed_paths(&self) -> Vec<String> {
-        self.tracker.passed_paths(&self.items)
+        self.tracker.passed_paths(&self.all_items())
     }
 
     pub fn assert_all_passed(&self) {
-        self.tracker.assert_all_passed(&self.items);
+        self.tracker.assert_all_passed(&self.all_items());
     }
 
     pub fn assert_any_failed_at(&self, expected_path: &str) {
         self.tracker
-            .assert_any_failed_at(expected_path, &self.items);
+            .assert_any_failed_at(expected_path, &self.all_items());
     }
 }
 
@@ -208,15 +215,15 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
     }
 
     fn zero(&self) -> Self::Wire {
-        EvalWire::ok(self.f.zero())
+        self.wire(self.f.zero(), AssertionMap::new())
     }
 
     fn one(&self) -> Self::Wire {
-        EvalWire::ok(self.f.one())
+        self.wire(self.f.one(), AssertionMap::new())
     }
 
     fn konst(&self, x: &ElementOf<F>) -> Self::Wire {
-        EvalWire::ok(x.clone())
+        self.wire(x.clone(), AssertionMap::new())
     }
 
     fn precious(&self, x: &Self::Wire) -> Self::Wire {
@@ -224,13 +231,13 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
     }
 
     fn sum(&self, xs: &[Self::Wire]) -> Self::Wire {
-        let mut accu_val = self.f.zero();
+        let mut val = self.f.zero();
         let mut assertions = AssertionMap::new();
         for x in xs {
-            accu_val = self.f.addf(&accu_val, &x.value);
+            val = self.f.addf(&val, &x.value);
             assertions = merge_assertions(&assertions, &x.assertions);
         }
-        self.wire(accu_val, assertions)
+        self.wire(val, assertions)
     }
 
     fn neg(&self, x: &Self::Wire) -> Self::Wire {
@@ -258,7 +265,7 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
     }
 
     fn ok(&self) -> Self::Assertions {
-        self.result(AssertionMap::new())
+        self.result(AssertionMap::new(), AssertionMap::new())
     }
 
     fn assert0(&self, name: &str, x: &Self::Wire) -> Self::Assertions {
@@ -269,26 +276,29 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
             AssertionStatus::Failed(format!("expected zero, got {:?}", x.value))
         };
         let id = self.tracker.new_leaf(name);
-        let mut items = x.assertions.clone();
-        items.insert(id, status);
-        self.result(items)
+        let mut scoped = AssertionMap::new();
+        scoped.insert(id, status);
+        self.result(scoped, x.assertions.clone())
     }
 
     fn assert_all(&self, name: &str, assertions: &[Self::Assertions]) -> Self::Assertions {
         assert!(!name.is_empty(), "assert_all requires a non-empty name");
-        let mut items = AssertionMap::new();
+        let mut scoped = AssertionMap::new();
+        let mut unscoped = AssertionMap::new();
         for a in assertions {
-            items = merge_assertions(&items, &a.items);
+            scoped = merge_assertions(&scoped, &a.scoped);
+            unscoped = merge_assertions(&unscoped, &a.unscoped);
         }
-        for &id in items.keys() {
+        for &id in scoped.keys() {
             self.tracker.prepend_scope(id, name);
         }
-        self.result(items)
+        self.result(scoped, unscoped)
     }
 
     fn with_assertions(&self, assertions: Self::Assertions, x: &Self::Wire) -> Self::Wire {
-        let new_assertions = merge_assertions(&x.assertions, &assertions.items);
-        self.wire(x.value.clone(), new_assertions)
+        let attached = merge_assertions(&assertions.scoped, &assertions.unscoped);
+        let new_unscoped = merge_assertions(&x.assertions, &attached);
+        self.wire(x.value.clone(), new_unscoped)
     }
 
     fn to_stringw_debug(&self, x: &Self::Wire) -> String {

@@ -21,9 +21,7 @@ use compile_algebra::{
 use core_algebra::ElementOf;
 
 fn test_interpolation_for_field<F: CompileField + SupportsU64Conversions>(f: &F)
-where
-    ElementOf<F>: PartialEq + std::fmt::Debug,
-{
+where ElementOf<F>: PartialEq + std::fmt::Debug {
     let n = 47;
     let mut x = Vec::with_capacity(n);
     let mut monomial = Vec::with_capacity(n);

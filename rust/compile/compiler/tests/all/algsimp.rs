@@ -42,7 +42,7 @@ fn run_test<
     let sum_nodes = algebraic.sum(&[c1, c2], false);
 
     match &sum_nodes.v {
-        Expr::Constant(ref val) => {
+        Expr::Constant(val) => {
             assert_eq!(f.to_nat(val), F::N::from_u64(30));
         }
         _ => panic!("Expected Constant(30), got {sum_nodes:?}"),
@@ -67,7 +67,7 @@ fn test_algsimp_prime_cancel() {
     let sum = algebraic.sum(&[x, neg_x], false);
 
     match &sum.v {
-        Expr::Constant(ref val) => {
+        Expr::Constant(val) => {
             assert!(f.is_zero(val));
         }
         _ => panic!("Expected Constant(0), got {sum:?}"),
@@ -85,7 +85,7 @@ fn test_algsimp_binary_x_plus_x() {
     let sum = algebraic.sum(&[x, x], false);
 
     match &sum.v {
-        Expr::Constant(ref val) => {
+        Expr::Constant(val) => {
             assert!(f.is_zero(val));
         }
         _ => panic!("Expected Constant(0), got {sum:?}"),

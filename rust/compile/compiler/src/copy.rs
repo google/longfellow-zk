@@ -44,8 +44,7 @@ fn depth_term<F: CompileField>(node: &ExprNode<'_, F>) -> usize {
 }
 
 impl<'a, F: CompileField, NEXT> CopyRewriter<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     pub fn new(f: &'a F, next: NEXT) -> Self {
         CopyRewriter {
@@ -82,7 +81,7 @@ where
             // When creating a copy, take the opportunity to lift any
             // constants in the underlying term, in the hope of
             // creating common subexpressions in the lower layers
-            Expr::Quadratic(ref e1, ref x1, ref y1) => {
+            Expr::Quadratic(e1, ref x1, ref y1) => {
                 let sub_quad = self.ground_quadratic(&self.f.one(), x1, y1);
                 self.ground_quadratic(e1, &oo, &sub_quad)
             }
@@ -135,8 +134,7 @@ where
 }
 
 impl<'a, F: CompileField, NEXT> RewriteT<'a, F> for CopyRewriter<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     fn ok(&self) -> crate::ir::RawAssertions<'a, F> {
         self.next.ok()

@@ -72,16 +72,16 @@ fn run_test_cse_assertions<const W: usize, F: CompileField + SupportsNatConversi
     // Union them in different orders
     let assertions1 = cse.assertions(&[assert_input, assert_one]);
     let assertions2 = cse.assertions(&[assert_one, assert_input]);
-    let assertion_items1: Vec<_> = assertions1
+    let raw_items1: Vec<_> = assertions1
         .iter()
         .map(|&expr| AssertionItem { id: aid1, expr })
         .collect();
-    let assertion_items2: Vec<_> = assertions2
+    let raw_items2: Vec<_> = assertions2
         .iter()
         .map(|&expr| AssertionItem { id: aid1, expr })
         .collect();
-    let assertion_items1 = arena.alloc_slice(&assertion_items1);
-    let assertion_items2 = arena.alloc_slice(&assertion_items2);
+    let assertion_items1 = arena.alloc_slice(&raw_items1);
+    let assertion_items2 = arena.alloc_slice(&raw_items2);
 
     // Construct expressions with assertions in different orders
     let expr1 = cse.with_assertions(&assertion_items1, &input_node);

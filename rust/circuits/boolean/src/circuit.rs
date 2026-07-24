@@ -449,8 +449,7 @@ mod imp {
     }
 
     impl<L: Logic> std::fmt::Debug for Bitw<L>
-    where
-        Eltw<L>: std::fmt::Debug,
+    where Eltw<L>: std::fmt::Debug
     {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match &self.0 {
@@ -464,8 +463,7 @@ mod imp {
     }
 
     impl<L: Logic> std::fmt::Display for Bitw<L>
-    where
-        Eltw<L>: std::fmt::Debug,
+    where Eltw<L>: std::fmt::Debug
     {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match &self.0 {

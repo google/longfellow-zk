@@ -37,8 +37,7 @@ pub struct Sha256<'a, L: Logic> {
 }
 
 impl<'a, L: Logic> Sha256<'a, L>
-where
-    L::F: FieldWrappingSum,
+where L::F: FieldWrappingSum
 {
     pub fn new(logic: &'a L) -> Self {
         Self {

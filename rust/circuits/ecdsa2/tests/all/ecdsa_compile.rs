@@ -174,7 +174,6 @@ fn test_compile_ecdsa_signature_tampering_generic<
     fn_field: &FnR,
 ) where
     FR::E: Clone,
-    FR: Clone,
 {
     let d = CR::N::from_u64(123456789u64);
     let k = CR::N::from_u64(987654321u64);
@@ -212,9 +211,9 @@ fn test_compile_ecdsa_signature_tampering_generic<
 
     for c in corruptors {
         let mut g = concrete_given.clone();
-        let mut d = concrete_derived.clone();
-        (c.corrupt)(&mut g, &mut d);
-        let inputs = make_inputs(&g, &d, fr);
+        let mut cd = concrete_derived.clone();
+        (c.corrupt)(&mut g, &mut cd);
+        let inputs = make_inputs(&g, &cd, fr);
         let eval_res =
             compile_eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, FieldID::P256)
                 .unwrap();
