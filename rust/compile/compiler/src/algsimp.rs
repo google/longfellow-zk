@@ -23,8 +23,7 @@ pub struct AlgebraicRewriter<'a, F: CompileField, NEXT> {
 }
 
 impl<'a, F: CompileField, NEXT> AlgebraicRewriter<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     pub fn new(f: &'a F, next: NEXT) -> Self {
         AlgebraicRewriter { f, next }
@@ -121,8 +120,7 @@ where
 }
 
 impl<'a, F: CompileField, NEXT> RewriteT<'a, F> for AlgebraicRewriter<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     fn ok(&self) -> crate::ir::RawAssertions<'a, F> {
         self.next.ok()

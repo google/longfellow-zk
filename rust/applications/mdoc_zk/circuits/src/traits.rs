@@ -20,8 +20,7 @@ pub trait MdocHashCompileField:
 {
 }
 
-impl<F> MdocHashCompileField for F where
-    F: Sized
+impl<F> MdocHashCompileField for F where F: Sized
         + CompileField
         + circuits_analog_adder::FieldWrappingSum
         + core_algebra::SerializableField
@@ -38,8 +37,7 @@ pub trait MdocSigCompileField:
 {
 }
 
-impl<F> MdocSigCompileField for F where
-    F: Sized
+impl<F> MdocSigCompileField for F where F: Sized
         + compile_algebra::field::CompilePrimeField
         + compile_algebra::field::SupportsNatConversions<4, N = compile_algebra::CompileNat<4>>
         + core_algebra::SupportsU64Conversions
@@ -59,8 +57,7 @@ pub trait MdocHashRuntimeField:
 }
 
 #[cfg(feature = "testonly")]
-impl<F> MdocHashRuntimeField for F where
-    F: Sized
+impl<F> MdocHashRuntimeField for F where F: Sized
         + runtime_algebra::field::RuntimeField<2>
         + core_algebra::SerializableField
         + core_algebra::HasLookupPoints
@@ -77,8 +74,7 @@ pub trait MdocSigRuntimeField:
     + core_algebra::SupportsNatConversions<4>
     + core_algebra::SupportsU64Conversions
     + core_algebra::HasLookupPoints
-where
-    <Self as core_algebra::SupportsNatConversions<4>>::N: core_algebra::Nat<4>,
+where <Self as core_algebra::SupportsNatConversions<4>>::N: core_algebra::Nat<4>
 {
 }
 

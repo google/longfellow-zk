@@ -44,8 +44,7 @@ fn depth_term<F: CompileField>(node: &ExprNode<'_, F>) -> usize {
 }
 
 impl<'a, F: CompileField, NEXT> CopyRewriter<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     pub fn new(f: &'a F, next: NEXT) -> Self {
         CopyRewriter {
@@ -135,8 +134,7 @@ where
 }
 
 impl<'a, F: CompileField, NEXT> RewriteT<'a, F> for CopyRewriter<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     fn ok(&self) -> crate::ir::RawAssertions<'a, F> {
         self.next.ok()

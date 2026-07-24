@@ -54,9 +54,7 @@ fn test_eval_mdoc_hash_independent() {
 }
 
 fn test_eval_mdoc_hash_generic<'a, const W: usize, FC>(l: &'a EvalLogic<'a, FC>)
-where
-    FC: CompileField + circuits_analog_adder::FieldWrappingSum,
-{
+where FC: CompileField + circuits_analog_adder::FieldWrappingSum {
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
@@ -78,9 +76,7 @@ where
 }
 
 fn test_eval_mdoc_hash_with_mac_generic<'a, const W: usize, FC>(l: &'a EvalLogic<'a, FC>)
-where
-    FC: CompileField + circuits_analog_adder::FieldWrappingSum,
-{
+where FC: CompileField + circuits_analog_adder::FieldWrappingSum {
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
@@ -233,9 +229,7 @@ fn apply_negative_test_modifications<'a, FC: CompileField>(
 }
 
 fn test_all_mdoc_cases_generic<'a, const W: usize, FC>(l: &'a EvalLogic<'a, FC>)
-where
-    FC: CompileField + circuits_analog_adder::FieldWrappingSum,
-{
+where FC: CompileField + circuits_analog_adder::FieldWrappingSum {
     let mut count = 0;
 
     for case in mdoc_zk_testcases::vectors::ALL_TEST_CASES {

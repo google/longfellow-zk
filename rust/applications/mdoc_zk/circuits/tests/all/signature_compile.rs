@@ -66,9 +66,7 @@ fn test_mdoc_zk_circuits_signature() {
 fn mdoc_zk_circuits_signature_circuit<FC>(
     fc: &FC,
 ) -> (compile_eval::Circuit<FC>, compile_eval::CircuitGeometry)
-where
-    FC: MdocSigCompileField,
-{
+where FC: MdocSigCompileField {
     let (circuit, stats, _) = compile_signature_circuit(fc);
     (circuit, stats)
 }
@@ -80,9 +78,7 @@ fn compile_signature_circuit<FC>(
     compile_eval::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where
-    FC: MdocSigCompileField,
-{
+where FC: MdocSigCompileField {
     let curve_c = Secp256r1::new(fc);
     let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 

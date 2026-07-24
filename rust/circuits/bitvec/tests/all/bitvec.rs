@@ -399,9 +399,7 @@ fn test_assert_add() {
 }
 
 fn test_is_zero_for_logic<L: Logic>(logic: &L)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
 

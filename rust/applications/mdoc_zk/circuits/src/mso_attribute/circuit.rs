@@ -103,8 +103,7 @@ pub struct Given<L: compile_logic::Logic> {
 pub type Derived<L> = circuits_sha256msg::Derived<L>;
 
 pub struct AttributeVerifier<'a, L: Logic>
-where
-    L::F: FieldWrappingSum,
+where L::F: FieldWrappingSum
 {
     logic: &'a L,
     boolean: Boolean<'a, L>,
@@ -117,8 +116,7 @@ where
 impl<L: LogicIO> AttributeVerifier<'_, L> where L::F: FieldWrappingSum {}
 
 impl<'a, L: Logic> AttributeVerifier<'a, L>
-where
-    L::F: FieldWrappingSum,
+where L::F: FieldWrappingSum
 {
     pub fn new(logic: &'a L) -> Self {
         Self {

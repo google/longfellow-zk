@@ -80,8 +80,7 @@ pub struct Derived<L: LogicIO> {
 }
 
 pub struct MdocHash<'a, L: LogicIO>
-where
-    L::F: MdocHashCompileField,
+where L::F: MdocHashCompileField
 {
     pub(crate) logic: &'a L,
     pub(crate) mac_circuit: circuits_mac_gf128::circuit::MAC<'a, L>,
@@ -94,8 +93,7 @@ where
 }
 
 impl<'a, L: LogicIO> MdocHash<'a, L>
-where
-    L::F: MdocHashCompileField,
+where L::F: MdocHashCompileField
 {
     pub fn new(logic: &'a L, _num_attrs: usize) -> Self {
         Self {

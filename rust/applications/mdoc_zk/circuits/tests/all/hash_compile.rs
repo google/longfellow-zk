@@ -29,9 +29,7 @@ use super::mdoc_hash_corruptors;
 pub fn mdoc_zk_circuits_hash_circuit<FC>(
     fc: &FC,
 ) -> (compile_eval::Circuit<FC>, compile_eval::CircuitGeometry)
-where
-    FC: MdocHashCompileField,
-{
+where FC: MdocHashCompileField {
     let (circuit, stats, _) = compile_hash_circuit(fc);
     (circuit, stats)
 }
@@ -43,9 +41,7 @@ fn compile_hash_circuit<FC>(
     compile_eval::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where
-    FC: MdocHashCompileField,
-{
+where FC: MdocHashCompileField {
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);

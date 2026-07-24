@@ -33,9 +33,7 @@ impl WireMemoizer {
     }
 
     fn call<'a, F: CompileField, FUNC>(&self, node: ExprNode<'a, F>, f: FUNC) -> Wire
-    where
-        FUNC: FnOnce(&ExprNode<'a, F>) -> Wire,
-    {
+    where FUNC: FnOnce(&ExprNode<'a, F>) -> Wire {
         let id = node.id;
         {
             let cache = self.cache.borrow();
