@@ -40,7 +40,7 @@ fn run_test<
     let sum_nodes = algebraic.sum(&[c1, c2], false);
 
     match &sum_nodes.v {
-        Expr::Constant(ref val) => {
+        Expr::Constant(val) => {
             assert_eq!(f.to_nat(val), F::N::from_u64(30));
         }
         _ => panic!("Expected Constant(30), got {sum_nodes:?}"),

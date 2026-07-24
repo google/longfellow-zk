@@ -104,8 +104,8 @@ fn push_nat_bits<F: AlgebraicField, N: Nat<4>>(
 ) {
     let bytes = value.to_bytes_le();
     for bit in 0..nbits {
-        let value = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
-        inputs.push(if value == 1 { f.one() } else { f.zero() });
+        let bit_val = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
+        inputs.push(if bit_val == 1 { f.one() } else { f.zero() });
     }
 }
 

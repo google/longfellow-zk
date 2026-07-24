@@ -81,7 +81,7 @@ where NEXT: RewriteT<'a, F>
             // When creating a copy, take the opportunity to lift any
             // constants in the underlying term, in the hope of
             // creating common subexpressions in the lower layers
-            Expr::Quadratic(ref e1, ref x1, ref y1) => {
+            Expr::Quadratic(e1, ref x1, ref y1) => {
                 let sub_quad = self.ground_quadratic(&self.f.one(), x1, y1);
                 self.ground_quadratic(e1, &oo, &sub_quad)
             }

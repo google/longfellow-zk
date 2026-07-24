@@ -419,10 +419,10 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     full_field_encoding.extend_from_slice(&1u32.to_le_bytes());
     full_field_encoding.extend_from_slice(&[0; 32]);
     let mut full_field_input = full_field_encoding.as_slice();
-    let err = LigeroProof::<2, _>::read(&mut full_field_input, &geom, &f, &sf).unwrap_err();
-    assert_eq!(err.kind(), ErrorKind::InvalidData);
+    let err_full_field = LigeroProof::<2, _>::read(&mut full_field_input, &geom, &f, &sf).unwrap_err();
+    assert_eq!(err_full_field.kind(), ErrorKind::InvalidData);
     assert_eq!(
-        err.to_string(),
+        err_full_field.to_string(),
         "Non-canonical field encoding of subfield element in LigeroProof"
     );
 }

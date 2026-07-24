@@ -416,15 +416,15 @@ fn test_check_doc_type_suppression() {
     wrong_hash_input.expected_doc_type = b"wrong.doc.type.foo.bar".to_vec();
     let given_wrong = given::<4, _>(wrong_hash_input, mac_input.clone());
 
-    let tracker = compile_logic::tracker::AssertionTracker::new();
-    let l = EvalLogic::new_with_tracker(&f, &tracker);
-    let bv = BitvecLogic::new(&l);
+    let tracker2 = compile_logic::tracker::AssertionTracker::new();
+    let l2 = EvalLogic::new_with_tracker(&f, &tracker2);
+    let bv2 = BitvecLogic::new(&l2);
 
-    let wire_given_wrong = evaluate_given(&l, &bv, &given_wrong);
-    let wire_derived_wrong = evaluate_derived(&l, &bv, &derived_val);
+    let wire_given_wrong = evaluate_given(&l2, &bv2, &given_wrong);
+    let wire_derived_wrong = evaluate_derived(&l2, &bv2, &derived_val);
 
-    let mdoc = MdocHash::new(&l, given_wrong.hash_input.attrs.len());
-    let res_wrong = mdoc.assert_valid_presentation_and_macs(&wire_given_wrong, &wire_derived_wrong);
+    let mdoc2 = MdocHash::new(&l2, given_wrong.hash_input.attrs.len());
+    let res_wrong = mdoc2.assert_valid_presentation_and_macs(&wire_given_wrong, &wire_derived_wrong);
     assert!(res_wrong.is_err());
     let failed_all = res_wrong.failed_paths();
     println!("ALL FAILED PATHS: {:?}", failed_all);
@@ -438,14 +438,14 @@ fn test_check_doc_type_suppression() {
     suppressed_hash_input.suppress_doc_type_check = true;
     suppressed_hash_input.expected_doc_type = b"wrong.doc.type.foo.bar".to_vec();
     let given_suppressed = given::<4, _>(suppressed_hash_input, mac_input);
-    let tracker = compile_logic::tracker::AssertionTracker::new();
-    let l = EvalLogic::new_with_tracker(&f, &tracker);
-    let bv = BitvecLogic::new(&l);
+    let tracker3 = compile_logic::tracker::AssertionTracker::new();
+    let l3 = EvalLogic::new_with_tracker(&f, &tracker3);
+    let bv3 = BitvecLogic::new(&l3);
 
-    let wire_given_suppressed = evaluate_given(&l, &bv, &given_suppressed);
-    let wire_derived_suppressed = evaluate_derived(&l, &bv, &derived_val);
-    let mdoc = MdocHash::new(&l, given_suppressed.hash_input.attrs.len());
+    let wire_given_suppressed = evaluate_given(&l3, &bv3, &given_suppressed);
+    let wire_derived_suppressed = evaluate_derived(&l3, &bv3, &derived_val);
+    let mdoc3 = MdocHash::new(&l3, given_suppressed.hash_input.attrs.len());
     let res_suppressed =
-        mdoc.assert_valid_presentation(&wire_given_suppressed, &wire_derived_suppressed);
+        mdoc3.assert_valid_presentation(&wire_given_suppressed, &wire_derived_suppressed);
     res_suppressed.unwrap();
 }
