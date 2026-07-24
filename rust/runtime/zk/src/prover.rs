@@ -53,6 +53,13 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         rng: &mut R,
         sf: &SF,
     ) -> (ZkCommitResult<W, F>, runtime_proto::ZkProofGeometry) {
+        assert!(
+            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
+            "npublic_input ({}) exceeds ninput ({})",
+            self.circuit.raw.npublic_input,
+            self.circuit.raw.ninput
+        );
+
         let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
         assert_eq!(witness_only.len(), n_witness, "witness length mismatch");
 
@@ -112,6 +119,13 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         tsp: &mut Transcript,
         ctx: &ZkContext<'_, W, F, IF>,
     ) -> Result<ZkProof<W, F>, String> {
+        assert!(
+            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
+            "npublic_input ({}) exceeds ninput ({})",
+            self.circuit.raw.npublic_input,
+            self.circuit.raw.ninput
+        );
+
         let n_public = self.circuit.raw.npublic_input;
         let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
         assert_eq!(

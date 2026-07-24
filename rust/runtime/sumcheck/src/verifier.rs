@@ -52,6 +52,19 @@ pub fn verify<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<(), String> {
+    assert!(
+        circuit.raw.ninput >= circuit.raw.npublic_input,
+        "npublic_input ({}) exceeds ninput ({})",
+        circuit.raw.npublic_input,
+        circuit.raw.ninput
+    );
+    assert!(
+        w_in.len() >= circuit.raw.npublic_input,
+        "input vector too short: expected at least npublic_input ({}) entries, got {}",
+        circuit.raw.npublic_input,
+        w_in.len()
+    );
+
     // 1. Initialize the sumcheck transcript with the sumcheck statement.
     let public_inputs = &w_in[..circuit.raw.npublic_input];
     transcript.write_sumcheck_statement(circuit, public_inputs, f);
