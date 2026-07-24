@@ -22,7 +22,6 @@ pub use allocate_hash::*;
 pub use allocate_sig::*;
 pub use allocator::*;
 use compile_algebra::{gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::CompilerArena;
 pub use generate_hash::*;
 pub use generate_sig::*;
 
@@ -38,10 +37,8 @@ pub fn compile_circuits(
 > {
     let f128_compile = Gf2_128Field::new();
     let p256_compile = P256Field::new();
-    let arena_128 = CompilerArena::new();
-    let arena_256 = CompilerArena::new();
-    let (seg_sig, config_sig) = generate_sig_circuit(&arena_256, &p256_compile)?;
-    let (seg_hash, config_hash) = generate_hash_circuit(&arena_128, &f128_compile, num_attrs)?;
+    let (seg_sig, config_sig) = generate_sig_circuit(&p256_compile)?;
+    let (seg_hash, config_hash) = generate_hash_circuit(&f128_compile, num_attrs)?;
 
     let writer_sig =
         core_proto::writer::CircuitWriter::new(&p256_compile, core_proto::FieldID::P256);

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use core_algebra::SerializableField;
 use core_proto::circuit::Circuit;
 use mdoc_zk_circuits::{
@@ -33,45 +32,34 @@ pub fn mdoc_zk_circuits_signature<FC>(
     compile_compiler::debug::CircuitDebugSymbols,
 )
 where FC: MdocSigCompileField {
-    let arena = CompilerArena::new();
-    let (assertions, tracker, pub_inputs_count, subfield_boundary_val) = {
-        let iologic = CompilerLogic::new(&arena, fc);
-        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
-        let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
-        let plucker =
-            circuits_bit_plucker::BitPlucker::<_, { K_SIG_MAC_BIT_PLUCKER }>::new(&iologic);
-
-        let mut allocator =
-            WireAllocator::new(&iologic, &bitvec_io, compile_logic::K_FIRST_WIRE_POSITION);
-
-        let curve = compile_algebra::secp256r1::Secp256r1::new(fc);
-        let (given, derived, pub_inputs_count, subfield_boundary_val) =
-            allocate_sig(&mut allocator, &plucker, &curve);
-
-        let mdoc_sig = MdocSignature::new(&iologic, &curve);
-        let assertion = mdoc_sig.assert_signatures_and_macs(&given, &derived);
-        (
-            assertion,
-            iologic.tracker,
-            pub_inputs_count,
-            subfield_boundary_val,
-        )
-    };
-
-    let (circuit, stats, symbols) = compile_compiler::top::compile(
-        &arena,
+    compile_compiler::top::compile_new(
         fc,
-        assertions,
-        tracker,
-        pub_inputs_count,
-        subfield_boundary_val,
-    );
+        |iologic| {
+            let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+            let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
+            let plucker =
+                circuits_bit_plucker::BitPlucker::<_, { K_SIG_MAC_BIT_PLUCKER }>::new(&iologic);
 
-    (circuit, stats, symbols)
+            let mut allocator =
+                WireAllocator::new(&iologic, &bitvec_io, compile_logic::K_FIRST_WIRE_POSITION);
+
+            let curve = compile_algebra::secp256r1::Secp256r1::new(fc);
+            let (given, derived, pub_inputs_count, subfield_boundary_val) =
+                allocate_sig(&mut allocator, &plucker, &curve);
+
+            let mdoc_sig = MdocSignature::new(&iologic, &curve);
+            let assertion = mdoc_sig.assert_signatures_and_macs(&given, &derived);
+            (
+                assertion,
+                iologic.tracker,
+                pub_inputs_count,
+                subfield_boundary_val,
+            )
+        },
+    )
 }
 
 pub fn generate_sig_circuit(
-    _arena: &CompilerArena<'_, P256Field>,
     p256_compile: &P256Field,
 ) -> Result<(Circuit<P256Field>, runtime_ligero::param::LigeroConfig), String> {
     use std::fmt::Write;
