@@ -21,6 +21,7 @@ pub mod scope;
 pub use concrete::*;
 
 pub use crate::{
+    eval::EvalContext,
     logic::{Eltw, Logic, LogicIO, K_FIRST_WIRE_POSITION},
     scope::AssertionScope,
 };
