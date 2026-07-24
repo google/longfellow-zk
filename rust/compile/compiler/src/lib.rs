@@ -22,7 +22,7 @@ pub mod ir_to_quad;
 pub mod logic_impl;
 pub mod node;
 pub mod quad;
-pub mod scheduler;
+mod scheduler;
 pub mod segment;
 pub mod top;
 
