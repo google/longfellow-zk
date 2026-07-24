@@ -22,7 +22,6 @@ use compile_algebra::{
     secp256r1::Secp256r1,
     Curve,
 };
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use compile_logic::{concrete::push_eltw, Logic, LogicIO};
 use core_algebra::{Nat, SerializableField};
@@ -40,9 +39,7 @@ fn test_compile_ec_generic<
     curve_r: &CR,
     fr: &FR,
 ) {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, fc);
+    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
         let ec_circuit = EcCircuit::new(&iologic, curve_c);
 
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
@@ -67,12 +64,10 @@ fn test_compile_ec_generic<
         (
             iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]),
             iologic.tracker,
+            1,
+            0,
         )
-    };
-
-    // Compile the circuit
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, tracker, 1, 0);
+    });
 
     compile_compiler::top::dump_stats("ec_add_double", &circuit, &stats);
 

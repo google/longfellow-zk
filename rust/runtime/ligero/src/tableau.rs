@@ -20,7 +20,9 @@ pub struct Tableau<T> {
 
 impl<T> Tableau<T> {
     pub fn new(height: usize, width: usize, default: T) -> Self
-    where T: Clone {
+    where
+        T: Clone,
+    {
         Self {
             data: vec![default; height * width],
             width,

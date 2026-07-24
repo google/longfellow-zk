@@ -16,11 +16,7 @@
 
 use compile_algebra::field::CompileField;
 use core_algebra::ElementOf;
-use std::{
-    collections::HashMap,
-    ops::Deref,
-    sync::Arc,
-};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use crate::{
     scope::{AssertionId, AssertionScope, AssertionStatus},
@@ -148,12 +144,7 @@ impl<'a, F: CompileField> EvalLogic<'a, F> {
         EvalWire::new(value, assertions)
     }
 
-    fn combine(
-        &self,
-        x: &EvalWire<F>,
-        y: &EvalWire<F>,
-        value: ElementOf<F>,
-    ) -> EvalWire<F> {
+    fn combine(&self, x: &EvalWire<F>, y: &EvalWire<F>, value: ElementOf<F>) -> EvalWire<F> {
         let assertions = merge_assertions(&x.assertions, &y.assertions);
         self.wire(value, assertions)
     }
@@ -263,11 +254,7 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
     }
 
     fn quadratic(&self, e: &ElementOf<F>, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        self.combine(
-            x,
-            y,
-            self.f.mulf(e, &self.f.mulf(&x.value, &y.value)),
-        )
+        self.combine(x, y, self.f.mulf(e, &self.f.mulf(&x.value, &y.value)))
     }
 
     fn ok(&self) -> Self::Assertions {
@@ -318,11 +305,7 @@ fn merge_assertions(left: &AssertionMap, right: &AssertionMap) -> AssertionMap {
     }
 
     let mut merged = left.clone();
-    Arc::make_mut(&mut merged.0).extend(
-        right
-            .iter()
-            .map(|(&id, status)| (id, status.clone())),
-    );
+    Arc::make_mut(&mut merged.0).extend(right.iter().map(|(&id, status)| (id, status.clone())));
     merged
 }
 

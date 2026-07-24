@@ -31,32 +31,31 @@ pub fn mdoc_zk_circuits_signature<FC>(
     core_proto::circuit::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where FC: MdocSigCompileField {
-    compile_compiler::top::compile_new(
-        fc,
-        |iologic| {
-            let bv = circuits_bitvec::BitvecLogic::new(&iologic);
-            let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
-            let plucker =
-                circuits_bit_plucker::BitPlucker::<_, { K_SIG_MAC_BIT_PLUCKER }>::new(&iologic);
+where
+    FC: MdocSigCompileField,
+{
+    compile_compiler::top::compile_new(fc, |iologic| {
+        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+        let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
+        let plucker =
+            circuits_bit_plucker::BitPlucker::<_, { K_SIG_MAC_BIT_PLUCKER }>::new(&iologic);
 
-            let mut allocator =
-                WireAllocator::new(&iologic, &bitvec_io, compile_logic::K_FIRST_WIRE_POSITION);
+        let mut allocator =
+            WireAllocator::new(&iologic, &bitvec_io, compile_logic::K_FIRST_WIRE_POSITION);
 
-            let curve = compile_algebra::secp256r1::Secp256r1::new(fc);
-            let (given, derived, pub_inputs_count, subfield_boundary_val) =
-                allocate_sig(&mut allocator, &plucker, &curve);
+        let curve = compile_algebra::secp256r1::Secp256r1::new(fc);
+        let (given, derived, pub_inputs_count, subfield_boundary_val) =
+            allocate_sig(&mut allocator, &plucker, &curve);
 
-            let mdoc_sig = MdocSignature::new(&iologic, &curve);
-            let assertion = mdoc_sig.assert_signatures_and_macs(&given, &derived);
-            (
-                assertion,
-                iologic.tracker,
-                pub_inputs_count,
-                subfield_boundary_val,
-            )
-        },
-    )
+        let mdoc_sig = MdocSignature::new(&iologic, &curve);
+        let assertion = mdoc_sig.assert_signatures_and_macs(&given, &derived);
+        (
+            assertion,
+            iologic.tracker,
+            pub_inputs_count,
+            subfield_boundary_val,
+        )
+    })
 }
 
 pub fn generate_sig_circuit(

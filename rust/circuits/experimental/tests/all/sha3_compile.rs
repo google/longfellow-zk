@@ -18,7 +18,6 @@ use circuits_experimental::sha3::{
     Sha3,
 };
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use core_algebra::SerializableField;
 use runtime_algebra::field::RuntimeField;
@@ -35,18 +34,16 @@ fn test_compile_keccak_f_1600_for_field<
     field_id: FieldID,
     expected_stats: compile_eval::CircuitGeometry,
 ) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let sha3 = Sha3::new(&iologic);
-    let given = circuits_experimental::sha3::allocate_given(&sha3.bv, &mut pos);
-    let derived = circuits_experimental::sha3::allocate_derived(&sha3.bv, &mut pos);
+        let sha3 = Sha3::new(&iologic);
+        let given = circuits_experimental::sha3::allocate_given(&sha3.bv, &mut pos);
+        let derived = circuits_experimental::sha3::allocate_derived(&sha3.bv, &mut pos);
+        let assertion = sha3.assert_circuit(&given, &derived);
 
-    let assertion = sha3.assert_circuit(&given, &derived);
-
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
+        (assertion, iologic.tracker, 1, 0)
+    });
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -86,37 +83,37 @@ fn test_compile_keccak_f_1600_unrolled_for_field<
     use circuits_bitvec::BitvecIO;
     use circuits_experimental::sha3::State;
 
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-    let bv = BitvecLogic::new(&iologic);
-    let bitvec_io = BitvecIO::new(&bv);
+    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    // Input state 0 and expected final state 24 as inputs (Public)
-    let s0: State<_> = std::array::from_fn(|_x| std::array::from_fn(|_y| bitvec_io.next(&mut pos)));
-    let s24_expected: State<_> =
-        std::array::from_fn(|_x| std::array::from_fn(|_y| bitvec_io.next(&mut pos)));
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        // Input state 0 and expected final state 24 as inputs (Public)
+        let s0: State<_> =
+            std::array::from_fn(|_x| std::array::from_fn(|_y| bitvec_io.next(&mut pos)));
+        let s24_expected: State<_> =
+            std::array::from_fn(|_x| std::array::from_fn(|_y| bitvec_io.next(&mut pos)));
 
-    // Compute the circuit transition internally
-    let sha3 = Sha3::new(&iologic);
-    let s24_without_iota = sha3.keccak_f_1600_without_final_iota(&s0);
+        // Compute the circuit transition internally
+        let sha3 = Sha3::new(&iologic);
+        let s24_without_iota = sha3.keccak_f_1600_without_final_iota(&s0);
 
-    let mut rhs = s24_expected.clone();
-    let rc = circuits_experimental::sha3::constants::ROUNDC[23];
-    let boolean = circuits_boolean::Boolean::new(&iologic);
-    rhs[0][0] = sha3.bv.from_fn(|idx| {
-        let bit = s24_expected[0][0].bit(idx);
-        if (rc.checked_shr(idx as u32).unwrap_or(0) & 1) != 0 {
-            boolean.notb(bit)
-        } else {
-            bit.clone()
-        }
+        let mut rhs = s24_expected.clone();
+        let rc = circuits_experimental::sha3::constants::ROUNDC[23];
+        let boolean = circuits_boolean::Boolean::new(&iologic);
+        rhs[0][0] = sha3.bv.from_fn(|idx| {
+            let bit = s24_expected[0][0].bit(idx);
+            if (rc.checked_shr(idx as u32).unwrap_or(0) & 1) != 0 {
+                boolean.notb(bit)
+            } else {
+                bit.clone()
+            }
+        });
+
+        let assertion = sha3.assert_eq_state(&s24_without_iota, &rhs);
+
+        (assertion, iologic.tracker, 1, 0)
     });
-
-    let assertion = sha3.assert_eq_state(&s24_without_iota, &rhs);
-
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -220,33 +217,34 @@ fn test_compile_keccak_f_1600_sliced_for_field<
     use circuits_bitvec::BitvecIO;
     use circuits_experimental::sha3::State;
 
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-    let bv = BitvecLogic::new(&iologic);
-    let bitvec_io = BitvecIO::new(&bv);
-
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-
-    // Input state 0 (Public)
-    let s0: State<_> = std::array::from_fn(|_x| std::array::from_fn(|_y| bitvec_io.next(&mut pos)));
-
-    // Determine slice rounds (period = 6: rounds 5, 11, 17, 23 are sliced)
     let slice_rounds = [5, 11, 17, 23];
-    let a_intermediates: [Option<State<_>>; 24] = std::array::from_fn(|t| {
-        if slice_rounds.contains(&t) {
-            Some(std::array::from_fn(|_x| {
-                std::array::from_fn(|_y| bitvec_io.next(&mut pos))
-            }))
-        } else {
-            None
-        }
+
+    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
+
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+
+        // Input state 0 (Public)
+        let s0: State<_> =
+            std::array::from_fn(|_x| std::array::from_fn(|_y| bitvec_io.next(&mut pos)));
+
+        // Determine slice rounds (period = 6: rounds 5, 11, 17, 23 are sliced)
+        let a_intermediates: [Option<State<_>>; 24] = std::array::from_fn(|t| {
+            if slice_rounds.contains(&t) {
+                Some(std::array::from_fn(|_x| {
+                    std::array::from_fn(|_y| bitvec_io.next(&mut pos))
+                }))
+            } else {
+                None
+            }
+        });
+
+        let sha3 = Sha3::new(&iologic);
+        let (_s24, all_assertions) = sha3.assert_keccak_f_1600_sliced(&s0, &a_intermediates);
+
+        (all_assertions, iologic.tracker, 1, 0)
     });
-
-    let sha3 = Sha3::new(&iologic);
-    let (_s24, all_assertions) = sha3.assert_keccak_f_1600_sliced(&s0, &a_intermediates);
-
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, all_assertions, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -269,7 +267,7 @@ fn test_compile_keccak_f_1600_sliced_for_field<
     }
     // Push slices
     for t in 0..24 {
-        if let Some(ref _slice) = a_intermediates[t] {
+        if slice_rounds.contains(&t) {
             let slice_val = rust_states[t + 1];
             for row in &slice_val {
                 for &val in row {

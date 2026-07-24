@@ -17,15 +17,12 @@ use compile_algebra::{
     field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
     p256::P256Field,
 };
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{Logic, LogicIO};
 
 #[test]
 fn test_compile_lookup() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
         let l = Lookup::new(&iologic);
 
         let n = 5;
@@ -35,11 +32,8 @@ fn test_compile_lookup() {
 
         let table = l.table_of_array(&table_vals);
         let res = table.eval(&x);
-        (iologic.assert0("lookup_res", &res), iologic.tracker)
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
+        (iologic.assert0("lookup_res", &res), iologic.tracker, 1, 0)
+    });
 
     compile_compiler::top::dump_stats("lookup_eval_compile", &circuit, &stats);
 }

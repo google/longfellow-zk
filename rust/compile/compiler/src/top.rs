@@ -24,15 +24,16 @@ use crate::{
 pub fn compile_new<'a, F, Build>(
     f: &'a F,
     build: Build,
-) -> (Circuit<F>, CircuitGeometry, crate::debug::CircuitDebugSymbols)
+) -> (
+    Circuit<F>,
+    CircuitGeometry,
+    crate::debug::CircuitDebugSymbols,
+)
 where
     F: CompileField + core_algebra::SerializableField,
-    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (
-        CompilerAssertions<'src, F>,
-        AssertionScope,
-        usize,
-        usize,
-    ),
+    Build: for<'src> FnOnce(
+        CompilerLogic<'src, F>,
+    ) -> (CompilerAssertions<'src, F>, AssertionScope, usize, usize),
 {
     let source_arena = crate::arena::CompilerArena::new();
     let source_logic = CompilerLogic::new(&source_arena, f);

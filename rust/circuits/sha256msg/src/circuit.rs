@@ -28,7 +28,8 @@ pub struct Given<L: Logic, const S: usize> {
 pub type Derived<L> = Vec<Sha256Derived<L>>;
 
 pub struct Sha256Msg<'a, L: Logic, const MAX_BLOCKS: usize>
-where L::F: FieldWrappingSum
+where
+    L::F: FieldWrappingSum,
 {
     logic: &'a L,
     pub(crate) sha: Sha256<'a, L>,
@@ -37,7 +38,8 @@ where L::F: FieldWrappingSum
 }
 
 impl<'a, L: Logic, const MAX_BLOCKS: usize> Sha256Msg<'a, L, MAX_BLOCKS>
-where L::F: FieldWrappingSum
+where
+    L::F: FieldWrappingSum,
 {
     pub fn new(logic: &'a L) -> Self {
         Self {

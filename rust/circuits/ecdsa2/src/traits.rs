@@ -21,5 +21,7 @@ pub trait EcdsaCompileField<const W: usize>:
 {
 }
 
-impl<const W: usize, F> EcdsaCompileField<W> for F where F: CompileField + SupportsNatConversions<W> + SupportsU64Conversions
-{}
+impl<const W: usize, F> EcdsaCompileField<W> for F where
+    F: CompileField + SupportsNatConversions<W> + SupportsU64Conversions
+{
+}

@@ -15,14 +15,11 @@
 use circuits_bitvec::{Bitvec, BitvecIO, BitvecLogic};
 use circuits_boolean::Boolean;
 use compile_algebra::p256::P256Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 
 #[test]
 fn test_compile_bitvec() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -31,11 +28,8 @@ fn test_compile_bitvec() {
         let b: Bitvec<_, 8> = bitvec_io.next(&mut pos);
 
         let (sum, _carry) = bv.unchecked_add(&a, &b);
-        (bv.assert_false("sum_zero", &sum), iologic.tracker)
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
+        (bv.assert_false("sum_zero", &sum), iologic.tracker, 1, 0)
+    });
     compile_compiler::top::dump_stats("bitvec_add_compile", &circuit, &stats);
 }
 
@@ -45,9 +39,7 @@ fn test_compile_bitvec_leq() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &fc);
+    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -57,11 +49,8 @@ fn test_compile_bitvec_leq() {
 
         let boolean = Boolean::new(&iologic);
         let leq = bv.leq(&a, &b);
-        (boolean.assert_true("leq_true", &leq), iologic.tracker)
-    };
-
-    let (circuit, _stats, symbols) =
-        compile_compiler::top::compile(&arena, &fc, assertion, tracker, 1, 0);
+        (boolean.assert_true("leq_true", &leq), iologic.tracker, 1, 0)
+    });
 
     // Let's test a = 65, b = 119
     let mut inputs = compile_eval::initial_inputs(&fr);
@@ -79,9 +68,7 @@ fn test_compile_bitvec_is_zero() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &fc);
+    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -90,11 +77,13 @@ fn test_compile_bitvec_is_zero() {
 
         let boolean = Boolean::new(&iologic);
         let is_zero = bv.is_zero(&a);
-        (boolean.assert_true("zero_true", &is_zero), iologic.tracker)
-    };
-
-    let (circuit, _stats, symbols) =
-        compile_compiler::top::compile(&arena, &fc, assertion, tracker, 1, 0);
+        (
+            boolean.assert_true("zero_true", &is_zero),
+            iologic.tracker,
+            1,
+            0,
+        )
+    });
 
     // Test a = 0 (should pass)
     let mut inputs = compile_eval::initial_inputs(&fr);
@@ -125,9 +114,7 @@ fn test_compile_bitvec_lt() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &fc);
+    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -139,11 +126,10 @@ fn test_compile_bitvec_lt() {
         (
             boolean.assert_true("lt_true", &bv.lt(&a, &b)),
             iologic.tracker,
+            1,
+            0,
         )
-    };
-
-    let (circuit, _stats, symbols) =
-        compile_compiler::top::compile(&arena, &fc, assertion, tracker, 1, 0);
+    });
 
     // Test a = 65, b = 66 (should pass since 65 < 66)
     let mut inputs = compile_eval::initial_inputs(&fr);
@@ -423,7 +409,9 @@ fn test_assert_add() {
 }
 
 fn test_is_zero_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
 

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::gf2_128::Gf2_128Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use mdoc_zk_circuits::mso_attribute::circuit::AttributeVerifier;
 use mso_attribute_corruptors::MsoAttributeMockGiven;
@@ -28,10 +27,10 @@ pub fn compile_attribute_circuit<const W: usize, FC>(
     compile_eval::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where FC: mdoc_zk_circuits::MdocHashCompileField {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, fc);
+where
+    FC: mdoc_zk_circuits::MdocHashCompileField,
+{
+    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
         let verifier = AttributeVerifier::new(&iologic);
@@ -41,11 +40,10 @@ where FC: mdoc_zk_circuits::MdocHashCompileField {
         (
             verifier.assert_attribute(&given_wires, &derived_wires),
             iologic.tracker,
+            1,
+            0,
         )
-    };
-
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, tracker, 1, 0);
+    });
 
     (circuit, stats, symbols)
 }

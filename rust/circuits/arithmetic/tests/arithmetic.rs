@@ -15,14 +15,11 @@
 use circuits_arithmetic::Arithmetic;
 use circuits_boolean::{Bitw, Boolean, BooleanIO};
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{eval::EvalLogic, Eltw, Logic};
 use core_algebra::SerializableField;
 
 fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -40,18 +37,18 @@ fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) 
         let (sum, carry) = arith.unchecked_add(&a, &b);
         let a1 = arith.assert_false("sum_zero", &sum);
         let a2 = boolean.assert_false("no_carry", &carry);
-        (iologic.assert_all("test_add", &[a1, a2]), iologic.tracker)
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, f, assertion, tracker, 1, 0);
+        (
+            iologic.assert_all("test_add", &[a1, a2]),
+            iologic.tracker,
+            1,
+            0,
+        )
+    });
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -69,18 +66,18 @@ fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) 
         let (diff, carry) = arith.unchecked_sub(&a, &b);
         let a1 = arith.assert_false("diff_zero", &diff);
         let a2 = boolean.assert_false("no_carry", &carry);
-        (iologic.assert_all("test_sub", &[a1, a2]), iologic.tracker)
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, f, assertion, tracker, 1, 0);
+        (
+            iologic.assert_all("test_sub", &[a1, a2]),
+            iologic.tracker,
+            1,
+            0,
+        )
+    });
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -96,18 +93,18 @@ fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
         }
 
         let res = arith.lt(&a, &b);
-        (boolean.assert_false("lt_false", &res), iologic.tracker)
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, f, assertion, tracker, 1, 0);
+        (
+            boolean.assert_false("lt_false", &res),
+            iologic.tracker,
+            1,
+            0,
+        )
+    });
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -123,18 +120,18 @@ fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) 
         }
 
         let res = arith.leq(&a, &b);
-        (boolean.assert_false("leq_false", &res), iologic.tracker)
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, f, assertion, tracker, 1, 0);
+        (
+            boolean.assert_false("leq_false", &res),
+            iologic.tracker,
+            1,
+            0,
+        )
+    });
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -150,11 +147,13 @@ fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
         }
 
         let res = arith.eqb(&a, &b);
-        (boolean.assert_false("eq_false", &res), iologic.tracker)
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, f, assertion, tracker, 1, 0);
+        (
+            boolean.assert_false("eq_false", &res),
+            iologic.tracker,
+            1,
+            0,
+        )
+    });
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
 
@@ -189,7 +188,9 @@ fn of_u64<L: Logic>(boolean: &Boolean<L>, n: usize, z: u64) -> Vec<Bitw<L>> {
 }
 
 fn assert_eq_bits<L: Logic>(boolean: &Boolean<L>, want: &[Bitw<L>], got: &[Bitw<L>])
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     assert_eq!(want.len(), got.len());
     for i in 0..want.len() {
         let w = boolean.as_eltw(&want[i]);
@@ -199,7 +200,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_add_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -215,7 +218,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_sub_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -231,7 +236,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_lt_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -248,7 +255,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_leq_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -269,7 +278,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_eq_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -306,7 +317,9 @@ fn test_exactly_one_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
 }
 
 fn test_empty_vectors_relations_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
