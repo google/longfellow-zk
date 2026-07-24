@@ -106,8 +106,10 @@ fn test_all_two_circuit_setups() {
     let fn_field = Q256Field::new();
     let f128_compile = Gf2_128Field::new();
     let curve = Secp256r1::new(&p256);
-    let lp256 = EvalLogic::new(&p256);
-    let l128 = EvalLogic::new(&f128_compile);
+    let p256_tracker = compile_logic::tracker::AssertionTracker::new();
+    let lp256 = EvalLogic::new_with_tracker(&p256, &p256_tracker);
+    let f128_tracker = compile_logic::tracker::AssertionTracker::new();
+    let l128 = EvalLogic::new_with_tracker(&f128_compile, &f128_tracker);
     let mdoc_sig_circuit = MdocSignature::new(&lp256, &curve);
     let mdoc_hashes = [
         MdocHash::new(&l128, 1),

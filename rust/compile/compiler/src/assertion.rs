@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use compile_algebra::field::CompileField;
+use compile_logic::scope::AssertionScope;
 
 use crate::{
     algsimp::AlgebraicRewriter,
@@ -24,13 +25,18 @@ use crate::{
 fn dedup_assertions<'a, F: CompileField>(
     arena: &'a CompilerArena<'a, F>,
     assertions: &[AssertionItem<'a, F>],
+    tracker: &AssertionScope,
 ) -> Assertions<'a, F> {
-    let mut seen = rustc_hash::FxHashSet::default();
-    let unique: Vec<_> = assertions
-        .iter()
-        .filter(|item| seen.insert(item.expr.id))
-        .cloned()
-        .collect();
+    let mut map: rustc_hash::FxHashMap<usize, AssertionItem<'a, F>> =
+        rustc_hash::FxHashMap::default();
+    for item in assertions {
+        if let Some(existing) = map.get(&item.expr.id) {
+            tracker.union(existing.id, item.id);
+        } else {
+            map.insert(item.expr.id, *item);
+        }
+    }
+    let unique: Vec<_> = map.into_values().collect();
     arena.alloc_slice(&unique)
 }
 
@@ -92,14 +98,6 @@ impl<'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
         // Strip the assertions by returning the inner expression directly
         x
     }
-
-    fn empty_scope(&self) -> crate::ir::ScopeRef<'a> {
-        self.next.empty_scope()
-    }
-
-    fn push(&self, name: &'a str, parent: crate::ir::ScopeRef<'a>) -> crate::ir::ScopeRef<'a> {
-        self.next.push(name, parent)
-    }
 }
 
 /// Recursively walks the expression DAG and strips all `WithAssertions` nodes
@@ -107,6 +105,7 @@ impl<'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
 pub fn strip_all<'a, 'b, F: CompileField>(
     arena: &'b CompilerArena<'b, F>,
     assertions: Assertions<'a, F>,
+    tracker: &AssertionScope,
 ) -> Assertions<'b, F> {
     let cse = Cse::new(arena);
     let rewriter = StripRewriter {
@@ -119,14 +118,14 @@ pub fn strip_all<'a, 'b, F: CompileField>(
     let new_sub_exprs = rewriter.collected.replace(Vec::new());
 
     if new_sub_exprs.is_empty() {
-        return dedup_assertions(arena, stripped_slice);
+        return dedup_assertions(arena, stripped_slice, tracker);
     }
 
     let mut current_items = stripped_slice.to_vec();
     current_items.extend(new_sub_exprs);
 
     loop {
-        let unique_items = dedup_assertions(arena, &current_items);
+        let unique_items = dedup_assertions(arena, &current_items, tracker);
         let stripped_slice = crate::ir::walk(arena, unique_items, &rewriter);
         let new_sub_exprs = rewriter.collected.replace(Vec::new());
 
@@ -140,19 +139,20 @@ pub fn strip_all<'a, 'b, F: CompileField>(
         current_items = next_items;
     }
 
-    dedup_assertions(arena, &current_items)
+    dedup_assertions(arena, &current_items, tracker)
 }
 
 /// Rewrite function performing algebraic simplification with CSE after
 /// stripping all assertions from the DAG, rewriting into target arena ('b).
-pub fn rewrite<'a, 'b, F: CompileField>(
-    arena: &'b CompilerArena<'b, F>,
-    f: &'b F,
-    x: Assertions<'a, F>,
-) -> Assertions<'b, F> {
-    let stripped = strip_all(arena, x);
+pub fn rewrite<'a, F: CompileField>(
+    arena: &'a CompilerArena<'a, F>,
+    f: &'a F,
+    assertions: &[AssertionItem<'a, F>],
+    tracker: &AssertionScope,
+) -> Assertions<'a, F> {
+    let stripped = strip_all(arena, assertions, tracker);
     let cse = Cse::new(arena);
     let algebraic = AlgebraicRewriter::new(f, cse);
     let rewritten = crate::ir::walk(arena, stripped, &algebraic);
-    dedup_assertions(arena, rewritten)
+    dedup_assertions(arena, rewritten, tracker)
 }

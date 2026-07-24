@@ -18,7 +18,7 @@ use compile_algebra::field::CompileField;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    ir::{depth_expr, Expr, ExprNode, HashedExpr, RewriteT, Scope, ScopeRef},
+    ir::{depth_expr, Expr, ExprNode, HashedExpr, RewriteT},
     node::Node,
     CompilerArena,
 };
@@ -36,9 +36,7 @@ fn canonical2<'a, T>(x: &'a Node<'a, T>, y: &'a Node<'a, T>) -> (&'a Node<'a, T>
 pub struct Cse<'a, F: CompileField> {
     arena: &'a CompilerArena<'a, F>,
     memo: RefCell<FxHashMap<HashedExpr<'a, F>, ExprNode<'a, F>>>,
-    scope_memo: RefCell<FxHashMap<Scope<'a>, ScopeRef<'a>>>,
     elt_memo: RefCell<FxHashMap<F::E, &'a F::E>>,
-    empty_scope: ScopeRef<'a>,
 }
 
 impl<F: CompileField> std::fmt::Debug for Cse<'_, F> {
@@ -57,13 +55,10 @@ impl<F: CompileField> Eq for Cse<'_, F> {}
 
 impl<'a, F: CompileField> Cse<'a, F> {
     pub fn new(arena: &'a CompilerArena<'a, F>) -> Self {
-        let empty_scope = arena.alloc_scope_node(Scope::Empty, 0);
         Self {
             arena,
             memo: RefCell::new(FxHashMap::default()),
-            scope_memo: RefCell::new(FxHashMap::default()),
             elt_memo: RefCell::new(FxHashMap::default()),
-            empty_scope,
         }
     }
 
@@ -84,22 +79,6 @@ impl<'a, F: CompileField> Cse<'a, F> {
         let depth = depth_expr(&hashed.expr);
         let node = self.arena.alloc_node(hashed.expr, depth);
         self.memo.borrow_mut().insert(hashed, node);
-        node
-    }
-
-    pub fn empty_scope(&self) -> ScopeRef<'a> {
-        self.empty_scope
-    }
-
-    pub fn push(&self, name: &'a str, parent: ScopeRef<'a>) -> ScopeRef<'a> {
-        assert!(!name.is_empty(), "scope name must not be empty");
-        let v = Scope::Cons(name, parent);
-        if let Some(&node) = self.scope_memo.borrow().get(&v) {
-            return node;
-        }
-        let depth = parent.depth + 1;
-        let node = self.arena.alloc_scope_node(v.clone(), depth);
-        self.scope_memo.borrow_mut().insert(v, node);
         node
     }
 }
@@ -162,13 +141,5 @@ impl<'a, F: CompileField> RewriteT<'a, F> for Cse<'a, F> {
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         self.memo_expr(Expr::WithAssertions(assertions, *x))
-    }
-
-    fn empty_scope(&self) -> ScopeRef<'a> {
-        Cse::empty_scope(self)
-    }
-
-    fn push(&self, name: &'a str, parent: ScopeRef<'a>) -> ScopeRef<'a> {
-        Cse::push(self, name, parent)
     }
 }

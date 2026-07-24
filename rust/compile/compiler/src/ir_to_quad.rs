@@ -113,24 +113,30 @@ fn compile_term<F: CompileField>(
     }
 }
 
-/// Rewrite into a stylized Quad circuit with debug info mapping quad node index to assertion path.
+use compile_logic::scope::{AssertionId, AssertionScope};
+
+/// Rewrite into a stylized Quad circuit with debug info mapping quad node index to assertion ID.
 pub fn rewrite<'a, F: CompileField>(
     _arena: &'a crate::CompilerArena<'a, F>,
     f: &F,
     x: Assertions<'a, F>,
-) -> (QuadCircuit<F>, Vec<(usize, Vec<String>)>) {
+    tracker: &AssertionScope,
+) -> (QuadCircuit<F>, Vec<(usize, AssertionId)>) {
     let one_wexpr = WExpr::Input {
         position_in_input_array: 0,
     };
     let mut nodes = vec![one_wexpr];
     let mut quad_asserts = Vec::new();
     let ememo = WireMemoizer::new();
-    let mut assertion_wires = rustc_hash::FxHashSet::default();
+    let mut assertion_wires = rustc_hash::FxHashMap::default();
     for item in x.iter() {
         let wx = walk_eltw(f, &ememo, &mut nodes, item.expr);
-        if assertion_wires.insert(wx) {
+        if let Some(&existing_id) = assertion_wires.get(&wx) {
+            tracker.union(existing_id, item.id);
+        } else {
             let quad_node_idx = push_node(&mut nodes, WExpr::Assert0(wx));
-            quad_asserts.push((quad_node_idx, item.path.clone()));
+            assertion_wires.insert(wx, item.id);
+            quad_asserts.push((quad_node_idx, item.id));
         }
     }
     (QuadCircuit { nodes }, quad_asserts)

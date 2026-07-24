@@ -16,10 +16,15 @@
 pub mod concrete;
 pub mod eval;
 pub mod logic;
+pub mod scope;
 #[cfg(feature = "testonly")]
 pub use concrete::*;
 
 pub use crate::{
-    eval::EvalError,
     logic::{Eltw, Logic, LogicIO, K_FIRST_WIRE_POSITION},
+    scope::AssertionScope,
 };
+
+pub mod tracker {
+    pub use crate::scope::AssertionScope as AssertionTracker;
+}

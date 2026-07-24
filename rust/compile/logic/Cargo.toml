@@ -10,8 +10,7 @@ workspace = true
 compile-algebra = { path = "../algebra" }
 core-algebra = { path = "../../core/algebra" }
 util = { path = "../../util" }
-compile-eval = { path = "../eval", optional = true }
 runtime-algebra = { path = "../../runtime/algebra", optional = true }
 
 [features]
-testonly = ["dep:compile-eval", "dep:runtime-algebra", "runtime-algebra/testonly"]
+testonly = ["dep:runtime-algebra", "runtime-algebra/testonly"]

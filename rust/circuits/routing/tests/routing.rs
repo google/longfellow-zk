@@ -23,29 +23,35 @@ use compile_logic::{Logic, LogicIO};
 fn test_compile_routing() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &f);
-    let bv = BitvecLogic::new(&iologic);
-    let bitvec_io = BitvecIO::new(&bv);
+    let (assertion, tracker) = {
+        let iologic = CompilerLogic::new(&arena, &f);
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
 
-    let n = 16;
-    let unroll = 2;
+        let n = 16;
+        let unroll = 2;
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let amount_bv: Bitvec<_, 4> = bitvec_io.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let amount_bv: Bitvec<_, 4> = bitvec_io.next(&mut pos);
 
-    let a_wires: Vec<_> = (0..n).map(|_| iologic.next(&mut pos)).collect();
-    let default_wire = iologic.next(&mut pos);
+        let a_wires: Vec<_> = (0..n).map(|_| iologic.next(&mut pos)).collect();
+        let default_wire = iologic.next(&mut pos);
 
-    let routing = Routing::new(&iologic);
-    let res = routing.shifte(unroll, &amount_bv, n, &a_wires, &default_wire);
+        let routing = Routing::new(&iologic);
+        let res = routing.shifte(unroll, &amount_bv, n, &a_wires, &default_wire);
 
-    let mut asserts = Vec::new();
-    for r in &res {
-        asserts.push(iologic.assert0("res_zero", r));
-    }
-    let assertion = iologic.assert_all("shifte_routing", &asserts);
+        let mut asserts = Vec::new();
+        for r in &res {
+            asserts.push(iologic.assert0("res_zero", r));
+        }
+        (
+            iologic.assert_all("shifte_routing", &asserts),
+            iologic.tracker,
+        )
+    };
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
+    let (circuit, stats, _symbols) =
+        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
 
     compile_compiler::top::dump_stats("shifte_16_16_2", &circuit, &stats);
 
@@ -76,7 +82,8 @@ fn run_eval_test_e_generic<
     unroll: usize,
     unshift: bool,
 ) {
-    let iologic = EvalLogic::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);
 
@@ -133,7 +140,8 @@ fn run_eval_test_b_generic<const W: usize, F: CompileField + SupportsNatConversi
     unroll: usize,
     unshift: bool,
 ) {
-    let iologic = EvalLogic::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);
 
@@ -201,7 +209,8 @@ fn run_eval_test_bitvec_generic<const W: usize, F: CompileField + SupportsNatCon
     unroll: usize,
     unshift: bool,
 ) {
-    let iologic = EvalLogic::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);
 

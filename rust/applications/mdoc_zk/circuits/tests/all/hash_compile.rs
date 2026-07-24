@@ -63,7 +63,7 @@ where FC: MdocHashCompileField {
 
     let assertion = mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires);
 
-    compile_compiler::top::compile(&arena, fc, assertion, 1, 0)
+    compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0)
 }
 
 fn push_bits<const W: usize, FR: RuntimeField<W>>(
@@ -248,7 +248,8 @@ fn test_mdoc_zk_circuits_hash_for_field<
 
     let assertion = mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires);
 
-    let (_circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (_circuit, stats, _symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats("mdoc_hash", &_circuit, &stats);
 }

@@ -27,19 +27,25 @@ fn test_compile_bit_plucker_for_field_n<
     name: &str,
 ) {
     let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
+    let (assertion, tracker) = {
+        let iologic = CompilerLogic::new(&arena, fc);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let input_elt = iologic.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let input_elt = iologic.next(&mut pos);
 
-    let plucker = BitPlucker::<_, LOGN>::new(&iologic);
-    let plucked = plucker.pluck(&input_elt);
+        let plucker = BitPlucker::<_, LOGN>::new(&iologic);
+        let plucked = plucker.pluck(&input_elt);
 
-    // Dummy assertion to compile the circuit
-    let boolean = circuits_boolean::Boolean::new(&iologic);
-    let assertion = boolean.assert_false("bit0_false", plucked.bit(0));
+        // Dummy assertion to compile the circuit
+        let boolean = circuits_boolean::Boolean::new(&iologic);
+        (
+            boolean.assert_false("bit0_false", plucked.bit(0)),
+            iologic.tracker,
+        )
+    };
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (circuit, stats, _symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, tracker, 1, 0);
 
     compile_compiler::top::dump_stats(&format!("{name}_{LOGN}"), &circuit, &stats);
 }

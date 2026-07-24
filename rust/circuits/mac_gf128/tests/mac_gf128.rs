@@ -28,7 +28,8 @@ fn test_compile_mac_gf128_for_field<FC: CompileField + SerializableField>(fc: &F
     let assertion = mac_circuit.assert_mac(&given);
 
     // Compile!
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (circuit, stats, _symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
@@ -52,8 +53,9 @@ fn test_direct_eval_mac_gf128() {
 
     let concrete_given = given(test_msg, av_val, [ap0_val, ap1_val]);
 
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, FC> = EvalLogic<'a, FC>;
-    let lp = L::new(&fc);
+    let lp = L::new(&fc, &tracker);
     let bv = BitvecLogic::new(&lp);
     let mac_circuit = MAC::new(&lp);
 

@@ -56,23 +56,23 @@ fn test_rewrite_algebraic_simplification() {
 #[test]
 fn test_rewrite_coalesces_algebraically_equal_assertions() {
     let f = P256Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let aid1 = tracker.new_leaf("first");
+    let aid2 = tracker.new_leaf("second");
     let source_arena = CompilerArena::new();
     let cse = Cse::new(&source_arena);
     let x = cse.input(1);
     let linear_x = cse.linear(&f.one(), &x);
     let assertions = source_arena.alloc_slice(&[
+        AssertionItem { id: aid1, expr: x },
         AssertionItem {
-            expr: x,
-            path: vec!["first".to_string()],
-        },
-        AssertionItem {
+            id: aid2,
             expr: linear_x,
-            path: vec!["second".to_string()],
         },
     ]);
 
     let target_arena = CompilerArena::new();
-    let rewritten = compile_compiler::assertion::rewrite(&target_arena, &f, assertions);
+    let rewritten = compile_compiler::assertion::rewrite(&target_arena, &f, assertions, &tracker);
     assert_eq!(rewritten.len(), 1);
-    assert_eq!(rewritten[0].path, vec!["first"]);
+    assert_eq!(rewritten[0].id, aid1);
 }

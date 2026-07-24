@@ -49,8 +49,8 @@ use mdoc_zk_circuits::cbor_decoder::{
 #[test]
 fn test_cbor_decoder_exhaustive() {
     let f = Gf2_128Field::new();
-    type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);
     let decoder = CborByteDecoder::new(&l);

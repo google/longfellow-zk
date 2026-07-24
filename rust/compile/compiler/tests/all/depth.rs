@@ -28,7 +28,8 @@ fn test_direct_input_assertion_has_one_layer() {
     let x = logic.input(1);
     let assertion = logic.assert0("input", &x);
 
-    let (circuit, geometry, symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
+    let (circuit, geometry, symbols) =
+        compile_compiler::top::compile(&arena, &f, assertion, logic.tracker, 1, 0);
     assert_eq!(geometry.nlayers, 1);
 
     let runtime_f = RuntimeP256Field::new();

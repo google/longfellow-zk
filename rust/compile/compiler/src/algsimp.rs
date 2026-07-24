@@ -261,12 +261,4 @@ where NEXT: RewriteT<'a, F>
             _ => self.ground_quadratic(e, a, b),
         }
     }
-
-    fn empty_scope(&self) -> crate::ir::ScopeRef<'a> {
-        self.next.empty_scope()
-    }
-
-    fn push(&self, name: &'a str, parent: crate::ir::ScopeRef<'a>) -> crate::ir::ScopeRef<'a> {
-        self.next.push(name, parent)
-    }
 }

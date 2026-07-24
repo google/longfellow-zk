@@ -8,6 +8,7 @@ workspace = true
 
 [dependencies]
 compile-algebra = { path = "../algebra" }
+compile-logic = { path = "../logic" }
 core-algebra = { path = "../../core/algebra" }
 core-proto = { path = "../../core/proto" }
 util = { path = "../../util" }

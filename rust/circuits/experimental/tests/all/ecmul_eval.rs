@@ -51,8 +51,9 @@ fn run_ecmul_eval_tests<
     };
     let concrete_derived = derived(curve, n, &concrete_given, f);
 
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::<F>::new(f);
+    let l = L::<F>::new(f, &tracker);
     let circuit = EcmulCircuit::new(&l, curve, n);
 
     let wire_given = evaluate_given(&concrete_given, &l, n);

@@ -40,7 +40,8 @@ fn test_mdoc_zk_circuits_signature_generic(fc: &P256Field, _fr: &runtime_algebra
 
     let assertion = mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires);
 
-    let (_circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (_circuit, stats, _symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
     assert_eq!(
         stats,
         compile_eval::CircuitGeometry {
@@ -90,7 +91,7 @@ where FC: MdocSigCompileField {
     let derived_wires = mdoc_zk_circuits::signature::allocate_derived(&iologic, &mut pos);
     let assertion = mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires);
 
-    compile_compiler::top::compile(&arena, fc, assertion, 1, 0)
+    compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0)
 }
 
 fn push_nat_bits<F: AlgebraicField, N: Nat<4>>(

@@ -68,7 +68,8 @@ fn test_compile_gf2_128_mul_for_field<
     let assertion = bv.assert_eq("c_eq_target", &c, &target);
 
     // Compile!
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (circuit, stats, symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
     assert_eq!(stats, expected_stats);
@@ -165,8 +166,9 @@ fn eval_logic_to_u128<'a, F: CompileField + SerializableField>(
 }
 
 fn test_gf2_128_mul_basic_for_field<F: CompileField + SerializableField>(f: &F) {
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(f);
+    let l = L::new(f, &tracker);
     let boolean = Boolean::new(&l);
 
     let mul_circuit = Gf2_128Mul::new(&l);
@@ -185,8 +187,9 @@ fn test_gf2_128_mul_basic_for_field<F: CompileField + SerializableField>(f: &F) 
 }
 
 fn test_gf2_128_mul_random_for_field<F: CompileField + SerializableField>(f: &F) {
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(f);
+    let l = L::new(f, &tracker);
     let boolean = Boolean::new(&l);
 
     let mul_circuit = Gf2_128Mul::new(&l);

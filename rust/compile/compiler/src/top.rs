@@ -13,14 +13,16 @@
 // limitations under the License.
 
 use compile_algebra::field::CompileField;
+use compile_logic::AssertionScope;
 use core_proto::circuit::{Circuit, CircuitGeometry};
 
 use crate::{logic_impl::CompilerAssertions, CompilerArena};
 
 pub fn compile<'a, F: CompileField + core_algebra::SerializableField>(
-    arena: &'a CompilerArena<'a, F>,
+    _arena: &'a CompilerArena<'a, F>,
     f: &F,
     assertions: CompilerAssertions<'a, F>,
+    tracker: AssertionScope,
     npublic_input: usize,
     subfield_boundary: usize,
 ) -> (
@@ -29,17 +31,7 @@ pub fn compile<'a, F: CompileField + core_algebra::SerializableField>(
     crate::debug::CircuitDebugSymbols,
 ) {
     let arena1 = CompilerArena::new();
-    let simplified = {
-        let items: Vec<crate::ir::AssertionItem<'a, F>> = assertions
-            .item_refs
-            .iter()
-            .map(|item_ref| item_ref.to_item())
-            .collect();
-        let _ = assertions;
-
-        let items_ref = arena.alloc_slice(&items);
-        crate::assertion::rewrite(&arena1, f, items_ref)
-    };
+    let simplified = crate::assertion::rewrite(&arena1, f, assertions.items, &tracker);
 
     // Pass 2: copy rewrite into arena2 (inserts term copies and depth alignment)
     let arena2 = CompilerArena::new();
@@ -49,12 +41,13 @@ pub fn compile<'a, F: CompileField + core_algebra::SerializableField>(
     drop(arena1);
 
     // Pass 3: ir_to_quad rewrite into owned QuadCircuit representation
-    let (quad_circuit, quad_asserts) = crate::ir_to_quad::rewrite(&arena2, f, copy_propagated);
+    let (quad_circuit, quad_asserts) =
+        crate::ir_to_quad::rewrite(&arena2, f, copy_propagated, &tracker);
 
     // Safe Rust: drop arena2 immediately after Pass 3!
     drop(arena2);
 
-    let (circuit, info, symbols) = crate::scheduler::schedule(
+    let (circuit, info, mut symbols) = crate::scheduler::schedule(
         f,
         quad_circuit,
         &quad_asserts,
@@ -64,6 +57,8 @@ pub fn compile<'a, F: CompileField + core_algebra::SerializableField>(
 
     assert!(info.ninput > 0);
     assert!(info.nterms > 0);
+
+    symbols.tracker = tracker;
 
     (circuit, info, symbols)
 }

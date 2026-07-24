@@ -50,13 +50,16 @@ fn compile_circuit(
     build_fn: impl for<'a> FnOnce(
         &'a CompilerArena<'a, CompileP256>,
         &'a CompileP256,
-    ) -> compile_compiler::CompilerAssertions<'a, CompileP256>,
+    ) -> (
+        compile_compiler::CompilerAssertions<'a, CompileP256>,
+        compile_logic::scope::AssertionScope,
+    ),
 ) -> (Circuit<RuntimeP256>, RuntimeP256) {
     let fc = CompileP256::new();
     let arena = CompilerArena::new();
-    let assert_expr = build_fn(&arena, &fc);
+    let (assert_expr, tracker) = build_fn(&arena, &fc);
 
-    let (circ_comp, _, _) = compile_compiler::top::compile(&arena, &fc, assert_expr, 1, 0);
+    let (circ_comp, _, _) = compile_compiler::top::compile(&arena, &fc, assert_expr, tracker, 1, 0);
 
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc, FieldID::P256);
@@ -76,7 +79,7 @@ fn test_sumcheck_prover_verifier_end_to_end() {
         let x = logic.input(1);
         let y = logic.input(2);
         let z = logic.mul(&x, &y);
-        logic.assert0("assert_z", &z)
+        (logic.assert0("assert_z", &z), logic.tracker)
     });
 
     // Witness where x = 1, y = 0 => z = 1 * 0 = 0 (satisfies assert0)
@@ -122,7 +125,7 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
         let x = logic.input(1);
         let y = logic.input(2);
         let z = logic.mul(&x, &y);
-        logic.assert0("assert_z", &z)
+        (logic.assert0("assert_z", &z), logic.tracker)
     });
 
     let mut w_pad = vec![f.zero(); circ.raw.ninput];
@@ -176,7 +179,7 @@ fn test_sumcheck_multi_layer() {
             let sum = logic.add(&x, &y);
             x = logic.mul(&sum, &x);
         }
-        logic.assert0("assert_x", &x)
+        (logic.assert0("assert_x", &x), logic.tracker)
     });
     assert!(
         circ.raw.layers.len() > 1,

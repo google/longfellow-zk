@@ -30,39 +30,37 @@ impl WireRef {
     }
 }
 
-/// Mapping from a specific circuit output wire to its hierarchical assertion path.
+use compile_logic::scope::{AssertionId, AssertionScope, AssertionStatus};
+
+/// Mapping from a specific circuit output wire to its assertion ID.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssertionSymbol {
     /// Target wire reference in the compiled circuit.
     pub wire: WireRef,
-    /// Hierarchical scope path (e.g., `["root", "block_a", "check_w1"]`).
-    pub path: Vec<String>,
+    /// Assertion ID tracked in AssertionScope.
+    pub id: AssertionId,
 }
 
 impl AssertionSymbol {
-    /// Creates a new assertion symbol pairing a wire reference with a path.
-    pub fn new(wire: WireRef, path: Vec<String>) -> Self {
-        Self { wire, path }
-    }
-
-    /// Formats the hierarchical path into a single slash-separated string (e.g.,
-    /// `"root/block_a/check_w1"`).
-    pub fn formatted_path(&self) -> String {
-        self.path.join("/")
+    /// Creates a new assertion symbol pairing a wire reference with an assertion ID.
+    pub fn new(wire: WireRef, id: AssertionId) -> Self {
+        Self { wire, id }
     }
 }
 
 /// Collection of debug symbols associated with a compiled circuit.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Default)]
 pub struct CircuitDebugSymbols {
     /// List of assertion symbols for output wires.
     pub symbols: Vec<AssertionSymbol>,
+    /// Associated assertion scope.
+    pub tracker: AssertionScope,
 }
 
 impl CircuitDebugSymbols {
     /// Creates a new container of circuit debug symbols.
-    pub fn new(symbols: Vec<AssertionSymbol>) -> Self {
-        Self { symbols }
+    pub fn new(symbols: Vec<AssertionSymbol>, tracker: AssertionScope) -> Self {
+        Self { symbols, tracker }
     }
 
     /// Looks up the assertion symbol for a given wire reference.
@@ -70,14 +68,9 @@ impl CircuitDebugSymbols {
         self.symbols.iter().find(|s| &s.wire == wire)
     }
 
-    /// Looks up the hierarchical path slice for a given wire reference.
-    pub fn get_path(&self, wire: &WireRef) -> Option<&[String]> {
-        self.get_symbol(wire).map(|s| s.path.as_slice())
-    }
-
-    /// Looks up and returns the formatted slash-separated path for a given wire reference.
-    pub fn get_formatted_path(&self, wire: &WireRef) -> Option<String> {
-        self.get_symbol(wire).map(|s| s.formatted_path())
+    /// Looks up the assertion ID for a given wire reference.
+    pub fn get_id(&self, wire: &WireRef) -> Option<AssertionId> {
+        self.get_symbol(wire).map(|s| s.id)
     }
 }
 
@@ -101,97 +94,74 @@ pub struct EvaluatedCompiledAssertion {
     pub status: CompiledAssertionStatus,
 }
 
+use std::collections::HashMap;
+
 /// Aggregate result of evaluating a compiled circuit, detailing overall pass/fail status and
 /// per-assertion evaluation.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompiledEvalAssertions<E = String> {
+#[derive(Clone)]
+pub struct CompiledEvalAssertions<'a, E = String> {
     /// Overall result of the circuit evaluation.
     pub result: Result<(), E>,
-    /// Individual per-assertion evaluations.
-    pub evaluations: Vec<EvaluatedCompiledAssertion>,
+    /// Map of assertion ID to status.
+    pub fates: HashMap<AssertionId, AssertionStatus>,
+    /// Reference to the assertion scope.
+    pub tracker: &'a AssertionScope,
 }
 
-impl<E: std::fmt::Debug> CompiledEvalAssertions<E> {
+impl<'a, E: std::fmt::Debug> CompiledEvalAssertions<'a, E> {
     /// Returns `true` if the overall evaluation succeeded.
     pub fn is_ok(&self) -> bool {
-        self.result.is_ok()
+        self.result.is_ok() && self.tracker.is_ok(&self.fates)
     }
 
     /// Returns `true` if the overall evaluation failed.
     pub fn is_err(&self) -> bool {
-        self.result.is_err()
+        !self.is_ok()
     }
 
     /// Unwraps the evaluation result, panicking if it is an `Err`.
-    pub fn unwrap(self) {
-        self.result.unwrap()
+    pub fn unwrap(&self) {
+        self.result.as_ref().unwrap();
+        self.assert_all_passed();
     }
 
     /// Expects the evaluation result to be `Ok`, panicking with `msg` if it is an `Err`.
     pub fn expect(self, msg: &str) {
-        self.result.expect(msg)
+        if let Err(e) = &self.result {
+            panic!("{msg}: {e:?}");
+        }
+        self.assert_all_passed();
     }
 
     /// Returns a list of formatted paths for all evaluated assertions.
     pub fn all_paths(&self) -> Vec<String> {
-        self.evaluations.iter().map(|e| e.path.clone()).collect()
+        self.tracker.all_paths(&self.fates)
     }
 
     /// Returns a list of formatted paths for assertions that passed.
     pub fn passed_paths(&self) -> Vec<String> {
-        self.evaluations
-            .iter()
-            .filter(|e| matches!(e.status, CompiledAssertionStatus::Passed))
-            .map(|e| e.path.clone())
-            .collect()
+        self.tracker.passed_paths(&self.fates)
     }
 
     /// Returns a list of formatted paths for assertions that failed.
     pub fn failed_paths(&self) -> Vec<String> {
-        self.evaluations
-            .iter()
-            .filter(|e| matches!(e.status, CompiledAssertionStatus::Failed(_)))
-            .map(|e| e.path.clone())
-            .collect()
+        self.tracker.failed_paths(&self.fates)
     }
 
     /// Asserts that all evaluations passed, panicking with details if any failed.
     pub fn assert_all_passed(&self) {
-        let failed = self.failed_paths();
-        assert!(
-            self.is_ok() && failed.is_empty(),
-            "Expected all compiled assertions to pass, but the following failed: {failed:?}"
-        );
+        self.tracker.assert_all_passed(&self.fates);
     }
 
     /// Asserts that all evaluations under a specific path prefix passed.
     pub fn assert_all_passed_at(&self, expected_path: &str) {
-        let failed_under_path: Vec<_> = self
-            .failed_paths()
-            .into_iter()
-            .filter(|p| {
-                p == expected_path
-                    || p.strip_prefix(expected_path)
-                        .is_some_and(|suffix| suffix.starts_with('/'))
-            })
-            .collect();
-        assert!(
-            failed_under_path.is_empty(),
-            "Expected all compiled assertions at '{expected_path}' to pass, but found failures: {failed_under_path:?}"
-        );
+        self.tracker
+            .assert_all_passed_at(expected_path, &self.fates);
     }
 
     /// Asserts that at least one assertion failed at exactly `expected_path`.
     pub fn assert_any_failed_at(&self, expected_path: &str) {
-        let failed_under_path: Vec<_> = self
-            .failed_paths()
-            .into_iter()
-            .filter(|p| p == expected_path)
-            .collect();
-        let actual_failed = self.failed_paths();
-        assert!(
-            !failed_under_path.is_empty(),
-            "Expected compiled assertion at '{expected_path}' to fail, but actual failed paths were: {actual_failed:?}"
-        );
+        self.tracker
+            .assert_any_failed_at(expected_path, &self.fates);
     }
 }

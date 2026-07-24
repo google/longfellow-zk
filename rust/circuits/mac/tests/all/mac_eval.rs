@@ -27,8 +27,9 @@ fn test_mac_direct_eval_generic<F: CompileField>(fc: &F) {
 
     let concrete_given = given(test_msg, av_val, [ap0_val, ap1_val]);
 
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, FC> = EvalLogic<'a, FC>;
-    let lp = L::new(fc);
+    let lp = L::new(fc, &tracker);
     let bv = BitvecLogic::new(&lp);
     let mac_circuit = MAC::new(&lp);
 

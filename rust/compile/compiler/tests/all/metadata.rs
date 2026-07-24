@@ -42,5 +42,12 @@ fn compile_with_metadata(npublic_input: usize, subfield_boundary: usize) {
     let square = logic.mul(&x, &x);
     let assertion = logic.assert0("square", &square);
 
-    compile_compiler::top::compile(&arena, &f, assertion, npublic_input, subfield_boundary);
+    compile_compiler::top::compile(
+        &arena,
+        &f,
+        assertion,
+        logic.tracker,
+        npublic_input,
+        subfield_boundary,
+    );
 }

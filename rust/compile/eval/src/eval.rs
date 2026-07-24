@@ -44,26 +44,29 @@ pub fn process_inputs<const W: usize, F: RuntimeField<W>>(
     }
 }
 
-pub fn eval_circuit<const W: usize, FR: RuntimeField<W> + core_algebra::SerializableField>(
+pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + core_algebra::SerializableField>(
     fr: &FR,
     circuit: &Circuit<FR>,
-    symbols: &crate::CircuitDebugSymbols,
+    symbols: &'a crate::CircuitDebugSymbols,
     inputs: &[ElementOf<FR>],
-) -> crate::CompiledEvalAssertions<EvalError> {
+) -> crate::CompiledEvalAssertions<'a, EvalError> {
     let raw = &circuit.raw;
+    let tracker = &symbols.tracker;
 
     let vin = match process_inputs(fr, raw.ninput, inputs) {
         Ok(v) => v,
         Err(err) => {
             return crate::CompiledEvalAssertions {
                 result: Err(err),
-                evaluations: Vec::new(),
+                fates: std::collections::HashMap::new(),
+                tracker,
             };
         }
     };
 
     let mut current_v = vin;
-    let mut evaluations = Vec::new();
+    let mut fates = std::collections::HashMap::new();
+    let mut overall_failed = false;
 
     for l in (0..raw.layers.len()).rev() {
         let noutput = if l == 0 {
@@ -74,44 +77,35 @@ pub fn eval_circuit<const W: usize, FR: RuntimeField<W> + core_algebra::Serializ
 
         let (v, failed_wires) = eval_layer(fr, noutput, &raw.layers[l], &raw.constants, &current_v);
         current_v = v;
-        evaluations.extend(failed_wires.into_iter().map(|index| {
+        if !failed_wires.is_empty() {
+            overall_failed = true;
+        }
+        for index in failed_wires {
             let wire = crate::WireRef::new(l, index);
-            let path = symbols
-                .get_formatted_path(&wire)
-                .unwrap_or_else(|| format!("layer.{l}.wire.{index}"));
-            crate::EvaluatedCompiledAssertion {
-                wire,
-                path,
-                status: crate::CompiledAssertionStatus::Failed(
-                    "circuit assertion failed".to_string(),
-                ),
+            if let Some(id) = symbols.get_id(&wire) {
+                fates.insert(
+                    id,
+                    compile_logic::scope::AssertionStatus::Failed(
+                        "layer assertion failed".to_string(),
+                    ),
+                );
             }
-        }));
+        }
     }
-
-    let mut overall_failed = !evaluations.is_empty();
 
     for (i, y) in current_v.iter().enumerate() {
         let wire = crate::WireRef::new(0, i);
-        let path = symbols
-            .get_formatted_path(&wire)
-            .unwrap_or_else(|| format!("output.{}", i));
-
-        if !fr.is_zero(y) {
+        let is_ok = fr.is_zero(y);
+        if !is_ok {
             overall_failed = true;
-            evaluations.push(crate::EvaluatedCompiledAssertion {
-                wire,
-                path,
-                status: crate::CompiledAssertionStatus::Failed(
-                    "circuit output non-zero".to_string(),
-                ),
-            });
-        } else {
-            evaluations.push(crate::EvaluatedCompiledAssertion {
-                wire,
-                path,
-                status: crate::CompiledAssertionStatus::Passed,
-            });
+        }
+        if let Some(id) = symbols.get_id(&wire) {
+            let status = if is_ok {
+                compile_logic::scope::AssertionStatus::Passed
+            } else {
+                compile_logic::scope::AssertionStatus::Failed("circuit output non-zero".to_string())
+            };
+            fates.insert(id, status);
         }
     }
 
@@ -121,7 +115,8 @@ pub fn eval_circuit<const W: usize, FR: RuntimeField<W> + core_algebra::Serializ
         } else {
             Ok(())
         },
-        evaluations,
+        fates,
+        tracker,
     }
 }
 
@@ -174,6 +169,7 @@ fn convert_circuit<FC: core_algebra::SerializableField, FR: core_algebra::Serial
 }
 
 pub fn eval_circuit_fc<
+    'a,
     const WR: usize,
     FC: core_algebra::SerializableField,
     FR: RuntimeField<WR> + core_algebra::SerializableField,
@@ -181,10 +177,10 @@ pub fn eval_circuit_fc<
     fc: &FC,
     fr: &FR,
     circuit: &Circuit<FC>,
-    symbols: &crate::CircuitDebugSymbols,
+    symbols: &'a crate::CircuitDebugSymbols,
     inputs: &[ElementOf<FR>],
     field_id: core_proto::FieldID,
-) -> Result<crate::CompiledEvalAssertions<EvalError>, String> {
+) -> Result<crate::CompiledEvalAssertions<'a, EvalError>, String> {
     let converted = convert_circuit(fc, fr, circuit, field_id)?;
     Ok(eval_circuit(fr, &converted, symbols, inputs))
 }

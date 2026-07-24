@@ -24,8 +24,9 @@ use compile_logic::eval::EvalLogic;
 #[test]
 fn test_eval_keccak_f_1600() {
     let f = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
 
     // Initialize state 0 values

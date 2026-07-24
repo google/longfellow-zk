@@ -45,7 +45,8 @@ fn test_compile_keccak_f_1600_for_field<
 
     let assertion = sha3.assert_circuit(&given, &derived);
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (circuit, stats, symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -114,7 +115,8 @@ fn test_compile_keccak_f_1600_unrolled_for_field<
 
     let assertion = sha3.assert_eq_state(&s24_without_iota, &rhs);
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (circuit, stats, symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -244,7 +246,7 @@ fn test_compile_keccak_f_1600_sliced_for_field<
     let (_s24, all_assertions) = sha3.assert_keccak_f_1600_sliced(&s0, &a_intermediates);
 
     let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, all_assertions, 1, 0);
+        compile_compiler::top::compile(&arena, fc, all_assertions, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 

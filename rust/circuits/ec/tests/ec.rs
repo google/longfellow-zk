@@ -41,32 +41,38 @@ fn test_compile_ec_generic<
     fr: &FR,
 ) {
     let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-    let ec_circuit = EcCircuit::new(&iologic, curve_c);
+    let (assertion, tracker) = {
+        let iologic = CompilerLogic::new(&arena, fc);
+        let ec_circuit = EcCircuit::new(&iologic, curve_c);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let p1 = pt2_wires(&iologic, &mut pos);
-    let p2 = pt2_wires(&iologic, &mut pos);
-    let p1_double_target = pt2_wires(&iologic, &mut pos);
-    let p1_double_zinv = iologic.next(&mut pos);
-    let p3_target = pt2_wires(&iologic, &mut pos);
-    let p3_zinv = iologic.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let p1 = pt2_wires(&iologic, &mut pos);
+        let p2 = pt2_wires(&iologic, &mut pos);
+        let p1_double_target = pt2_wires(&iologic, &mut pos);
+        let p1_double_zinv = iologic.next(&mut pos);
+        let p3_target = pt2_wires(&iologic, &mut pos);
+        let p3_zinv = iologic.next(&mut pos);
 
-    let p1_proj = ec_circuit.projective(&p1);
-    let p2_proj = ec_circuit.projective(&p2);
+        let p1_proj = ec_circuit.projective(&p1);
+        let p2_proj = ec_circuit.projective(&p2);
 
-    let p1_double_proj = ec_circuit.double(&p1_proj);
-    let p3_proj = ec_circuit.add(&p1_proj, &p2_proj);
+        let p1_double_proj = ec_circuit.double(&p1_proj);
+        let p3_proj = ec_circuit.add(&p1_proj, &p2_proj);
 
-    let a1 = ec_circuit.is_on_curve(&p1);
-    let a2 = ec_circuit.is_on_curve(&p2);
-    let a3 = ec_circuit.point_equality(&p1_double_proj, &p1_double_zinv, &p1_double_target);
-    let a4 = ec_circuit.point_equality(&p3_proj, &p3_zinv, &p3_target);
+        let a1 = ec_circuit.is_on_curve(&p1);
+        let a2 = ec_circuit.is_on_curve(&p2);
+        let a3 = ec_circuit.point_equality(&p1_double_proj, &p1_double_zinv, &p1_double_target);
+        let a4 = ec_circuit.point_equality(&p3_proj, &p3_zinv, &p3_target);
 
-    let assertion = iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]);
+        (
+            iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]),
+            iologic.tracker,
+        )
+    };
 
     // Compile the circuit
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (circuit, stats, symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, tracker, 1, 0);
 
     compile_compiler::top::dump_stats("ec_add_double", &circuit, &stats);
 
@@ -193,8 +199,9 @@ fn test_ec_circuit_evaluation_generic<
     curve: &C,
     f: &F,
 ) {
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(f);
+    let l = L::new(f, &tracker);
     let ec_circuit = EcCircuit::new(&l, curve);
 
     // Generator coordinates

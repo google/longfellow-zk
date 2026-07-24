@@ -22,6 +22,7 @@ pub struct Sha256MsgCorruptor {
 }
 
 impl Sha256MsgCorruptor {
+    #[allow(dead_code)]
     pub fn expected_compiled_path(&self) -> String {
         self.expected_path
             .replace("assert_wrapping_sum_gf2", "assert_wrapping_sum_prime")

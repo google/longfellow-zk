@@ -24,17 +24,23 @@ fn test_compile_for_field<F: CompileField + FieldWrappingSum + SerializableField
     name: &str,
 ) {
     let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, f);
-    let bv = BitvecLogic::new(&iologic);
-    let bitvec_io = BitvecIO::new(&bv);
+    let (assertion, tracker) = {
+        let iologic = CompilerLogic::new(&arena, f);
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let addends: Vec<Bitvec<_, 32>> = (0..7).map(|_| bitvec_io.next(&mut pos)).collect();
-    let expected: Bitvec<_, 32> = bitvec_io.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let addends: Vec<Bitvec<_, 32>> = (0..7).map(|_| bitvec_io.next(&mut pos)).collect();
+        let expected: Bitvec<_, 32> = bitvec_io.next(&mut pos);
 
-    let adder = AnalogAdder::new(&iologic);
-    let assertion = f.assert_wrapping_sum(&adder, &expected, &[&addends]);
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 1, 0);
+        let adder = AnalogAdder::new(&iologic);
+        (
+            f.assert_wrapping_sum(&adder, &expected, &[&addends]),
+            iologic.tracker,
+        )
+    };
+    let (circuit, stats, _symbols) =
+        compile_compiler::top::compile(&arena, f, assertion, tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }
@@ -47,7 +53,7 @@ fn test_analog_adder_compilation() {
     test_compile_for_field(&gf2, "analog_adder_7_addends_gf2_128");
 }
 
-fn test_assert_sum_correct_for_logic<F: CompileField + FieldWrappingSum>(logic: &EvalLogic<F>) {
+fn test_assert_sum_correct_for_logic<F: CompileField + FieldWrappingSum>(logic: &EvalLogic<'_, F>) {
     let bv = BitvecLogic::new(logic);
     let a: Bitvec<_, 32> = bv.of_u64(10);
     let b: Bitvec<_, 32> = bv.of_u64(20);
@@ -61,7 +67,9 @@ fn test_assert_sum_correct_for_logic<F: CompileField + FieldWrappingSum>(logic: 
     assert!(assertion.is_ok());
 }
 
-fn test_assert_sum_incorrect_for_logic<F: CompileField + FieldWrappingSum>(logic: &EvalLogic<F>) {
+fn test_assert_sum_incorrect_for_logic<F: CompileField + FieldWrappingSum>(
+    logic: &EvalLogic<'_, F>,
+) {
     let bv = BitvecLogic::new(logic);
     let a: Bitvec<_, 32> = bv.of_u64(10);
     let b: Bitvec<_, 32> = bv.of_u64(20);
@@ -75,7 +83,9 @@ fn test_assert_sum_incorrect_for_logic<F: CompileField + FieldWrappingSum>(logic
     assert!(assertion.is_err());
 }
 
-fn test_assert_sum_7_addends_for_logic<F: CompileField + FieldWrappingSum>(logic: &EvalLogic<F>) {
+fn test_assert_sum_7_addends_for_logic<F: CompileField + FieldWrappingSum>(
+    logic: &EvalLogic<'_, F>,
+) {
     let bv = BitvecLogic::new(logic);
 
     // Test all 7 carry wrap-around cases (i from 0 to 6)
@@ -101,7 +111,7 @@ fn test_assert_sum_7_addends_for_logic<F: CompileField + FieldWrappingSum>(logic
 }
 
 fn test_assert_sum_7_addends_fail_for_logic<F: CompileField + FieldWrappingSum>(
-    logic: &EvalLogic<F>,
+    logic: &EvalLogic<'_, F>,
 ) {
     let bv = BitvecLogic::new(logic);
 
@@ -130,16 +140,18 @@ fn test_assert_sum_7_addends_fail_for_logic<F: CompileField + FieldWrappingSum>(
 #[test]
 fn test_analog_adder_evaluation() {
     let f_prime = P256Field::new();
+    let tracker_prime = compile_logic::scope::AssertionScope::new();
     type LPrime<'a> = EvalLogic<'a, P256Field>;
-    let l_prime = LPrime::new(&f_prime);
+    let l_prime = LPrime::new(&f_prime, &tracker_prime);
     test_assert_sum_correct_for_logic(&l_prime);
     test_assert_sum_incorrect_for_logic(&l_prime);
     test_assert_sum_7_addends_for_logic(&l_prime);
     test_assert_sum_7_addends_fail_for_logic(&l_prime);
 
     let f_bin = Gf2_128Field::new();
+    let tracker_bin = compile_logic::scope::AssertionScope::new();
     type LBin<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l_binary = LBin::new(&f_bin);
+    let l_binary = LBin::new(&f_bin, &tracker_bin);
     test_assert_sum_correct_for_logic(&l_binary);
     test_assert_sum_incorrect_for_logic(&l_binary);
     test_assert_sum_7_addends_for_logic(&l_binary);

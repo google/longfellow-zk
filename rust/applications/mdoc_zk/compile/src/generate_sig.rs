@@ -34,7 +34,7 @@ pub fn mdoc_zk_circuits_signature<FC>(
 )
 where FC: MdocSigCompileField {
     let arena = CompilerArena::new();
-    let (assertion, pub_inputs_count, subfield_boundary_val) = {
+    let (assertions, tracker, pub_inputs_count, subfield_boundary_val) = {
         let iologic = CompilerLogic::new(&arena, fc);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
@@ -50,13 +50,19 @@ where FC: MdocSigCompileField {
 
         let mdoc_sig = MdocSignature::new(&iologic, &curve);
         let assertion = mdoc_sig.assert_signatures_and_macs(&given, &derived);
-        (assertion, pub_inputs_count, subfield_boundary_val)
+        (
+            assertion,
+            iologic.tracker,
+            pub_inputs_count,
+            subfield_boundary_val,
+        )
     };
 
     let (circuit, stats, symbols) = compile_compiler::top::compile(
         &arena,
         fc,
-        assertion,
+        assertions,
+        tracker,
         pub_inputs_count,
         subfield_boundary_val,
     );

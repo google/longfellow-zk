@@ -26,96 +26,41 @@ pub enum IrError {
 pub type ExprNode<'a, F> = &'a Node<'a, Expr<'a, F>>;
 pub type RawAssertions<'a, F> = &'a [ExprNode<'a, F>];
 
-/// Scope tree node stored in the compiler's bump arena as a first-class Node.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Scope<'a> {
-    Empty,
-    Cons(&'a str, ScopeRef<'a>),
-}
+use compile_logic::scope::AssertionId;
 
-pub type ScopeRef<'a> = &'a Node<'a, Scope<'a>>;
-
-impl<'a> Node<'a, Scope<'a>> {
-    pub fn to_path(&self) -> Vec<String> {
-        let mut path = Vec::new();
-        let mut current = self;
-        while let Scope::Cons(name, parent) = &current.v {
-            if !name.is_empty() {
-                path.push(name.to_string());
-            }
-            current = parent;
-        }
-        path
-    }
-}
-
-/// Lightweight assertion item reference used during circuit construction before path resolution.
-#[derive(Debug)]
-pub struct AssertionItemRef<'a, F: CompileField> {
+/// Assertion item coupling a root assertion expression with its assertion ID.
+pub struct AssertionItem<'a, F: CompileField> {
     pub expr: ExprNode<'a, F>,
-    pub scope: ScopeRef<'a>,
+    pub id: AssertionId,
 }
 
-impl<'a, F: CompileField> Clone for AssertionItemRef<'a, F> {
+impl<F: CompileField> Clone for AssertionItem<'_, F> {
     fn clone(&self) -> Self {
         *self
     }
 }
+impl<F: CompileField> Copy for AssertionItem<'_, F> {}
 
-impl<'a, F: CompileField> Copy for AssertionItemRef<'a, F> {}
-
-impl<'a, F: CompileField> PartialEq for AssertionItemRef<'a, F> {
+impl<F: CompileField> PartialEq for AssertionItem<'_, F> {
     fn eq(&self, other: &Self) -> bool {
-        self.expr == other.expr
+        self.expr == other.expr && self.id == other.id
     }
 }
+impl<F: CompileField> Eq for AssertionItem<'_, F> {}
 
-impl<'a, F: CompileField> Eq for AssertionItemRef<'a, F> {}
-
-impl<'a, F: CompileField> AssertionItemRef<'a, F> {
-    pub fn to_item(&self) -> AssertionItem<'a, F> {
-        AssertionItem {
-            expr: self.expr,
-            path: self.scope.to_path(),
-        }
+impl<F: CompileField> std::hash::Hash for AssertionItem<'_, F> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.expr.hash(state);
+        self.id.hash(state);
     }
-}
-
-/// Assertion item coupling a root assertion expression with its scope path.
-pub struct AssertionItem<'a, F: CompileField> {
-    pub expr: ExprNode<'a, F>,
-    pub path: Vec<String>,
 }
 
 impl<F: CompileField> fmt::Debug for AssertionItem<'_, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("AssertionItem")
             .field("expr", &self.expr)
-            .field("path", &self.path)
+            .field("id", &self.id)
             .finish()
-    }
-}
-
-impl<'a, F: CompileField> Clone for AssertionItem<'a, F> {
-    fn clone(&self) -> Self {
-        Self {
-            expr: self.expr,
-            path: self.path.clone(),
-        }
-    }
-}
-
-impl<'a, F: CompileField> PartialEq for AssertionItem<'a, F> {
-    fn eq(&self, other: &Self) -> bool {
-        self.expr == other.expr
-    }
-}
-
-impl<'a, F: CompileField> Eq for AssertionItem<'a, F> {}
-
-impl<F: CompileField> Hash for AssertionItem<'_, F> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.expr.hash(state);
     }
 }
 
@@ -289,8 +234,6 @@ pub trait RewriteT<'a, F: CompileField> {
         assertions: &Assertions<'a, F>,
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F>;
-    fn empty_scope(&self) -> ScopeRef<'a>;
-    fn push(&self, name: &'a str, parent: ScopeRef<'a>) -> ScopeRef<'a>;
 }
 
 impl<'a, F: CompileField, T: RewriteT<'a, F>> RewriteT<'a, F> for &T {
@@ -327,12 +270,6 @@ impl<'a, F: CompileField, T: RewriteT<'a, F>> RewriteT<'a, F> for &T {
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         (*self).with_assertions(assertions, x)
-    }
-    fn empty_scope(&self) -> ScopeRef<'a> {
-        (*self).empty_scope()
-    }
-    fn push(&self, name: &'a str, parent: ScopeRef<'a>) -> ScopeRef<'a> {
-        (*self).push(name, parent)
     }
 }
 
@@ -401,10 +338,7 @@ pub fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
                         let walked_assertion = cache[item.expr.id].unwrap();
                         for &expr in rewriter.assert0(&walked_assertion) {
                             if seen.insert(expr.id) {
-                                walked_assertions.push(AssertionItem {
-                                    expr,
-                                    path: item.path.clone(),
-                                });
+                                walked_assertions.push(AssertionItem { expr, id: item.id });
                             }
                         }
                     }
@@ -425,12 +359,12 @@ pub fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
         }
     }
 
-    // Construct walked root assertions carrying paths
+    // Construct walked root assertions carrying IDs
     let walked_list: Vec<AssertionItem<'b, F>> = assertions
         .iter()
         .map(|item| AssertionItem {
             expr: cache[item.expr.id].unwrap(),
-            path: item.path.clone(),
+            id: item.id,
         })
         .collect();
 

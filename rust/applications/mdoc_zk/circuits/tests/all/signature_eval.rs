@@ -33,8 +33,8 @@ fn test_signature_circuit_independent_eval_generic(f: &P256Field) {
     let ap1_u128 = 0xfedcba9876543210fedcba9876543210u128;
     let ap_keys = [[ap0_u128, ap1_u128]; 3];
 
-    type L<'a, FC> = EvalLogic<'a, FC>;
-    let lp256 = L::new(f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let lp256 = EvalLogic::new_with_tracker(f, &tracker);
     let sig_circuit = MdocSignature::new(&lp256, &curve);
 
     let sig_input = signature_input_of_parsed_mdoc(&parsed, issuer_pk);
@@ -97,12 +97,11 @@ fn test_eval_mdoc_signature_shared_corruptors() {
         ],
     };
 
-    type L<'a, FC> = EvalLogic<'a, FC>;
-    let lp256 = L::new(&f);
-    let sig_circuit = MdocSignature::new(&lp256, &curve);
-
     let corruptors = mdoc_signature_corruptors::all_mdoc_signature_corruptors::<P256Field>();
     for c in corruptors {
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let lp256 = EvalLogic::new_with_tracker(&f, &tracker);
+        let sig_circuit = MdocSignature::new(&lp256, &curve);
         let mut sig_input = base_sig_input.clone();
         if let Some(ref f_input) = c.corrupt_input {
             f_input(&mut sig_input);

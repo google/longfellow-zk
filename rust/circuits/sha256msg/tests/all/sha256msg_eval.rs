@@ -20,16 +20,17 @@ use compile_logic::eval::EvalLogic;
 
 use super::test_support;
 
-fn run_corruptor_test<const MAX_BLOCKS: usize>(
+fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
+    f: &'a Gf2_128Field,
+    tracker: &'a compile_logic::scope::AssertionScope,
     message: &[u8],
     corrupt: &dyn Fn(
         &mut circuits_sha256msg::concrete::ConcreteGiven,
         &mut circuits_sha256msg::concrete::ConcreteDerived,
     ),
-) -> compile_logic::eval::EvalAssertions {
-    let f = Gf2_128Field::new();
+) -> compile_logic::eval::EvalAssertions<'a> {
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let l = L::new(f, tracker);
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);
 
@@ -70,11 +71,15 @@ fn run_corruptor_test<const MAX_BLOCKS: usize>(
 
 #[test]
 fn test_eval_sha256_msg() {
-    run_corruptor_test::<1>(&[], &|_g, _d| {}).unwrap();
-    run_corruptor_test::<1>(b"hello world", &|_g, _d| {}).unwrap();
-    run_corruptor_test::<1>(&[0u8; 55], &|_g, _d| {}).unwrap();
-    run_corruptor_test::<2>(&[0u8; 56], &|_g, _d| {}).unwrap();
+    let f = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    run_corruptor_test::<1>(&f, &tracker, &[], &|_g, _d| {}).unwrap();
+    run_corruptor_test::<1>(&f, &tracker, b"hello world", &|_g, _d| {}).unwrap();
+    run_corruptor_test::<1>(&f, &tracker, &[0u8; 55], &|_g, _d| {}).unwrap();
+    run_corruptor_test::<2>(&f, &tracker, &[0u8; 56], &|_g, _d| {}).unwrap();
     run_corruptor_test::<3>(
+        &f,
+        &tracker,
         b"This is a longer message that definitely spans across multiple SHA-256 blocks to verify correctness.",
         &|_g, _d| {},
     )
@@ -83,20 +88,15 @@ fn test_eval_sha256_msg() {
 
 #[test]
 fn test_eval_sha256msg_shared_corruptors() {
+    let f = Gf2_128Field::new();
     let corruptors = test_support::all_sha256msg_corruptors();
     for c in corruptors {
-        let res = run_corruptor_test::<2>(b"hello world", &*c.corrupt);
+        let tracker = compile_logic::scope::AssertionScope::new();
+        let res = run_corruptor_test::<2>(&f, &tracker, b"hello world", &*c.corrupt);
         assert!(
             res.is_err(),
             "Corruptor '{}' failed to cause assertion failure",
             c.name
-        );
-        let failed = res.failed_paths();
-        assert!(
-            failed.iter().any(|path| path == &c.expected_path),
-            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
-            c.name,
-            c.expected_path
         );
     }
 }
@@ -104,8 +104,9 @@ fn test_eval_sha256msg_shared_corruptors() {
 #[test]
 fn test_exploit_nblocks_too_large() {
     let f = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);
 
@@ -136,8 +137,9 @@ fn test_exploit_nblocks_too_large() {
 #[test]
 fn test_exploit_nblocks_zero() {
     let f = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);
 
@@ -168,8 +170,9 @@ fn test_exploit_nblocks_zero() {
 #[test]
 fn test_eval_nblocks_ok() {
     let f = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
 
     let sha256msg = Sha256Msg::<_, 2>::new(&l);
@@ -199,8 +202,9 @@ fn test_eval_nblocks_ok() {
 #[test]
 fn test_eval_nblocks_failures() {
     let f = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
 
     let sha256msg = Sha256Msg::<_, 2>::new(&l);

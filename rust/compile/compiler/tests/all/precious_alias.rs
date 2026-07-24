@@ -32,7 +32,8 @@ fn test_precious_alias_in_prime_field() {
     let expression = logic.add(&sum, &precious_sum);
     let assertion = logic.assert0("alias", &expression);
 
-    let (circuit, _, symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
+    let (circuit, _, symbols) =
+        compile_compiler::top::compile(&arena, &f, assertion, logic.tracker, 1, 0);
     let runtime_f = RuntimeP256Field::new();
 
     eval_circuit_fc(
@@ -75,7 +76,8 @@ fn test_precious_alias_cancels_in_binary_field() {
     let guard = logic.assert0("guard", &square);
     let assertions = logic.assert_all("root", &[alias, guard]);
 
-    let (circuit, _, symbols) = compile_compiler::top::compile(&arena, &f, assertions, 1, 0);
+    let (circuit, _, symbols) =
+        compile_compiler::top::compile(&arena, &f, assertions, logic.tracker, 1, 0);
     let runtime_f = Gf2_128RuntimeField::new();
 
     eval_circuit_fc(

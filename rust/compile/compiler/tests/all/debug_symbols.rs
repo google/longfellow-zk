@@ -39,10 +39,15 @@ fn test_compiled_circuit_debug_symbols() {
     let block_b = l.assert_all("block_b", &[assert2]);
     let root = l.assert_all("root", &[block_a, block_b]);
 
-    let (circuit, _info, symbols) = compile_compiler::top::compile(&arena, &f, root, 1, 0);
+    let (circuit, _info, symbols) =
+        compile_compiler::top::compile(&arena, &f, root, l.tracker, 1, 0);
 
     assert_eq!(symbols.symbols.len(), 2);
-    let paths: Vec<String> = symbols.symbols.iter().map(|s| s.formatted_path()).collect();
+    let paths: Vec<String> = symbols
+        .symbols
+        .iter()
+        .map(|s| symbols.tracker.get_path(s.id))
+        .collect();
     assert!(paths.contains(&"root/block_a/check_w1".to_string()));
     assert!(paths.contains(&"root/block_b/check_w2".to_string()));
 
@@ -87,7 +92,8 @@ fn test_debug_symbols_record_assertion_layers() {
     let output_assertion = l.assert0("output", &fourth_power);
     let root = l.assert_all("root", &[input_assertion, output_assertion]);
 
-    let (circuit, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 1, 0);
+    let (circuit, info, symbols) =
+        compile_compiler::top::compile(&arena, &f, root, l.tracker, 1, 0);
     assert_eq!(info.nlayers, 2);
     assert_eq!(info.nassertions, 2);
     assert_eq!(symbols.symbols.len(), 2);
@@ -95,14 +101,14 @@ fn test_debug_symbols_record_assertion_layers() {
     let input_symbol = symbols
         .symbols
         .iter()
-        .find(|symbol| symbol.formatted_path() == "root/input")
+        .find(|symbol| symbols.tracker.get_path(symbol.id) == "root/input")
         .unwrap();
     assert_eq!(input_symbol.wire.layer, 1);
 
     let output_symbol = symbols
         .symbols
         .iter()
-        .find(|symbol| symbol.formatted_path() == "root/output")
+        .find(|symbol| symbols.tracker.get_path(symbol.id) == "root/output")
         .unwrap();
     assert_eq!(output_symbol.wire.layer, 0);
 
@@ -131,13 +137,14 @@ fn test_attached_assertion_keeps_its_path() {
     let consumer = l.assert0("consumer", &sliced);
     let root = l.assert_all("root", &[consumer]);
 
-    let (circuit, info, symbols) = compile_compiler::top::compile(&arena, &f, root, 1, 0);
+    let (circuit, info, symbols) =
+        compile_compiler::top::compile(&arena, &f, root, l.tracker, 1, 0);
     assert_eq!(info.nassertions, 2);
     assert_eq!(symbols.symbols.len(), 2);
     assert!(symbols
         .symbols
         .iter()
-        .any(|symbol| symbol.formatted_path() == "root/slice"));
+        .any(|symbol| symbols.tracker.get_path(symbol.id) == "root/slice"));
 
     let runtime_f = RuntimeP256Field::new();
     let failed = eval_circuit_fc(

@@ -71,7 +71,8 @@ fn test_compile_mac_for_field<
 
     let assertion = mac_circuit.assert_mac(&given_wires);
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+    let (circuit, stats, symbols) =
+        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 

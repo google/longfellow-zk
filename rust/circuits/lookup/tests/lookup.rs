@@ -24,19 +24,22 @@ use compile_logic::{Logic, LogicIO};
 fn test_compile_lookup() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &f);
-    let l = Lookup::new(&iologic);
+    let (assertion, tracker) = {
+        let iologic = CompilerLogic::new(&arena, &f);
+        let l = Lookup::new(&iologic);
 
-    let n = 5;
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let table_vals: Vec<_> = (0..n).map(|_| iologic.next(&mut pos)).collect();
-    let x = iologic.next(&mut pos);
+        let n = 5;
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let table_vals: Vec<_> = (0..n).map(|_| iologic.next(&mut pos)).collect();
+        let x = iologic.next(&mut pos);
 
-    let table = l.table_of_array(&table_vals);
-    let res = table.eval(&x);
-    let assertion = iologic.assert0("lookup_res", &res);
+        let table = l.table_of_array(&table_vals);
+        let res = table.eval(&x);
+        (iologic.assert0("lookup_res", &res), iologic.tracker)
+    };
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 1, 0);
+    let (circuit, stats, _symbols) =
+        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
 
     compile_compiler::top::dump_stats("lookup_eval_compile", &circuit, &stats);
 }
@@ -49,7 +52,8 @@ fn test_lookup_evaluation_generic<
 >(
     f: &F,
 ) {
-    let iologic = EvalLogic::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let iologic = EvalLogic::new(f, &tracker);
     let l = Lookup::new(&iologic);
 
     let n = 7;
@@ -76,8 +80,9 @@ fn test_lookup_circuit_evaluation_generic<
 >(
     f: &F,
 ) {
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(f);
+    let l = L::new(f, &tracker);
     let lookup_circuit = Lookup::new(&l);
 
     let n = 7;

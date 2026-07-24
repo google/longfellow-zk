@@ -55,7 +55,7 @@ fn test_compile_ecmul_generic<
     let assertion = circuit.assert_scalar_mul(&given, &derived);
 
     let (compiled_circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, 1, 0);
+        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
 
     compile_compiler::top::dump_stats("ecmul", &compiled_circuit, &stats);
 

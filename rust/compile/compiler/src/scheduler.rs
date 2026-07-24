@@ -351,15 +351,17 @@ fn validate_and_count_inputs<F: CompileField>(nodes: &[WExpr<F>]) -> usize {
     }
 }
 
+use compile_logic::scope::AssertionId;
+
 fn extract_debug_symbols<F: CompileField>(
     nodes: &[WExpr<F>],
-    quad_asserts: &[(usize, Vec<String>)],
+    quad_asserts: &[(usize, AssertionId)],
     wire_ids: &[WireId],
     depth: &[usize],
     max_depth: usize,
 ) -> crate::debug::CircuitDebugSymbols {
     let mut sym_list = Vec::new();
-    for &(quad_idx, ref path) in quad_asserts {
+    for &(quad_idx, id) in quad_asserts {
         if quad_idx < nodes.len() {
             let target_idx = match nodes[quad_idx] {
                 WExpr::Assert0(w) => w,
@@ -372,26 +374,23 @@ fn extract_debug_symbols<F: CompileField>(
                         .checked_sub(depth[target_idx])
                         .expect("assertion target is deeper than the circuit");
                     let wire = crate::debug::WireRef::new(layer, wid);
-                    sym_list.push(crate::debug::AssertionSymbol::new(wire, path.clone()));
+                    sym_list.push(crate::debug::AssertionSymbol::new(wire, id));
                 }
             }
         }
     }
     sym_list.sort_by_key(|s| (s.wire.layer, s.wire.index));
-    for pair in sym_list.windows(2) {
-        assert_ne!(
-            pair[0].wire, pair[1].wire,
-            "multiple assertions map to the same circuit wire"
-        );
-    }
-    crate::debug::CircuitDebugSymbols::new(sym_list)
+    crate::debug::CircuitDebugSymbols::new(
+        sym_list,
+        compile_logic::scope::AssertionScope::default(),
+    )
 }
 
 /// Transform the Quad circuit into a structured multi-layered Circuit with debug symbol extraction.
 pub fn schedule<F: CompileField + core_algebra::SerializableField>(
     f: &F,
     c: QuadCircuit<F>,
-    quad_asserts: &[(usize, Vec<String>)],
+    quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
     subfield_boundary: usize,
 ) -> (

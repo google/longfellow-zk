@@ -42,8 +42,9 @@ fn compare_bitvec<L: Logic, const N: usize>(
 }
 
 fn run_bit_plucker_eval_tests<const W: usize, F: CompileField>(f: &F) {
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(f);
+    let l = L::new(f, &tracker);
     let boolean = Boolean::new(&l);
 
     let plucker = BitPlucker::<_, 2>::new(&l);
@@ -76,8 +77,9 @@ fn run_bit_plucker_invalid_points_test<const W: usize, F: CompileField + Support
     f: &F,
     max_test_range: usize,
 ) {
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(f);
+    let l = L::new(f, &tracker);
     let boolean = Boolean::new(&l);
 
     let plucker = BitPlucker::<_, 2>::new(&l);
@@ -102,7 +104,11 @@ fn run_bit_plucker_invalid_points_test<const W: usize, F: CompileField + Support
         let mut has_error = false;
         for bit in plucked.as_array() {
             let bit_eltw = boolean.as_eltw(bit);
-            if bit_eltw.error.is_err() {
+            if bit_eltw
+                .assertions
+                .values()
+                .any(|s| matches!(s, compile_logic::scope::AssertionStatus::Failed(_)))
+            {
                 has_error = true;
             }
         }

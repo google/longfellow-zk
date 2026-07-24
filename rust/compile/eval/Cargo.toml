@@ -10,5 +10,6 @@ workspace = true
 core-algebra = { path = "../../core/algebra" }
 core-proto = { path = "../../core/proto" }
 compile-algebra = { path = "../algebra" }
+compile-logic = { path = "../logic" }
 compile-proto = { path = "../proto" }
 runtime-algebra = { path = "../../runtime/algebra" }

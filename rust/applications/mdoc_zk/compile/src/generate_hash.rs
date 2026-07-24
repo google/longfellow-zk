@@ -38,7 +38,7 @@ where
     FC: MdocHashCompileField,
 {
     let arena = CompilerArena::new();
-    let (assertion, pub_inputs_count, subfield_boundary_val) = {
+    let (assertions, tracker, pub_inputs_count, subfield_boundary_val) = {
         let iologic = CompilerLogic::new(&arena, fc);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
@@ -62,13 +62,19 @@ where
 
         let mdoc = MdocHash::new(&iologic, num_attrs);
         let assertion = mdoc.assert_valid_presentation_and_macs(&given, &derived);
-        (assertion, pub_inputs_count, subfield_boundary_val)
+        (
+            assertion,
+            iologic.tracker,
+            pub_inputs_count,
+            subfield_boundary_val,
+        )
     };
 
     let (circuit, stats, symbols) = compile_compiler::top::compile(
         &arena,
         fc,
-        assertion,
+        assertions,
+        tracker,
         pub_inputs_count,
         subfield_boundary_val,
     );

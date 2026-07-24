@@ -33,8 +33,9 @@ fn compare_bool<L: compile_logic::Logic>(
 #[test]
 fn test_memcmp_leq() {
     let f = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);
     let cmp = Memcmp::new(&l);
