@@ -19,7 +19,7 @@ use crate::{
     algsimp::AlgebraicRewriter,
     cse::Cse,
     ir::{AssertionItem, Assertions, ExprNode, RawAssertions, RewriteT},
-    CompilerArena,
+    arena::CompilerArena,
 };
 
 fn dedup_assertions<'a, F: CompileField>(

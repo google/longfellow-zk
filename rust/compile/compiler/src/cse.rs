@@ -20,7 +20,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     ir::{depth_expr, Expr, ExprNode, HashedExpr, RewriteT},
     node::Node,
-    CompilerArena,
+    arena::CompilerArena,
 };
 
 fn canonical2<'a, T>(x: &'a Node<'a, T>, y: &'a Node<'a, T>) -> (&'a Node<'a, T>, &'a Node<'a, T>) {

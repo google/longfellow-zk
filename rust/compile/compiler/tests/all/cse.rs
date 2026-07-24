@@ -19,7 +19,7 @@ use compile_algebra::{
 use compile_compiler::{
     cse::Cse,
     ir::{AssertionItem, RewriteT},
-    CompilerArena,
+    arena::CompilerArena,
 };
 
 fn run_test_cse<const W: usize, F: CompileField + SupportsNatConversions<W>>(f: &F) {

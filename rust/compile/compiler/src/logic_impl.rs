@@ -19,7 +19,7 @@ use crate::{
     algsimp::AlgebraicRewriter,
     cse::Cse,
     ir::{position_in_input_array, AssertionItem, Expr, ExprNode, RewriteT},
-    CompilerArena,
+    arena::CompilerArena,
 };
 
 #[derive(Debug, PartialEq, Eq)]

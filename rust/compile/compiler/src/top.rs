@@ -18,7 +18,7 @@ use core_proto::circuit::{Circuit, CircuitGeometry};
 
 use crate::{
     logic_impl::{CompilerAssertions, CompilerLogic},
-    CompilerArena,
+    arena::CompilerArena,
 };
 
 pub fn compile_new<'a, F, Build>(
@@ -80,7 +80,7 @@ where
     (circuit, info, symbols)
 }
 
-pub fn compile<'a, F: CompileField + core_algebra::SerializableField>(
+pub(crate) fn compile<'a, F: CompileField + core_algebra::SerializableField>(
     source_arena: &'a CompilerArena<'a, F>,
     f: &F,
     assertions: CompilerAssertions<'a, F>,

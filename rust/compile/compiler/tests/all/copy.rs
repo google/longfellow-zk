@@ -20,7 +20,7 @@ use compile_compiler::{
     copy::CopyRewriter,
     cse::Cse,
     ir::{Expr, RewriteT},
-    CompilerArena,
+    arena::CompilerArena,
 };
 use core_algebra::Nat;
 

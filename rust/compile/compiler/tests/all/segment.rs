@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field;
-use compile_compiler::{segment_circuit, CompilerArena, CompilerLogic};
+use compile_compiler::{arena::CompilerArena, segment_circuit, CompilerLogic};
 use compile_logic::{Logic, LogicIO};
 
 #[test]
