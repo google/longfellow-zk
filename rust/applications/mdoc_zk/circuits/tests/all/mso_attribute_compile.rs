@@ -27,9 +27,7 @@ pub fn compile_attribute_circuit<const W: usize, FC>(
     compile_eval::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where
-    FC: mdoc_zk_circuits::MdocHashCompileField,
-{
+where FC: mdoc_zk_circuits::MdocHashCompileField {
     let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 

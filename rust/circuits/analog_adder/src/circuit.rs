@@ -56,8 +56,7 @@ pub trait FieldWrappingSum: CompileField {
 }
 
 impl<T> FieldWrappingSum for compile_algebra::fp::FpField<T>
-where
-    compile_algebra::fp::FpField<T>: CompileField,
+where compile_algebra::fp::FpField<T>: CompileField
 {
     fn assert_wrapping_sum<L: Logic<F = Self>, const N: usize>(
         &self,

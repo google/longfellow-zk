@@ -129,9 +129,7 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
     }
 
     pub fn scan<FUNC>(&self, reduce: FUNC, oarr: &[(Bitw<L>, Bitw<L>)]) -> Vec<(Bitw<L>, Bitw<L>)>
-    where
-        FUNC: Fn(&(Bitw<L>, Bitw<L>), &(Bitw<L>, Bitw<L>)) -> (Bitw<L>, Bitw<L>),
-    {
+    where FUNC: Fn(&(Bitw<L>, Bitw<L>), &(Bitw<L>, Bitw<L>)) -> (Bitw<L>, Bitw<L>) {
         let mut arr: Vec<(Bitw<L>, Bitw<L>)> = oarr
             .iter()
             .map(|(x, y)| (self.boolean.b(x), self.boolean.b(y)))
