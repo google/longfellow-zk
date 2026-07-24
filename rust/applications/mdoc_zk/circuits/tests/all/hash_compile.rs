@@ -105,8 +105,8 @@ fn push_nat<const W: usize, FR: RuntimeField<W>, N: Nat<4>>(
 ) {
     let bytes = value.to_bytes_le();
     for bit in 0..nbits {
-        let value = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
-        inputs.push(if value == 1 { fr.one() } else { fr.zero() });
+        let bit_val = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
+        inputs.push(if bit_val == 1 { fr.one() } else { fr.zero() });
     }
 }
 

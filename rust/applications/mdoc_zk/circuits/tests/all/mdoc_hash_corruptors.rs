@@ -139,7 +139,7 @@ pub fn all_mdoc_hash_corruptors() -> Vec<MdocHashCorruptor> {
                     .into(),
             corrupt: Box::new(|g| {
                 if let Some(attr) = g.attribute_given.get_mut(0) {
-                    attr.field_locator.permutation = 1 | (0 << 2) | (2 << 4) | (3 << 6);
+                    attr.field_locator.permutation = 1 | (2 << 4) | (3 << 6);
                 }
             }),
         },

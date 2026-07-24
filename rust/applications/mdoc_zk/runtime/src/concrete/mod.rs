@@ -62,6 +62,7 @@ pub fn push_witness_sig(
 }
 
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn push_input_hash(
     version: usize,
     gf2: &Gf2_128Field,

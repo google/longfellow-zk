@@ -293,11 +293,14 @@ impl AssertionScope {
             if rep.is_nil() {
                 continue;
             }
-            if !group_fates.contains_key(&rep) {
-                reps.push(rep);
-                group_fates.insert(rep, fate.clone());
-            } else if matches!(fate, AssertionStatus::Failed(_)) {
-                group_fates.insert(rep, fate.clone());
+            match group_fates.entry(rep) {
+                std::collections::hash_map::Entry::Vacant(e) => {
+                    reps.push(rep);
+                    e.insert(fate.clone());
+                }
+                std::collections::hash_map::Entry::Occupied(mut e) => if matches!(fate, AssertionStatus::Failed(_)) {
+                    e.insert(fate.clone());
+                }
             }
         }
 

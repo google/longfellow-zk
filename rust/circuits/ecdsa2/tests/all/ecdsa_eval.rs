@@ -127,10 +127,10 @@ fn test_ecdsa_signature_tampering_generic<
         let logic = L::new(f, &tracker);
         let ecdsa = EcdsaCircuit::new(&logic, curve);
         let mut g = concrete_given.clone();
-        let mut d = concrete_derived.clone();
-        (c.corrupt)(&mut g, &mut d);
+        let mut cd = concrete_derived.clone();
+        (c.corrupt)(&mut g, &mut cd);
         let circuit_given = evaluate_given(&g, &logic);
-        let circuit_derived = evaluate_derived(&d, &logic);
+        let circuit_derived = evaluate_derived(&cd, &logic);
         let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
         let failed = assertion.failed_paths();
         assert!(

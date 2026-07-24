@@ -55,6 +55,7 @@ pub(crate) fn symbolic_sumcheck_round<const W: usize, F: ZkField<W>>(
     (claim, challenge_val)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn verify_layer<const W: usize, F: ZkField<W>>(
     ly: usize,
     a: &mut Vec<LigeroLinearConstraint<W, F>>,
@@ -124,6 +125,7 @@ fn verify_layer<const W: usize, F: ZkField<W>>(
     };
 }
 
+#[allow(clippy::too_many_arguments)]
 fn input_constraint<const W: usize, F: ZkField<W>>(
     a: &mut Vec<LigeroLinearConstraint<W, F>>,
     b: &mut Vec<ElementOf<F>>,

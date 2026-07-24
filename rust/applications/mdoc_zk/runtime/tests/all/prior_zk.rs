@@ -128,7 +128,7 @@ mod tests {
             req_attr("org.iso.18013.5.1", "height", [0x18, 0xaf]),
         ];
 
-        let all_attrs = &all_attrs;
+        let attrs_ref = &all_attrs;
         std::thread::scope(|s| {
             for version in 5..CURRENT_VERSION {
                 for nattrs in 1..=4 {
@@ -143,7 +143,7 @@ mod tests {
                         let _expected_hash_witness =
                             mdoc_zk_artifacts::load_prior_hash_witness(&hash_hex);
 
-                        let attrs = &all_attrs[..spec.num_attributes];
+                        let attrs = &attrs_ref[..spec.num_attributes];
 
                         let parsed: mdoc_zk_circuits::cbor::mdoc::ParsedMdoc<CompileNat<4>> =
                             mdoc_zk_circuits::cbor::mdoc::parse_mdoc(
@@ -195,7 +195,7 @@ mod tests {
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::scope(|s| {
             for (version, nattrs) in provider::all_prior_versions_and_attrs() {
-                let tx = tx.clone();
+                let tx_thread = tx.clone();
                 s.spawn(move || {
                     let provided = provider::materialize(version, nattrs)
                         .expect("Failed to materialize circuit");
@@ -274,7 +274,7 @@ mod tests {
                         );
                         count += 1;
                     }
-                    tx.send(count).unwrap();
+                    tx_thread.send(count).unwrap();
                 });
             }
         });

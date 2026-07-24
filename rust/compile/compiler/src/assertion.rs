@@ -126,16 +126,16 @@ pub fn strip_all<'src, 'dst, F: CompileField>(
 
     loop {
         let unique_items = dedup_assertions(arena, &current_items, tracker);
-        let stripped_slice = crate::ir::walk(arena, unique_items, &rewriter);
-        let new_sub_exprs = rewriter.collected.replace(Vec::new());
+        let next_stripped = crate::ir::walk(arena, unique_items, &rewriter);
+        let next_sub_exprs = rewriter.collected.replace(Vec::new());
 
-        if new_sub_exprs.is_empty() {
-            current_items = stripped_slice.to_vec();
+        if next_sub_exprs.is_empty() {
+            current_items = next_stripped.to_vec();
             break;
         }
 
-        let mut next_items = stripped_slice.to_vec();
-        next_items.extend(new_sub_exprs);
+        let mut next_items = next_stripped.to_vec();
+        next_items.extend(next_sub_exprs);
         current_items = next_items;
     }
 

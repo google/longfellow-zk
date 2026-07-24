@@ -314,18 +314,18 @@ fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<u
     for (i, node) in nodes.iter().enumerate() {
         assert_layering(f, &depth, i, node);
     }
-    let max_depth = depth.iter().max().copied().unwrap_or(0);
+    let raw_max_depth = depth.iter().max().copied().unwrap_or(0);
     // Final-layer assertions normally reuse their asserted wires as circuit
     // outputs. A depth-zero circuit has no layer whose wires can serve as
     // outputs, so materialize its assertions in a single assertion layer.
-    let max_depth = if max_depth == 0 {
+    let max_depth = if raw_max_depth == 0 {
         assert!(
             nodes.iter().any(|node| matches!(node, WExpr::Assert0(_))),
             "circuit with no depth makes no sense"
         );
         1
     } else {
-        max_depth
+        raw_max_depth
     };
     materialize_assertions(f, nodes, &mut depth, max_depth);
     (depth, max_depth)
