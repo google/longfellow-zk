@@ -126,7 +126,6 @@ fn test_compile_ecdsa_generic<
 
         (
             ecdsa.assert_signature(&circuit_given, &circuit_derived),
-            iologic.tracker,
             1,
             0,
         )
@@ -195,7 +194,6 @@ fn test_compile_ecdsa_signature_tampering_generic<
 
         (
             ecdsa.assert_signature(&circuit_given, &circuit_derived),
-            iologic.tracker,
             1,
             0,
         )

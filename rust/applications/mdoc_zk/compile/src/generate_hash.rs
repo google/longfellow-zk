@@ -59,12 +59,7 @@ where
 
         let mdoc = MdocHash::new(&iologic, num_attrs);
         let assertion = mdoc.assert_valid_presentation_and_macs(&given, &derived);
-        (
-            assertion,
-            iologic.tracker,
-            pub_inputs_count,
-            subfield_boundary_val,
-        )
+        (assertion, pub_inputs_count, subfield_boundary_val)
     })
 }
 

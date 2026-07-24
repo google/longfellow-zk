@@ -52,15 +52,34 @@ impl AssertionSymbol {
 #[derive(Debug, Default)]
 pub struct CircuitDebugSymbols {
     /// List of assertion symbols for output wires.
-    pub symbols: Vec<AssertionSymbol>,
+    symbols: Vec<AssertionSymbol>,
     /// Associated assertion scope.
-    pub tracker: AssertionScope,
+    tracker: AssertionScope,
 }
 
 impl CircuitDebugSymbols {
     /// Creates a new container of circuit debug symbols.
     pub fn new(symbols: Vec<AssertionSymbol>, tracker: AssertionScope) -> Self {
         Self { symbols, tracker }
+    }
+
+    /// Returns the number of assertion symbols.
+    pub fn assertion_count(&self) -> usize {
+        self.symbols.len()
+    }
+
+    /// Returns all assertion symbols recorded for this circuit.
+    pub fn assertion_symbols(&self) -> &[AssertionSymbol] {
+        &self.symbols
+    }
+
+    /// Returns the tracker path for an assertion identifier, if any.
+    pub fn get_path(&self, id: AssertionId) -> Option<String> {
+        if id.is_nil() {
+            return None;
+        }
+        let path = self.tracker.get_path(id);
+        (!path.is_empty()).then_some(path)
     }
 
     /// Looks up the assertion symbol for a given wire reference.
@@ -71,6 +90,17 @@ impl CircuitDebugSymbols {
     /// Looks up the assertion ID for a given wire reference.
     pub fn get_id(&self, wire: &WireRef) -> Option<AssertionId> {
         self.get_symbol(wire).map(|s| s.id)
+    }
+
+    /// Looks up the assertion symbol by path.
+    pub fn get_symbol_by_path(&self, path: &str) -> Option<&AssertionSymbol> {
+        self.symbols
+            .iter()
+            .find(|symbol| self.get_path(symbol.id).as_deref() == Some(path))
+    }
+
+    pub fn tracker(&self) -> &AssertionScope {
+        &self.tracker
     }
 }
 

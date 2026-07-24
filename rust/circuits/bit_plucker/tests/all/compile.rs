@@ -34,12 +34,7 @@ fn test_compile_bit_plucker_for_field_n<
 
         // Dummy assertion to compile the circuit
         let boolean = circuits_boolean::Boolean::new(&iologic);
-        (
-            boolean.assert_false("bit0_false", plucked.bit(0)),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (boolean.assert_false("bit0_false", plucked.bit(0)), 1, 0)
     });
 
     compile_compiler::dump_stats(&format!("{name}_{LOGN}"), &circuit, &stats);

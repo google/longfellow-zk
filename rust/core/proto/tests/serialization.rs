@@ -31,7 +31,7 @@ fn test_circuit_serialization_lfc2_roundtrip() {
         let bb = boolean.of_eltw(b);
 
         let x = boolean.xorb(&ab, &bb);
-        (boolean.assert_true("assert_x", &x), iologic.tracker, 1, 0)
+        (boolean.assert_true("assert_x", &x), 1, 0)
     });
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
@@ -89,7 +89,7 @@ fn test_circuit_serialization_lfc1_roundtrip() {
         let bb = boolean.of_eltw(b);
 
         let x = boolean.xorb(&ab, &bb);
-        (boolean.assert_true("assert_x", &x), iologic.tracker, 1, 0)
+        (boolean.assert_true("assert_x", &x), 1, 0)
     });
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
@@ -121,7 +121,7 @@ fn test_circuit_serialization_compatibility() {
         let bb = boolean.of_eltw(b);
 
         let x = boolean.xorb(&ab, &bb);
-        (boolean.assert_true("assert_x", &x), iologic.tracker, 1, 0)
+        (boolean.assert_true("assert_x", &x), 1, 0)
     });
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
@@ -151,7 +151,7 @@ fn test_circuit_reader_rejects_public_input_exceeding_inputs_lfc2() {
         let ab = boolean.of_eltw(a);
         let bb = boolean.of_eltw(b);
         let x = boolean.xorb(&ab, &bb);
-        (boolean.assert_true("assert_x", &x), iologic.tracker, 1, 0)
+        (boolean.assert_true("assert_x", &x), 1, 0)
     });
 
     let writer = CircuitWriter::new(&f, FieldID::P256);

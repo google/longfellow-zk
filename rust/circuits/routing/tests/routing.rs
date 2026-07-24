@@ -41,12 +41,7 @@ fn test_compile_routing() {
         for r in &res {
             asserts.push(iologic.assert0("res_zero", r));
         }
-        (
-            iologic.assert_all("shifte_routing", &asserts),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (iologic.assert_all("shifte_routing", &asserts), 1, 0)
     });
 
     compile_compiler::dump_stats("shifte_16_16_2", &circuit, &stats);

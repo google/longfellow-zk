@@ -69,24 +69,14 @@ fn test_circuit_archive_lfa1_roundtrip() {
         let boolean256 = Boolean::new(&iologic256);
         let a = iologic256.input(1);
         let ab = boolean256.of_eltw(a);
-        (
-            boolean256.assert_true("assert_a", &ab),
-            iologic256.tracker,
-            1,
-            0,
-        )
+        (boolean256.assert_true("assert_a", &ab), 1, 0)
     });
 
     let (c_hash, _, _) = compile_compiler::compile(&fgf2, |iologic_gf2| {
         let boolean_gf2 = Boolean::new(&iologic_gf2);
         let b = iologic_gf2.input(1);
         let bb = boolean_gf2.of_eltw(b);
-        (
-            boolean_gf2.assert_true("assert_b", &bb),
-            iologic_gf2.tracker,
-            1,
-            0,
-        )
+        (boolean_gf2.assert_true("assert_b", &bb), 1, 0)
     });
 
     let w_sig = CircuitWriter::new(&f256, core_proto::FieldID::P256);
@@ -168,19 +158,14 @@ fn test_circuit_archive_legacy_concatenated_stream() {
         let a = iologic256.input(1);
         let ab = boolean256.of_eltw(a);
         let assertion256 = boolean256.assert_true("assert_a", &ab);
-        (assertion256, iologic256.tracker, 1, 0)
+        (assertion256, 1, 0)
     });
 
     let (c_hash, _, _) = compile_compiler::compile(&fgf2, |iologic_gf2| {
         let boolean_gf2 = Boolean::new(&iologic_gf2);
         let b = iologic_gf2.input(1);
         let bb = boolean_gf2.of_eltw(b);
-        (
-            boolean_gf2.assert_true("assert_b", &bb),
-            iologic_gf2.tracker,
-            1,
-            0,
-        )
+        (boolean_gf2.assert_true("assert_b", &bb), 1, 0)
     });
 
     let w_sig = CircuitWriter::new(&f256, core_proto::FieldID::P256);

@@ -32,7 +32,7 @@ fn test_compile_analog_decoder() {
 
         let decoder = ad.unary(n);
         let (exactly_one, _decoded) = decoder.decode(&x);
-        (exactly_one, iologic.tracker, 1, 0)
+        (exactly_one, 1, 0)
     });
     compile_compiler::dump_stats("analog_decoder_compile", &circuit, &stats);
 }
@@ -51,12 +51,7 @@ fn test_compile_analog_decoder_binary() {
         let decoder = ad.binary(width);
         let decoded = decoder.decode(&x);
 
-        (
-            boolean.assert_true("assert_decoded0", &decoded[0]),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (boolean.assert_true("assert_decoded0", &decoded[0]), 1, 0)
     });
 
     compile_compiler::dump_stats("analog_decoder_binary_compile", &circuit, &stats);

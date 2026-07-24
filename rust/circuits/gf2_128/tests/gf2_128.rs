@@ -65,7 +65,7 @@ fn test_compile_gf2_128_mul_for_field<
         let target = bitvec_io.next::<128>(&mut pos);
         let assertion = bv.assert_eq("c_eq_target", &c, &target);
 
-        (assertion, iologic.tracker, 1, 0)
+        (assertion, 1, 0)
     });
 
     compile_compiler::dump_stats(name, &circuit, &stats);

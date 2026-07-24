@@ -28,7 +28,7 @@ fn test_compile_bitvec() {
         let b: Bitvec<_, 8> = bitvec_io.next(&mut pos);
 
         let (sum, _carry) = bv.unchecked_add(&a, &b);
-        (bv.assert_false("sum_zero", &sum), iologic.tracker, 1, 0)
+        (bv.assert_false("sum_zero", &sum), 1, 0)
     });
     compile_compiler::dump_stats("bitvec_add_compile", &circuit, &stats);
 }
@@ -49,7 +49,7 @@ fn test_compile_bitvec_leq() {
 
         let boolean = Boolean::new(&iologic);
         let leq = bv.leq(&a, &b);
-        (boolean.assert_true("leq_true", &leq), iologic.tracker, 1, 0)
+        (boolean.assert_true("leq_true", &leq), 1, 0)
     });
 
     // Let's test a = 65, b = 119
@@ -77,12 +77,7 @@ fn test_compile_bitvec_is_zero() {
 
         let boolean = Boolean::new(&iologic);
         let is_zero = bv.is_zero(&a);
-        (
-            boolean.assert_true("zero_true", &is_zero),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (boolean.assert_true("zero_true", &is_zero), 1, 0)
     });
 
     // Test a = 0 (should pass)
@@ -123,12 +118,7 @@ fn test_compile_bitvec_lt() {
         let b: Bitvec<_, 64> = bitvec_io.next(&mut pos);
 
         let boolean = Boolean::new(&iologic);
-        (
-            boolean.assert_true("lt_true", &bv.lt(&a, &b)),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (boolean.assert_true("lt_true", &bv.lt(&a, &b)), 1, 0)
     });
 
     // Test a = 65, b = 66 (should pass since 65 < 66)

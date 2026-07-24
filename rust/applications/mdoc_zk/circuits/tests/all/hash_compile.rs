@@ -64,7 +64,6 @@ where
 
         (
             mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )
@@ -251,7 +250,6 @@ fn test_mdoc_zk_circuits_hash_for_field<
 
         (
             mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )

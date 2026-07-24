@@ -52,7 +52,6 @@ fn test_compile_sha256msg_for_field<
 
         (
             sha256msg.assert_message_hash::<MAX_BLOCKS>(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )
@@ -135,7 +134,6 @@ fn test_compile_sha256msg_tampering() {
 
         (
             sha256msg.assert_message_hash::<2>(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )

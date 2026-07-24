@@ -18,9 +18,9 @@ use compile_algebra::{
 };
 use compile_compiler::{
     algsimp::AlgebraicRewriter,
+    arena::CompilerArena,
     cse::Cse,
     ir::{AssertionItem, Expr, RewriteT},
-    arena::CompilerArena,
 };
 use core_algebra::{AlgebraicField, Nat};
 

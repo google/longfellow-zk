@@ -105,7 +105,7 @@ impl<F: CompileField> std::fmt::Debug for EvalWire<F> {
 
 pub struct EvalLogic<'a, F: CompileField> {
     f: &'a F,
-    pub tracker: &'a AssertionScope,
+    tracker: &'a AssertionScope,
 }
 
 /// Owns the assertion scope for one direct-evaluation session.

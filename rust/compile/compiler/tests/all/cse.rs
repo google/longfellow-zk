@@ -17,9 +17,9 @@ use compile_algebra::{
     p256::P256Field,
 };
 use compile_compiler::{
+    arena::CompilerArena,
     cse::Cse,
     ir::{AssertionItem, RewriteT},
-    arena::CompilerArena,
 };
 
 fn run_test_cse<const W: usize, F: CompileField + SupportsNatConversions<W>>(f: &F) {

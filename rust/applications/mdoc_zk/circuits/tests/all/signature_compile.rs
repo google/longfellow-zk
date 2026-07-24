@@ -38,7 +38,6 @@ fn test_mdoc_zk_circuits_signature_generic(fc: &P256Field, _fr: &runtime_algebra
 
         (
             mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )
@@ -95,7 +94,6 @@ where
 
         (
             mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )
