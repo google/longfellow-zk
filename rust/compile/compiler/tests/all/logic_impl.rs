@@ -191,7 +191,16 @@ fn test_assertion_paths_do_not_expand_through_shared_groups() {
         assert_eq!(assertion.items.len(), 1);
     }
 
-    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, assertion, l.tracker, 1, 0);
+    let (_, info, symbols) = compile_compiler::top::compile_new(&f, |logic| {
+        let x = logic.input(1);
+        let assert = logic.assert0("leaf", &x);
+        let mut root = logic.assert_all("shared", &[assert]);
+        for _ in 0..32 {
+            root = logic.assert_all("shared", &[root, root]);
+            assert_eq!(root.items.len(), 1);
+        }
+        (root, logic.tracker, 1, 0)
+    });
     assert_eq!(info.nassertions, 1);
     assert_eq!(symbols.symbols.len(), 1);
 }
@@ -209,7 +218,13 @@ fn test_duplicate_assertion_paths_keep_first_path() {
 
     assert_eq!(root.items.len(), 2);
 
-    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, root, l.tracker, 1, 0);
+    let (_, info, symbols) = compile_compiler::top::compile_new(&f, |logic| {
+        let x = logic.input(1);
+        let first = logic.assert0("first", &x);
+        let second = logic.assert0("second", &x);
+        let root = logic.assert_all("root", &[first, second]);
+        (root, logic.tracker, 1, 0)
+    });
     assert_eq!(info.nassertions, 1);
     assert_eq!(symbols.symbols.len(), 1);
 }

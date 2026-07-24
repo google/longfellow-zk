@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field;
-use compile_compiler::{arena::CompilerArena, CompilerLogic};
 use compile_eval::eval_circuit_fc;
 use compile_logic::{Logic, LogicIO};
 use core_algebra::AlgebraicField;
@@ -23,13 +22,11 @@ use runtime_algebra::p256::P256Field as RuntimeP256Field;
 #[test]
 fn test_direct_input_assertion_has_one_layer() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let logic = CompilerLogic::new(&arena, &f);
-    let x = logic.input(1);
-    let assertion = logic.assert0("input", &x);
-
-    let (circuit, geometry, symbols) =
-        compile_compiler::top::compile(&arena, &f, assertion, logic.tracker, 1, 0);
+    let (circuit, geometry, symbols) = compile_compiler::top::compile_new(&f, |logic| {
+        let x = logic.input(1);
+        let assertion = logic.assert0("input", &x);
+        (assertion, logic.tracker, 1, 0)
+    });
     assert_eq!(geometry.nlayers, 1);
 
     let runtime_f = RuntimeP256Field::new();
