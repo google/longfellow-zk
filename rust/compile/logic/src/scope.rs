@@ -14,7 +14,7 @@
 
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,15 +44,15 @@ enum ScopeNode {
 }
 
 struct ScopeTree {
-    scopes: RefCell<Vec<ScopeNode>>,
-    map: RefCell<HashMap<(String, ScopeId), ScopeId>>,
+    scopes: Vec<ScopeNode>,
+    map: HashMap<(String, ScopeId), ScopeId>,
 }
 
 impl ScopeTree {
     fn new() -> Self {
         Self {
-            scopes: RefCell::new(vec![ScopeNode::Empty]),
-            map: RefCell::new(HashMap::new()),
+            scopes: vec![ScopeNode::Empty],
+            map: HashMap::new(),
         }
     }
 
@@ -60,24 +60,21 @@ impl ScopeTree {
         ScopeId(0)
     }
 
-    fn cons(&self, name: &str, parent: ScopeId) -> ScopeId {
-        let mut map = self.map.borrow_mut();
+    fn cons(&mut self, name: &str, parent: ScopeId) -> ScopeId {
         let key = (name.to_string(), parent);
-        if let Some(&id) = map.get(&key) {
+        if let Some(&id) = self.map.get(&key) {
             return id;
         }
-        let mut scopes = self.scopes.borrow_mut();
-        let id = ScopeId(scopes.len() as u32);
-        scopes.push(ScopeNode::Cons(name.to_string(), parent));
-        map.insert(key, id);
+        let id = ScopeId(self.scopes.len() as u32);
+        self.scopes.push(ScopeNode::Cons(name.to_string(), parent));
+        self.map.insert(key, id);
         id
     }
 
     fn resolve_path(&self, mut scope_id: ScopeId) -> Vec<String> {
         let mut parts = Vec::new();
-        let scopes = self.scopes.borrow();
         while scope_id.0 != 0 {
-            match &scopes[scope_id.0 as usize] {
+            match &self.scopes[scope_id.0 as usize] {
                 ScopeNode::Empty => break,
                 ScopeNode::Cons(name, next) => {
                     parts.push(name.clone());
@@ -89,7 +86,7 @@ impl ScopeTree {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct AssertionRecord {
     scope: ScopeId,
     representative: AssertionId,
@@ -97,7 +94,11 @@ struct AssertionRecord {
 }
 
 pub struct AssertionScope {
-    records: RefCell<Vec<AssertionRecord>>,
+    state: RefCell<AssertionState>,
+}
+
+struct AssertionState {
+    records: Vec<AssertionRecord>,
     tree: ScopeTree,
 }
 
@@ -112,20 +113,22 @@ impl AssertionScope {
 
     pub fn new() -> Self {
         Self {
-            records: RefCell::new(vec![AssertionRecord {
-                scope: ScopeTree::empty_scope(),
-                representative: NIL_ASSERTION_ID,
-                next: NIL_ASSERTION_ID,
-            }]),
-            tree: ScopeTree::new(),
+            state: RefCell::new(AssertionState {
+                records: vec![AssertionRecord {
+                    scope: ScopeTree::empty_scope(),
+                    representative: NIL_ASSERTION_ID,
+                    next: NIL_ASSERTION_ID,
+                }],
+                tree: ScopeTree::new(),
+            }),
         }
     }
 
     pub fn new_leaf(&self, name: &str) -> AssertionId {
-        let mut records = self.records.borrow_mut();
-        let id = AssertionId(records.len() as u32);
-        let scope = self.tree.cons(name, ScopeTree::empty_scope());
-        records.push(AssertionRecord {
+        let mut state = self.state.borrow_mut();
+        let id = AssertionId(state.records.len() as u32);
+        let scope = state.tree.cons(name, ScopeTree::empty_scope());
+        state.records.push(AssertionRecord {
             scope,
             representative: id,
             next: NIL_ASSERTION_ID,
@@ -137,10 +140,11 @@ impl AssertionScope {
         if id.is_nil() {
             return String::new();
         }
-        let records = self.records.borrow();
-        if (id.0 as usize) < records.len() {
-            self.tree
-                .resolve_path(records[id.0 as usize].scope)
+        let state = self.state.borrow();
+        if (id.0 as usize) < state.records.len() {
+            state
+                .tree
+                .resolve_path(state.records[id.0 as usize].scope)
                 .join("/")
         } else {
             String::new()
@@ -151,16 +155,16 @@ impl AssertionScope {
         if id.is_nil() {
             return;
         }
-        let rep = self.find(id);
+        let mut state = self.state.borrow_mut();
+        let rep = find_record(&state.records, id);
         if rep.is_nil() {
             return;
         }
-        let mut records = self.records.borrow_mut();
         let mut curr = rep;
         while !curr.is_nil() {
-            let rec = &mut records[curr.0 as usize];
-            rec.scope = self.tree.cons(name, rec.scope);
-            curr = rec.next;
+            let parent = state.records[curr.0 as usize].scope;
+            state.records[curr.0 as usize].scope = state.tree.cons(name, parent);
+            curr = state.records[curr.0 as usize].next;
         }
     }
 
@@ -168,41 +172,35 @@ impl AssertionScope {
         if id.is_nil() {
             return NIL_ASSERTION_ID;
         }
-        let records = self.records.borrow();
-        if (id.0 as usize) < records.len() {
-            records[id.0 as usize].representative
-        } else {
-            NIL_ASSERTION_ID
-        }
+        find_record(&self.state.borrow().records, id)
     }
 
     pub fn union(&self, id1: AssertionId, id2: AssertionId) {
         if id1.is_nil() || id2.is_nil() {
             return;
         }
-        let rep1 = self.find(id1);
-        let rep2 = self.find(id2);
+        let mut state = self.state.borrow_mut();
+        let rep1 = find_record(&state.records, id1);
+        let rep2 = find_record(&state.records, id2);
 
         if rep1.is_nil() || rep2.is_nil() || rep1 == rep2 {
             return;
         }
 
-        let mut records = self.records.borrow_mut();
-
         // 1. Find tail of list 1
         let mut tail1 = rep1;
-        while !records[tail1.0 as usize].next.is_nil() {
-            tail1 = records[tail1.0 as usize].next;
+        while !state.records[tail1.0 as usize].next.is_nil() {
+            tail1 = state.records[tail1.0 as usize].next;
         }
 
         // 2. Link tail of list 1 to rep2
-        records[tail1.0 as usize].next = rep2;
+        state.records[tail1.0 as usize].next = rep2;
 
         // 3. Update all representatives in list 2 to rep1
         let mut curr = rep2;
         while !curr.is_nil() {
-            records[curr.0 as usize].representative = rep1;
-            curr = records[curr.0 as usize].next;
+            state.records[curr.0 as usize].representative = rep1;
+            curr = state.records[curr.0 as usize].next;
         }
     }
 
@@ -298,31 +296,35 @@ impl AssertionScope {
         fates: &HashMap<AssertionId, AssertionStatus>,
     ) -> Vec<(String, AssertionStatus)> {
         let mut results = Vec::new();
-        let records = self.records.borrow();
-        let mut visited_reps = HashSet::new();
-
+        let state = self.state.borrow();
         let mut sorted_fates: Vec<_> = fates.iter().collect();
         sorted_fates.sort_by_key(|(id, _)| id.0);
 
+        // A unioned assertion group has one logical outcome.  Aggregate all
+        // aliases before rendering paths so a later failure cannot be hidden
+        // by an earlier passing alias.
+        let mut group_fates = HashMap::new();
+        let mut reps = Vec::new();
         for (id, fate) in sorted_fates {
-            let rep = if (id.0 as usize) < records.len() {
-                records[id.0 as usize].representative
-            } else {
-                NIL_ASSERTION_ID
-            };
-
-            if rep.is_nil() || !visited_reps.insert(rep) {
+            let rep = find_record(&state.records, *id);
+            if rep.is_nil() {
                 continue;
             }
+            if !group_fates.contains_key(&rep) {
+                reps.push(rep);
+                group_fates.insert(rep, fate.clone());
+            } else if matches!(fate, AssertionStatus::Failed(_)) {
+                group_fates.insert(rep, fate.clone());
+            }
+        }
 
+        for rep in reps {
+            let fate = &group_fates[&rep];
             let mut curr = rep;
             while !curr.is_nil() {
-                let rec = &records[curr.0 as usize];
-                let full_path = self.tree.resolve_path(rec.scope).join("/");
-                if path_prefix.is_empty()
-                    || full_path == path_prefix
-                    || full_path.starts_with(&format!("{}/", path_prefix))
-                {
+                let rec = &state.records[curr.0 as usize];
+                let full_path = state.tree.resolve_path(rec.scope).join("/");
+                if path_matches(&full_path, path_prefix) {
                     results.push((full_path, fate.clone()));
                 }
                 curr = rec.next;
@@ -336,4 +338,20 @@ impl Default for AssertionScope {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn find_record(records: &[AssertionRecord], id: AssertionId) -> AssertionId {
+    if id.is_nil() || (id.0 as usize) >= records.len() {
+        NIL_ASSERTION_ID
+    } else {
+        records[id.0 as usize].representative
+    }
+}
+
+fn path_matches(path: &str, prefix: &str) -> bool {
+    path == prefix
+        || prefix.is_empty()
+        || path
+            .strip_prefix(prefix)
+            .is_some_and(|suffix| suffix.starts_with('/'))
 }
