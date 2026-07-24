@@ -247,6 +247,58 @@ fn test_ligero_proof_read_write() {
 }
 
 #[test]
+fn test_ligero_proof_read_allows_zero_length_merkle_path() {
+    use core_algebra::SupportsU64Conversions;
+    let f = runtime_algebra::p256::P256Field::new();
+    let sf = runtime_algebra::p256::P256Subfield::new(&f);
+
+    let geom = LigeroGeometry {
+        block: 2,
+        dblock: 4,
+        r: 1,
+        block_enc: 8,
+        nrow: 4,
+        nreq: 2,
+        mc_pathlen: 2,
+    };
+
+    let proof = LigeroProof {
+        y_ldt: vec![f.u64_to_element(1), f.u64_to_element(2)],
+        y_dot: vec![
+            f.u64_to_element(3),
+            f.u64_to_element(4),
+            f.u64_to_element(5),
+            f.u64_to_element(6),
+        ],
+        y_quad_0: vec![f.u64_to_element(7)],
+        y_quad_2: vec![f.u64_to_element(8), f.u64_to_element(9)],
+        req: vec![
+            f.u64_to_element(10),
+            f.u64_to_element(11),
+            f.u64_to_element(12),
+            f.u64_to_element(13),
+            f.u64_to_element(14),
+            f.u64_to_element(15),
+            f.u64_to_element(16),
+            f.u64_to_element(17),
+        ],
+        merkle: MerkleProof {
+            nonce: vec![
+                MerkleNonce { bytes: [1u8; 32] },
+                MerkleNonce { bytes: [2u8; 32] },
+            ],
+            path: Vec::new(),
+        },
+    };
+
+    let serialized = proof.write(&geom, &f, &sf).unwrap();
+    let mut r_slice = serialized.as_slice();
+    let decoded = LigeroProof::read(&mut r_slice, &geom, &f, &sf).unwrap();
+    assert!(r_slice.is_empty());
+    assert_eq!(decoded, proof);
+}
+
+#[test]
 fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
     use core_algebra::SupportsU128Conversions;
     use runtime_algebra::{gf2_128::Gf2_128Field, subfield::BinarySubfield};

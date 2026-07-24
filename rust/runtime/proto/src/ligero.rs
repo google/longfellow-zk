@@ -218,7 +218,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> LigeroProof<W, F> {
 
         // 7. merkle path
         let path_len = read_size_4bytes(bytes)?;
-        if path_len < geom.nreq || path_len > geom.nreq * geom.mc_pathlen {
+        if path_len > geom.nreq * geom.mc_pathlen {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Invalid Merkle path size in LigeroProof",
