@@ -21,7 +21,7 @@ use crate::{
     arena::CompilerArena,
 };
 
-pub fn compile_new<'a, F, Build>(
+pub fn compile<'a, F, Build>(
     f: &'a F,
     build: Build,
 ) -> (

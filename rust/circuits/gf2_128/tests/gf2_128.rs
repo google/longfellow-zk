@@ -50,7 +50,7 @@ fn test_compile_gf2_128_mul_for_field<
     field_id: FieldID,
     expected_stats: compile_eval::CircuitGeometry,
 ) {
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
 
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
@@ -68,7 +68,7 @@ fn test_compile_gf2_128_mul_for_field<
         (assertion, iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
     assert_eq!(stats, expected_stats);
 
     // Evaluate in compiled mode!

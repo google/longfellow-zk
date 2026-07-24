@@ -52,7 +52,7 @@ where
     let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
     let num_attrs = hash_input.attrs.len();
 
-    compile_compiler::top::compile_new(fc, |iologic| {
+    compile_compiler::compile(fc, |iologic| {
         let mdoc = MdocHash::new(&iologic, num_attrs);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let given_wires =
@@ -238,7 +238,7 @@ fn test_mdoc_zk_circuits_hash_for_field<
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
     let num_attrs = hash_input.attrs.len();
 
-    let (_circuit, stats, _symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (_circuit, stats, _symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let mdoc = MdocHash::new(&iologic, num_attrs);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
@@ -257,7 +257,7 @@ fn test_mdoc_zk_circuits_hash_for_field<
         )
     });
 
-    compile_compiler::top::dump_stats("mdoc_hash", &_circuit, &stats);
+    compile_compiler::dump_stats("mdoc_hash", &_circuit, &stats);
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     let gf2_c = Gf2_128Field::new();
     let (circuit, stats) = mdoc_zk_circuits_hash_circuit(&gf2_c);
 
-    compile_compiler::top::dump_stats("mdoc_hash_serialized", &circuit, &stats);
+    compile_compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
         0x7f, 0xec, 0x95, 0x56, 0x51, 0x4f, 0x03, 0xfb, 0x2f, 0x83, 0x3c, 0xf2, 0xe5, 0xea, 0x7e,

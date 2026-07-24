@@ -19,7 +19,7 @@ use compile_algebra::{
     secp256r1::Secp256r1,
     Curve,
 };
-use compile_compiler::top::{compile_new, dump_stats};
+use compile_compiler::{compile, dump_stats};
 use compile_eval::FieldID;
 use compile_logic::K_FIRST_WIRE_POSITION;
 use core_algebra::{Nat, SerializableField};
@@ -117,7 +117,7 @@ fn test_compile_ecdsa_generic<
     let concrete_given_r = given(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
     let concrete_derived_r = derived(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
 
-    let (circuit, stats, symbols) = compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile(fc, |iologic| {
         let mut pos = K_FIRST_WIRE_POSITION;
 
         let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
@@ -186,7 +186,7 @@ fn test_compile_ecdsa_signature_tampering_generic<
             curve_r, fr, fn_field, &d, &k, &e,
         );
 
-    let (circuit, _stats, symbols) = compile_new(fc, |iologic| {
+    let (circuit, _stats, symbols) = compile(fc, |iologic| {
         let mut pos = K_FIRST_WIRE_POSITION;
 
         let ecdsa = EcdsaCircuit::new(&iologic, curve_c);

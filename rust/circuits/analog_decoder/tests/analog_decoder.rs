@@ -23,7 +23,7 @@ use compile_logic::{eval::EvalLogic, Logic, LogicIO};
 #[test]
 fn test_compile_analog_decoder() {
     let f = P256Field::new();
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
         let ad = AnalogDecoder::new(&iologic);
 
         let n = 5;
@@ -34,13 +34,13 @@ fn test_compile_analog_decoder() {
         let (exactly_one, _decoded) = decoder.decode(&x);
         (exactly_one, iologic.tracker, 1, 0)
     });
-    compile_compiler::top::dump_stats("analog_decoder_compile", &circuit, &stats);
+    compile_compiler::dump_stats("analog_decoder_compile", &circuit, &stats);
 }
 
 #[test]
 fn test_compile_analog_decoder_binary() {
     let f = P256Field::new();
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
         let ad = AnalogDecoder::new(&iologic);
         let boolean = Boolean::new(&iologic);
 
@@ -59,7 +59,7 @@ fn test_compile_analog_decoder_binary() {
         )
     });
 
-    compile_compiler::top::dump_stats("analog_decoder_binary_compile", &circuit, &stats);
+    compile_compiler::dump_stats("analog_decoder_binary_compile", &circuit, &stats);
 }
 
 fn test_analog_decoder_unary_generic<

@@ -30,7 +30,7 @@ fn test_mdoc_zk_circuits_signature_generic(fc: &P256Field, _fr: &runtime_algebra
     let curve_c = Secp256r1::new(fc);
     let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let (_circuit, stats, _symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (_circuit, stats, _symbols) = compile_compiler::compile(fc, |iologic| {
         let mdoc_sig = MdocSignature::new(&iologic, &curve_c);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let given_wires = mdoc_zk_circuits::signature::allocate_given(&iologic, &bv, &mut pos);
@@ -87,7 +87,7 @@ where
     let curve_c = Secp256r1::new(fc);
     let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    compile_compiler::top::compile_new(fc, |iologic| {
+    compile_compiler::compile(fc, |iologic| {
         let mdoc_sig = MdocSignature::new(&iologic, &curve_c);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let given_wires = mdoc_zk_circuits::signature::allocate_given(&iologic, &bv, &mut pos);

@@ -39,7 +39,7 @@ fn test_compile_ec_generic<
     curve_r: &CR,
     fr: &FR,
 ) {
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let ec_circuit = EcCircuit::new(&iologic, curve_c);
 
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
@@ -69,7 +69,7 @@ fn test_compile_ec_generic<
         )
     });
 
-    compile_compiler::top::dump_stats("ec_add_double", &circuit, &stats);
+    compile_compiler::dump_stats("ec_add_double", &circuit, &stats);
 
     // Fill concrete values into environment using RuntimeField
     let g_2d_run = curve_r.g();

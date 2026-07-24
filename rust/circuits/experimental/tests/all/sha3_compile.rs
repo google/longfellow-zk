@@ -34,7 +34,7 @@ fn test_compile_keccak_f_1600_for_field<
     field_id: FieldID,
     expected_stats: compile_eval::CircuitGeometry,
 ) {
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
         let sha3 = Sha3::new(&iologic);
@@ -45,7 +45,7 @@ fn test_compile_keccak_f_1600_for_field<
         (assertion, iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     assert_eq!(stats, expected_stats);
 
@@ -83,7 +83,7 @@ fn test_compile_keccak_f_1600_unrolled_for_field<
     use circuits_bitvec::BitvecIO;
     use circuits_experimental::sha3::State;
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -115,7 +115,7 @@ fn test_compile_keccak_f_1600_unrolled_for_field<
         (assertion, iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     // Initial state 0 concrete values
     let mut s0_val = [[0u64; 5]; 5];
@@ -219,7 +219,7 @@ fn test_compile_keccak_f_1600_sliced_for_field<
 
     let slice_rounds = [5, 11, 17, 23];
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -246,7 +246,7 @@ fn test_compile_keccak_f_1600_sliced_for_field<
         (all_assertions, iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     // Initial state 0 concrete values
     let mut s0_val = [[0u64; 5]; 5];

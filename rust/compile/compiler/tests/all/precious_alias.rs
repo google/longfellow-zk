@@ -22,7 +22,7 @@ use runtime_algebra::{gf2_128::Gf2_128RuntimeField, p256::P256Field as RuntimeP2
 #[test]
 fn test_precious_alias_in_prime_field() {
     let f = P256Field::new();
-    let (circuit, _, symbols) = compile_compiler::top::compile_new(&f, |logic| {
+    let (circuit, _, symbols) = compile_compiler::compile(&f, |logic| {
         let x = logic.input(1);
         let square = logic.mul(&x, &x);
         let sum = logic.add(&square, &x);
@@ -60,7 +60,7 @@ fn test_precious_alias_in_prime_field() {
 #[test]
 fn test_precious_alias_cancels_in_binary_field() {
     let f = Gf2_128Field::new();
-    let (circuit, _, symbols) = compile_compiler::top::compile_new(&f, |logic| {
+    let (circuit, _, symbols) = compile_compiler::compile(&f, |logic| {
         let x = logic.input(1);
         let square = logic.mul(&x, &x);
         let sum = logic.add(&square, &x);

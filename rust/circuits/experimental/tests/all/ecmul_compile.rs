@@ -40,7 +40,7 @@ fn test_compile_ecmul_generic<
     fr: &FR,
 ) {
     let n = 256;
-    let (compiled_circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (compiled_circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
         let circuit = EcmulCircuit::new(&iologic, curve_c, n);
@@ -51,7 +51,7 @@ fn test_compile_ecmul_generic<
         (assertion, iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats("ecmul", &compiled_circuit, &stats);
+    compile_compiler::dump_stats("ecmul", &compiled_circuit, &stats);
 
     assert_eq!(stats.ninput, 1030);
     assert_eq!(stats.npublic_input, 1);

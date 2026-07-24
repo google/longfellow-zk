@@ -36,7 +36,7 @@ pub fn mdoc_zk_circuits_hash<FC>(
 where
     FC: MdocHashCompileField,
 {
-    compile_compiler::top::compile_new(fc, |iologic| {
+    compile_compiler::compile(fc, |iologic| {
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
         let plucker_v8 =

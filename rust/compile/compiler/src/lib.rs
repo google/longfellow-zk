@@ -34,6 +34,7 @@ pub use debug::{
 pub use ir::AssertionItem;
 pub use logic_impl::{CompilerAssertions, CompilerLogic};
 pub use segment::{segment_circuit, segment_layer};
+pub use top::{compile, dump_stats};
 
 #[cfg(test)]
 extern crate self as compile_compiler;

@@ -21,7 +21,7 @@ use compile_logic::{Logic, LogicIO};
 #[test]
 fn test_compile_routing() {
     let f = P256Field::new();
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -49,7 +49,7 @@ fn test_compile_routing() {
         )
     });
 
-    compile_compiler::top::dump_stats("shifte_16_16_2", &circuit, &stats);
+    compile_compiler::dump_stats("shifte_16_16_2", &circuit, &stats);
 
     assert_eq!(stats.ninput, 22);
     assert_eq!(stats.npublic_input, 1);

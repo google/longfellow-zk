@@ -23,7 +23,7 @@ fn test_compile_for_field<F: CompileField + FieldWrappingSum + SerializableField
     name: &str,
 ) {
     let (circuit, stats, _symbols) =
-        compile_compiler::top::compile_new(f, |iologic| {
+        compile_compiler::compile(f, |iologic| {
             let bv = BitvecLogic::new(&iologic);
             let bitvec_io = BitvecIO::new(&bv);
 
@@ -41,7 +41,7 @@ fn test_compile_for_field<F: CompileField + FieldWrappingSum + SerializableField
             )
         });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 #[test]

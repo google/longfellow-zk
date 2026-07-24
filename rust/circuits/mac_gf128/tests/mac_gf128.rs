@@ -17,7 +17,7 @@ use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field};
 use core_algebra::SerializableField;
 
 fn test_compile_mac_gf128_for_field<FC: CompileField + SerializableField>(fc: &FC, name: &str) {
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
         let mac_circuit = MAC::new(&iologic);
@@ -28,7 +28,7 @@ fn test_compile_mac_gf128_for_field<FC: CompileField + SerializableField>(fc: &F
         (assertion, iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 #[test]

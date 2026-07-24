@@ -40,7 +40,7 @@ fn test_compile_sha256msg_for_field<
     hasher.update(message);
     let _reference_hash = hasher.finalize();
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let sha256msg = Sha256Msg::<_, MAX_BLOCKS>::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
@@ -61,7 +61,7 @@ fn test_compile_sha256msg_for_field<
     let given = given(message, &circuits_sha256::constants::INITIAL, MAX_BLOCKS).unwrap();
     let derived = circuits_sha256msg::concrete::derived(&given, MAX_BLOCKS);
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     let mut inputs = compile_eval::initial_inputs(fr);
     given.push_elements(fr, MAX_BLOCKS, |e| inputs.push(e));
@@ -124,7 +124,7 @@ fn test_compile_sha256msg_tampering() {
     .unwrap();
     let derived_orig = circuits_sha256msg::concrete::derived(&given_orig, const_max_blocks);
 
-    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let sha256msg = Sha256Msg::<_, 2>::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
