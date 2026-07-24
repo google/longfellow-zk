@@ -18,8 +18,7 @@ use core_algebra::{AlgebraicField, Nat, SupportsNatConversions};
 use mdoc_zk_circuits::signature::concrete::ConcreteGiven;
 
 pub struct MdocSignatureCorruptor<F>
-where
-    F: AlgebraicField + SupportsNatConversions<4>,
+where F: AlgebraicField + SupportsNatConversions<4>
 {
     pub name: String,
     pub expected_path: String,
@@ -54,7 +53,7 @@ where
         },
         MdocSignatureCorruptor {
             name: "corrupt_issuer_pkx".into(),
-            expected_path: "signature/ecdsa/slice_x".into(),
+            expected_path: "slice_x".into(),
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.issuer_pk.0 = <F as SupportsNatConversions<4>>::N::from_u64(0xdeadbeef);
@@ -63,7 +62,7 @@ where
         },
         MdocSignatureCorruptor {
             name: "corrupt_issuer_pky".into(),
-            expected_path: "signature/ecdsa/slice_x".into(),
+            expected_path: "slice_x".into(),
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.issuer_pk.1 = <F as SupportsNatConversions<4>>::N::from_u64(0xdeadbeef);
@@ -98,7 +97,7 @@ where
         },
         MdocSignatureCorruptor {
             name: "corrupt_device_pkx".into(),
-            expected_path: "signature/ecdsa/slice_x".into(),
+            expected_path: "slice_x".into(),
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.device_pk.0 = <F as SupportsNatConversions<4>>::N::from_u64(0xdeadbeef);
@@ -107,7 +106,7 @@ where
         },
         MdocSignatureCorruptor {
             name: "corrupt_device_pky".into(),
-            expected_path: "signature/ecdsa/slice_x".into(),
+            expected_path: "slice_x".into(),
             corrupt_input: None,
             corrupt_given: Some(Box::new(|g, f| {
                 g.sig_input.device_pk.1 = <F as SupportsNatConversions<4>>::N::from_u64(0xdeadbeef);

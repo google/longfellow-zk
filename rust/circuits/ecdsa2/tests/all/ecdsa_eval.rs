@@ -86,7 +86,7 @@ fn test_ecdsa_secp256r1_generic<
     let ecdsa = EcdsaCircuit::new(&logic, curve);
 
     let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
-    tracker.assert_all_passed(&assertion.items);
+    assertion.assert_all_passed();
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn test_ecdsa_signature_tampering_generic<
         let circuit_given = evaluate_given(&g, &logic);
         let circuit_derived = evaluate_derived(&d, &logic);
         let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
-        let failed = tracker.failed_paths(&assertion.items);
+        let failed = assertion.failed_paths();
         assert!(
             failed.iter().any(|path| path == c.expected_path),
             "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
@@ -180,7 +180,7 @@ fn test_sign_and_verify_ecdsa_generic<
 
     let ecdsa = EcdsaCircuit::new(&logic, curve);
     let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
-    tracker.assert_all_passed(&assertion.items);
+    assertion.assert_all_passed();
 }
 
 #[test]

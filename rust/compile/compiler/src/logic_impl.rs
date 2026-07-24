@@ -19,7 +19,7 @@ use crate::{
     algsimp::AlgebraicRewriter,
     arena::CompilerArena,
     cse::Cse,
-    ir::{position_in_input_array, AssertionItem, Expr, ExprNode, RewriteT},
+    ir::{position_in_input_array, AssertionItem, ExprNode, RewriteT},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -57,15 +57,10 @@ impl<'a, F: CompileField> CompilerLogic<'a, F> {
             next,
         }
     }
-
-    pub fn tracker(&self) -> &AssertionScope {
-        &self.tracker
-    }
 }
 
 impl<'a, F: CompileField, NEXT> Logic for CompilerLogic<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     type F = F;
     type Wire = ExprNode<'a, F>;
@@ -130,33 +125,7 @@ where
         let id = self.tracker.new_leaf(name);
         let own_raw = self.next.assert0(x);
 
-        let mut items = Vec::new();
-        let mut seen_assertions = rustc_hash::FxHashSet::default();
-        let mut seen_nodes = rustc_hash::FxHashSet::default();
-        let mut stack = vec![*x];
-        while let Some(node) = stack.pop() {
-            if !seen_nodes.insert(node.id) {
-                continue;
-            }
-            match &node.v {
-                Expr::Input(_) | Expr::One | Expr::Constant(_) => {}
-                Expr::Sum(children, _) => stack.extend(children.iter().rev().copied()),
-                Expr::Linear(_, child) => stack.push(*child),
-                Expr::Quadratic(_, left, right) => {
-                    stack.push(*right);
-                    stack.push(*left);
-                }
-                Expr::WithAssertions(attached, inner) => {
-                    for item in attached.iter() {
-                        if seen_assertions.insert((item.expr.id, item.id)) {
-                            items.push(*item);
-                        }
-                    }
-                    stack.push(*inner);
-                }
-            }
-        }
-
+        let mut items = Vec::with_capacity(own_raw.len());
         for &expr in own_raw {
             items.push(AssertionItem { expr, id });
         }
@@ -197,8 +166,7 @@ where
 }
 
 impl<'a, F: CompileField, NEXT> LogicIO for CompilerLogic<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     fn input(&self, position_in_input_array: usize) -> Self::Wire {
         assert!(
@@ -214,8 +182,7 @@ where
 }
 
 impl<'a, F: CompileField, NEXT> std::fmt::Debug for CompilerLogic<'a, F, NEXT>
-where
-    NEXT: RewriteT<'a, F>,
+where NEXT: RewriteT<'a, F>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CompilerLogic").finish()
