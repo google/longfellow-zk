@@ -90,6 +90,13 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         &self,
         ctx: &ZkContext<'_, W, F, IF>,
     ) -> runtime_proto::ZkProofGeometry {
+        assert!(
+            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
+            "npublic_input ({}) exceeds ninput ({})",
+            self.circuit.raw.npublic_input,
+            self.circuit.raw.ninput
+        );
+
         let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
         let pad_sz = crate::circuit_pad::CircuitPad::pad_size::<W, F>(&self.circuit);
         let ligero_param = LigeroParam::new(
@@ -120,6 +127,13 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         tv: &mut Transcript,
         ctx: &ZkContext<'_, W, F, IF>,
     ) {
+        assert!(
+            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
+            "npublic_input ({}) exceeds ninput ({})",
+            self.circuit.raw.npublic_input,
+            self.circuit.raw.ninput
+        );
+
         let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
         let pad_sz = crate::circuit_pad::CircuitPad::pad_size::<W, F>(&self.circuit);
         let ligero_param = LigeroParam::new(
@@ -140,6 +154,13 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         tv: &mut Transcript,
         ctx: &ZkContext<'_, W, F, IF>,
     ) -> Result<(), ZkVerificationError> {
+        assert!(
+            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
+            "npublic_input ({}) exceeds ninput ({})",
+            self.circuit.raw.npublic_input,
+            self.circuit.raw.ninput
+        );
+
         if pub_inputs.len() != self.circuit.raw.npublic_input {
             return Err(ZkVerificationError::PublicInputLengthMismatch {
                 expected: self.circuit.raw.npublic_input,
