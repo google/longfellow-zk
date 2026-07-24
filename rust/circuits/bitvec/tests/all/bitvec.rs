@@ -19,7 +19,7 @@ use compile_algebra::p256::P256Field;
 #[test]
 fn test_compile_bitvec() {
     let f = P256Field::new();
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -30,7 +30,7 @@ fn test_compile_bitvec() {
         let (sum, _carry) = bv.unchecked_add(&a, &b);
         (bv.assert_false("sum_zero", &sum), iologic.tracker, 1, 0)
     });
-    compile_compiler::top::dump_stats("bitvec_add_compile", &circuit, &stats);
+    compile_compiler::dump_stats("bitvec_add_compile", &circuit, &stats);
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn test_compile_bitvec_leq() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -68,7 +68,7 @@ fn test_compile_bitvec_is_zero() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -114,7 +114,7 @@ fn test_compile_bitvec_lt() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 

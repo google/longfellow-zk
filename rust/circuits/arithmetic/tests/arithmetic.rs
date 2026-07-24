@@ -19,7 +19,7 @@ use compile_logic::{eval::EvalLogic, Eltw, Logic};
 use core_algebra::SerializableField;
 
 fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -44,11 +44,11 @@ fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) 
             0,
         )
     });
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -73,11 +73,11 @@ fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) 
             0,
         )
     });
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -100,11 +100,11 @@ fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
             0,
         )
     });
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -127,11 +127,11 @@ fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) 
             0,
         )
     });
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
@@ -154,7 +154,7 @@ fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
             0,
         )
     });
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 #[test]

@@ -35,7 +35,7 @@ fn test_rejects_subfield_boundary_past_inputs() {
 
 fn compile_with_metadata(npublic_input: usize, subfield_boundary: usize) {
     let f = P256Field::new();
-    compile_compiler::top::compile_new(&f, |logic| {
+    compile_compiler::compile(&f, |logic| {
         let x = logic.input(1);
         let square = logic.mul(&x, &x);
         let assertion = logic.assert0("square", &square);

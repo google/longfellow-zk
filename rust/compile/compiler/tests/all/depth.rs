@@ -22,7 +22,7 @@ use runtime_algebra::p256::P256Field as RuntimeP256Field;
 #[test]
 fn test_direct_input_assertion_has_one_layer() {
     let f = P256Field::new();
-    let (circuit, geometry, symbols) = compile_compiler::top::compile_new(&f, |logic| {
+    let (circuit, geometry, symbols) = compile_compiler::compile(&f, |logic| {
         let x = logic.input(1);
         let assertion = logic.assert0("input", &x);
         (assertion, logic.tracker, 1, 0)

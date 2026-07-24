@@ -32,7 +32,7 @@ fn test_compile_cbor_decoder_for_field<
     name: &str,
     field_id: FieldID,
 ) {
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
         let bv = BitvecLogic::new(&iologic);
@@ -50,7 +50,7 @@ fn test_compile_cbor_decoder_for_field<
         (full_assertion, iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     // Test valid byte values (e.g. 0..23 which are valid CBOR integers)
     for v in 0..=23 {

@@ -81,7 +81,7 @@ fn test_compile_sha256_for_field<
     };
     let derived_val = derived(&given);
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let sha256 = Sha256::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
@@ -96,7 +96,7 @@ fn test_compile_sha256_for_field<
         )
     });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     assert_eq!(stats, expected_stats);
 
@@ -163,7 +163,7 @@ fn test_compile_sha256_tampering() {
     };
     let derived_val = derived(&given);
 
-    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let sha256 = Sha256::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);

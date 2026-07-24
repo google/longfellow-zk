@@ -48,7 +48,7 @@ fn zero_proof<const W: usize, F: SerializableField + RuntimeField<W>>(
 #[test]
 fn test_sumcheck_prover_verifier_end_to_end() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = compile_compiler::top::compile_new(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_compiler::compile(&fc, |iologic| {
         let x = iologic.input(1);
         let y = iologic.input(2);
         let z = iologic.mul(&x, &y);
@@ -102,7 +102,7 @@ fn test_sumcheck_prover_verifier_end_to_end() {
 #[test]
 fn test_sumcheck_prover_verifier_with_nonzero_pad() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = compile_compiler::top::compile_new(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_compiler::compile(&fc, |iologic| {
         let x = iologic.input(1);
         let y = iologic.input(2);
         let z = iologic.mul(&x, &y);
@@ -161,7 +161,7 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
 #[test]
 fn test_sumcheck_multi_layer() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = compile_compiler::top::compile_new(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_compiler::compile(&fc, |iologic| {
         let mut x = iologic.input(1);
         let y = iologic.input(2);
         for _ in 0..6 {

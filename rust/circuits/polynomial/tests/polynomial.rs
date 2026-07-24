@@ -22,7 +22,7 @@ use compile_logic::{Logic, LogicIO};
 #[test]
 fn test_compile_polynomial() {
     let f = P256Field::new();
-    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
         let p = Polynomial::new(&iologic);
 
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
@@ -33,7 +33,7 @@ fn test_compile_polynomial() {
         (iologic.assert0("poly_res", &res), iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats("polynomial_eval_compile", &circuit, &stats);
+    compile_compiler::dump_stats("polynomial_eval_compile", &circuit, &stats);
 }
 
 use compile_algebra::{field::CompileField, interpolation::eval_monomial};

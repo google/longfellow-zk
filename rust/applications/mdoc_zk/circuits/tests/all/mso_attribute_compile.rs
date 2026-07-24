@@ -30,7 +30,7 @@ pub fn compile_attribute_circuit<const W: usize, FC>(
 where
     FC: mdoc_zk_circuits::MdocHashCompileField,
 {
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
         let verifier = AttributeVerifier::new(&iologic);
@@ -167,7 +167,7 @@ fn test_serialize_attribute_size() {
     let gf2_c = Gf2_128Field::new();
 
     let (circuit, stats, _) = compile_attribute_circuit::<2, _>(&gf2_c);
-    compile_compiler::top::dump_stats("mso_attribute", &circuit, &stats);
+    compile_compiler::dump_stats("mso_attribute", &circuit, &stats);
 }
 
 #[test]

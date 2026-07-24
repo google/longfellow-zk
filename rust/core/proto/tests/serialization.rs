@@ -22,7 +22,7 @@ use core_proto::{reader::CircuitReader, writer::CircuitWriter, FieldID};
 fn test_circuit_serialization_lfc2_roundtrip() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let (circuit, _, _) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let a = iologic.input(1);
         let b = iologic.input(2);
@@ -80,7 +80,7 @@ fn test_circuit_serialization_lfc2_roundtrip() {
 fn test_circuit_serialization_lfc1_roundtrip() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let (circuit, _, _) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let a = iologic.input(1);
         let b = iologic.input(2);
@@ -112,7 +112,7 @@ fn test_circuit_serialization_lfc1_roundtrip() {
 fn test_circuit_serialization_compatibility() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let (circuit, _, _) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let a = iologic.input(1);
         let b = iologic.input(2);
@@ -143,7 +143,7 @@ fn test_circuit_serialization_compatibility() {
 fn test_circuit_reader_rejects_public_input_exceeding_inputs_lfc2() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let (circuit, _, _) = compile_compiler::top::compile_new(&f, |iologic| {
+    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let a = iologic.input(1);
         let b = iologic.input(2);

@@ -61,7 +61,7 @@ fn test_compile_mac_for_field<
     name: &str,
     field_id: FieldID,
 ) {
-    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
         let mac_circuit = MAC::new(&iologic);
@@ -72,7 +72,7 @@ fn test_compile_mac_for_field<
         (assertion, iologic.tracker, 1, 0)
     });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     let test_msg = [0x5au8; 32];
     let av_val: u128 = 0x112233445566778899aabbccddeeff00;
