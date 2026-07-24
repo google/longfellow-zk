@@ -121,6 +121,8 @@ func GetZKSpecs() []ZKSpec {
 			CircuitHash:   C.GoString(&ss.circuit_hash[0]),
 			NumAttributes: uint(ss.num_attributes),
 			Version:       uint(ss.version),
+			BlockEncHash:  uint(ss.block_enc_hash),
+			BlockEncSig:   uint(ss.block_enc_sig),
 		}
 	}
 	return resp

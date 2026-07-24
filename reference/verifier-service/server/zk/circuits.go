@@ -43,6 +43,8 @@ type ZKSpec struct {
 	CircuitHash   string `json:"circuit_hash"`
 	NumAttributes uint   `json:"num_attributes"`
 	Version       uint   `json:"version"`
+	BlockEncHash  uint   `json:"block_enc_hash"`
+	BlockEncSig   uint   `json:"block_enc_sig"`
 }
 
 // GetCircuitByName returns a circuit from the circuit map by its name.
