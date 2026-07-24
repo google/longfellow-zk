@@ -16,13 +16,55 @@
 
 use compile_algebra::field::CompileField;
 use core_algebra::ElementOf;
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
-use crate::Logic;
+use crate::{
+    scope::{AssertionId, AssertionScope, AssertionStatus},
+    Logic,
+};
+
+#[derive(Clone, Debug, Default)]
+pub struct AssertionMap(Arc<HashMap<AssertionId, AssertionStatus>>);
+
+impl Deref for AssertionMap {
+    type Target = HashMap<AssertionId, AssertionStatus>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AssertionMap {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn insert(&mut self, id: AssertionId, status: AssertionStatus) {
+        Arc::make_mut(&mut self.0).insert(id, status);
+    }
+}
+
+impl IntoIterator for AssertionMap {
+    type Item = (AssertionId, AssertionStatus);
+    type IntoIter = std::collections::hash_map::IntoIter<AssertionId, AssertionStatus>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match Arc::try_unwrap(self.0) {
+            Ok(map) => map.into_iter(),
+            Err(shared) => (*shared).clone().into_iter(),
+        }
+    }
+}
+
+impl Extend<(AssertionId, AssertionStatus)> for AssertionMap {
+    fn extend<T: IntoIterator<Item = (AssertionId, AssertionStatus)>>(&mut self, iter: T) {
+        Arc::make_mut(&mut self.0).extend(iter);
+    }
+}
 
 pub struct EvalWire<F: CompileField> {
     pub value: ElementOf<F>,
-    pub assertions:
-        std::collections::HashMap<crate::scope::AssertionId, crate::scope::AssertionStatus>,
+    pub assertions: AssertionMap,
 }
 
 impl<F: CompileField> Clone for EvalWire<F> {
@@ -36,10 +78,11 @@ impl<F: CompileField> Clone for EvalWire<F> {
 
 impl<F: CompileField> EvalWire<F> {
     pub fn ok(value: ElementOf<F>) -> Self {
-        Self {
-            value,
-            assertions: std::collections::HashMap::new(),
-        }
+        Self::new(value, AssertionMap::new())
+    }
+
+    fn new(value: ElementOf<F>, assertions: AssertionMap) -> Self {
+        Self { value, assertions }
     }
 }
 
@@ -62,25 +105,62 @@ impl<F: CompileField> std::fmt::Debug for EvalWire<F> {
 
 pub struct EvalLogic<'a, F: CompileField> {
     f: &'a F,
-    pub tracker: &'a crate::scope::AssertionScope,
+    tracker: &'a AssertionScope,
+}
+
+/// Owns the assertion scope for one direct-evaluation session.
+pub struct EvalContext<'a, F: CompileField> {
+    f: &'a F,
+    tracker: AssertionScope,
+}
+
+impl<'a, F: CompileField> EvalContext<'a, F> {
+    pub fn new(f: &'a F) -> Self {
+        Self {
+            f,
+            tracker: AssertionScope::new(),
+        }
+    }
+
+    pub fn run<'ctx>(
+        &'ctx self,
+        build: impl FnOnce(&EvalLogic<'ctx, F>) -> EvalAssertions<'ctx>,
+    ) -> EvalAssertions<'ctx> {
+        let logic = EvalLogic::new(self.f, &self.tracker);
+        build(&logic)
+    }
 }
 
 impl<'a, F: CompileField> EvalLogic<'a, F> {
-    pub fn new(f: &'a F, tracker: &'a crate::scope::AssertionScope) -> Self {
+    pub fn new(f: &'a F, tracker: &'a AssertionScope) -> Self {
         Self { f, tracker }
     }
 
-    pub fn new_with_tracker(f: &'a F, tracker: &'a crate::scope::AssertionScope) -> Self {
+    pub fn new_with_tracker(f: &'a F, tracker: &'a AssertionScope) -> Self {
         Self::new(f, tracker)
+    }
+
+    fn wire(&self, value: ElementOf<F>, assertions: AssertionMap) -> EvalWire<F> {
+        EvalWire::new(value, assertions)
+    }
+
+    fn combine(&self, x: &EvalWire<F>, y: &EvalWire<F>, value: ElementOf<F>) -> EvalWire<F> {
+        let assertions = merge_assertions(&x.assertions, &y.assertions);
+        self.wire(value, assertions)
+    }
+
+    fn result(&self, items: AssertionMap) -> EvalAssertions<'a> {
+        EvalAssertions {
+            items,
+            tracker: self.tracker,
+        }
     }
 }
 
-use crate::scope::AssertionId;
-
 #[derive(Debug, Clone)]
 pub struct EvalAssertions<'a> {
-    pub items: std::collections::HashMap<AssertionId, crate::scope::AssertionStatus>,
-    pub tracker: &'a crate::scope::AssertionScope,
+    pub items: AssertionMap,
+    pub tracker: &'a AssertionScope,
 }
 
 impl<'a> EvalAssertions<'a> {
@@ -98,6 +178,14 @@ impl<'a> EvalAssertions<'a> {
 
     pub fn failed_paths(&self) -> Vec<String> {
         self.tracker.failed_paths(&self.items)
+    }
+
+    pub fn all_paths(&self) -> Vec<String> {
+        self.tracker.all_paths(&self.items)
+    }
+
+    pub fn passed_paths(&self) -> Vec<String> {
+        self.tracker.passed_paths(&self.items)
     }
 
     pub fn assert_all_passed(&self) {
@@ -137,117 +225,88 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
 
     fn sum(&self, xs: &[Self::Wire]) -> Self::Wire {
         let mut accu_val = self.f.zero();
-        let mut assertions = std::collections::HashMap::new();
+        let mut assertions = AssertionMap::new();
         for x in xs {
             accu_val = self.f.addf(&accu_val, &x.value);
-            assertions.extend(x.assertions.clone());
+            assertions = merge_assertions(&assertions, &x.assertions);
         }
-        EvalWire {
-            value: accu_val,
-            assertions,
-        }
+        self.wire(accu_val, assertions)
     }
 
     fn neg(&self, x: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: self.f.neg(&x.value),
-            assertions: x.assertions.clone(),
-        }
+        self.wire(self.f.neg(&x.value), x.assertions.clone())
     }
 
     fn add(&self, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        let mut assertions = x.assertions.clone();
-        assertions.extend(y.assertions.clone());
-        EvalWire {
-            value: self.f.addf(&x.value, &y.value),
-            assertions,
-        }
+        self.combine(x, y, self.f.addf(&x.value, &y.value))
     }
 
     fn sub(&self, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        let mut assertions = x.assertions.clone();
-        assertions.extend(y.assertions.clone());
-        EvalWire {
-            value: self.f.subf(&x.value, &y.value),
-            assertions,
-        }
+        self.combine(x, y, self.f.subf(&x.value, &y.value))
     }
 
     fn mul(&self, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        let mut assertions = x.assertions.clone();
-        assertions.extend(y.assertions.clone());
-        EvalWire {
-            value: self.f.mulf(&x.value, &y.value),
-            assertions,
-        }
+        self.combine(x, y, self.f.mulf(&x.value, &y.value))
     }
 
     fn mulk(&self, e: &ElementOf<F>, y: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: self.f.mulf(e, &y.value),
-            assertions: y.assertions.clone(),
-        }
+        self.wire(self.f.mulf(e, &y.value), y.assertions.clone())
     }
 
     fn quadratic(&self, e: &ElementOf<F>, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        let mut assertions = x.assertions.clone();
-        assertions.extend(y.assertions.clone());
-        EvalWire {
-            value: self.f.mulf(e, &self.f.mulf(&x.value, &y.value)),
-            assertions,
-        }
+        self.combine(x, y, self.f.mulf(e, &self.f.mulf(&x.value, &y.value)))
     }
 
     fn ok(&self) -> Self::Assertions {
-        EvalAssertions {
-            items: std::collections::HashMap::new(),
-            tracker: self.tracker,
-        }
+        self.result(AssertionMap::new())
     }
 
     fn assert0(&self, name: &str, x: &Self::Wire) -> Self::Assertions {
         assert!(!name.is_empty(), "assert0 requires a non-empty name");
         let status = if x.value.eq(&self.f.zero()) {
-            crate::scope::AssertionStatus::Passed
+            AssertionStatus::Passed
         } else {
-            crate::scope::AssertionStatus::Failed(format!("expected zero, got {:?}", x.value))
+            AssertionStatus::Failed(format!("expected zero, got {:?}", x.value))
         };
         let id = self.tracker.new_leaf(name);
         let mut items = x.assertions.clone();
         items.insert(id, status);
-        EvalAssertions {
-            items,
-            tracker: self.tracker,
-        }
+        self.result(items)
     }
 
     fn assert_all(&self, name: &str, assertions: &[Self::Assertions]) -> Self::Assertions {
         assert!(!name.is_empty(), "assert_all requires a non-empty name");
-        let mut items = std::collections::HashMap::new();
+        let mut items = AssertionMap::new();
         for a in assertions {
-            items.extend(a.items.clone());
+            items = merge_assertions(&items, &a.items);
         }
         for &id in items.keys() {
             self.tracker.prepend_scope(id, name);
         }
-        EvalAssertions {
-            items,
-            tracker: self.tracker,
-        }
+        self.result(items)
     }
 
     fn with_assertions(&self, assertions: Self::Assertions, x: &Self::Wire) -> Self::Wire {
-        let mut new_assertions = x.assertions.clone();
-        new_assertions.extend(assertions.items);
-        EvalWire {
-            value: x.value.clone(),
-            assertions: new_assertions,
-        }
+        let new_assertions = merge_assertions(&x.assertions, &assertions.items);
+        self.wire(x.value.clone(), new_assertions)
     }
 
     fn to_stringw_debug(&self, x: &Self::Wire) -> String {
         format!("{:?}", x.value)
     }
+}
+
+fn merge_assertions(left: &AssertionMap, right: &AssertionMap) -> AssertionMap {
+    if left.is_empty() {
+        return right.clone();
+    }
+    if right.is_empty() {
+        return left.clone();
+    }
+
+    let mut merged = left.clone();
+    Arc::make_mut(&mut merged.0).extend(right.iter().map(|(&id, status)| (id, status.clone())));
+    merged
 }
 
 impl<F: CompileField> crate::LogicIO for EvalLogic<'_, F> {

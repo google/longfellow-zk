@@ -13,27 +13,24 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field;
-use compile_compiler::{segment_circuit, CompilerArena, CompilerLogic};
+use compile_compiler::segment_circuit;
 use compile_logic::{Logic, LogicIO};
 
 #[test]
 fn test_circuit_compression_and_recompression() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let logic = CompilerLogic::new(&arena, &f);
-
-    // Build a circuit with repetitive patterns so DP discovers macros and creates multiple segments
-    let mut x = logic.input(1);
-    let y = logic.input(2);
-    for _ in 0..40 {
-        let sum = logic.add(&x, &y);
-        let prod = logic.mul(&sum, &x);
-        x = logic.add(&prod, &y);
-    }
-    let assert_expr = logic.assert0("assert_x", &x);
-
-    let (original_circuit, _, _) =
-        compile_compiler::top::compile(&arena, &f, assert_expr, logic.tracker, 1, 0);
+    let (original_circuit, _, _) = compile_compiler::compile(&f, |logic| {
+        // Build a circuit with repetitive patterns so DP discovers macros and creates multiple segments
+        let mut x = logic.input(1);
+        let y = logic.input(2);
+        for _ in 0..40 {
+            let sum = logic.add(&x, &y);
+            let prod = logic.mul(&sum, &x);
+            x = logic.add(&prod, &y);
+        }
+        let assert_expr = logic.assert0("assert_x", &x);
+        (assert_expr, 1, 0)
+    });
 
     for layer in &original_circuit.raw.layers {
         assert!(

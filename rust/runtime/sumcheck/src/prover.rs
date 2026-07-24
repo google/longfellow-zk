@@ -48,7 +48,20 @@ pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, SumcheckProofAux<W, F>) {
+    assert!(
+        circuit.raw.ninput >= circuit.raw.npublic_input,
+        "npublic_input ({}) exceeds ninput ({})",
+        circuit.raw.npublic_input,
+        circuit.raw.ninput
+    );
+
     let inputs = &in_layers[circuit.raw.layers.len() - 1];
+    assert!(
+        inputs.len() >= circuit.raw.npublic_input,
+        "input vector too short: expected at least npublic_input ({}) entries, got {}",
+        circuit.raw.npublic_input,
+        inputs.len()
+    );
     let public_inputs = &inputs[..circuit.raw.npublic_input];
     transcript.write_sumcheck_statement(circuit, public_inputs, f);
     prove_core(in_layers, pad, circuit, transcript, f)

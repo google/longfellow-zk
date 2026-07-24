@@ -17,10 +17,10 @@ use compile_algebra::{
     p256::P256Field,
 };
 use compile_compiler::{
+    arena::CompilerArena,
     copy::CopyRewriter,
     cse::Cse,
     ir::{Expr, RewriteT},
-    CompilerArena,
 };
 use core_algebra::Nat;
 

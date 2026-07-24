@@ -15,7 +15,6 @@
 use circuits_analog_adder::FieldWrappingSum;
 use circuits_sha256::{derived, ConcreteDerived, ConcreteGiven, Sha256};
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use core_algebra::SerializableField;
 use runtime_algebra::field::RuntimeField;
@@ -82,9 +81,7 @@ fn test_compile_sha256_for_field<
     };
     let derived_val = derived(&given);
 
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, fc);
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let sha256 = Sha256::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
@@ -93,14 +90,12 @@ fn test_compile_sha256_for_field<
 
         (
             sha256.assert_transform_block(&given_wires, &derived_wires),
-            iologic.tracker,
+            1,
+            0,
         )
-    };
+    });
 
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, tracker, 1, 0);
-
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     assert_eq!(stats, expected_stats);
 
@@ -167,9 +162,7 @@ fn test_compile_sha256_tampering() {
     };
     let derived_val = derived(&given);
 
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &fc);
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let sha256 = Sha256::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
@@ -178,11 +171,10 @@ fn test_compile_sha256_tampering() {
 
         (
             sha256.assert_transform_block(&given_wires, &derived_wires),
-            iologic.tracker,
+            1,
+            0,
         )
-    };
-    let (circuit, _stats, symbols) =
-        compile_compiler::top::compile(&arena, &fc, assertion, tracker, 1, 0);
+    });
 
     let corruptors = test_support::all_sha256_corruptors();
 

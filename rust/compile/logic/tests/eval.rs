@@ -17,7 +17,7 @@ use compile_algebra::{
     gf2_128::Gf2_128Field,
 };
 use compile_logic::{
-    eval::{EvalLogic, EvalWire},
+    eval::{EvalContext, EvalLogic, EvalWire},
     Logic,
 };
 
@@ -244,4 +244,33 @@ fn test_eval_distinct_assertions_with_the_same_path_remain_distinct() {
 
     assert_eq!(tracker.failed_paths(&result.items), vec!["same", "same"]);
     assert_eq!(tracker.passed_paths(&result.items), vec!["consumer"]);
+}
+
+#[test]
+fn test_eval_union_reports_failure_from_any_alias() {
+    let field = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = EvalLogic::new(&field, &tracker);
+    let passed = l.assert0("passed", &l.zero());
+    let failed = l.assert0("failed", &l.one());
+    let passed_id = *passed.items.keys().next().unwrap();
+    let failed_id = *failed.items.keys().next().unwrap();
+    tracker.union(passed_id, failed_id);
+
+    let mut fates = passed.items.clone();
+    fates.extend(failed.items);
+
+    assert!(tracker
+        .failed_paths(&fates)
+        .iter()
+        .all(|p| p == "passed" || p == "failed"));
+    assert!(!tracker.is_ok(&fates));
+}
+
+#[test]
+fn test_eval_context_owns_tracker() {
+    let field = Gf2_128Field::new();
+    let context = EvalContext::new(&field);
+    let result = context.run(|logic| logic.assert0("zero", &logic.zero()));
+    result.assert_all_passed();
 }

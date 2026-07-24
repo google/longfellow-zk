@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{Logic, LogicIO};
 
 #[test]
@@ -36,18 +35,10 @@ fn test_rejects_subfield_boundary_past_inputs() {
 
 fn compile_with_metadata(npublic_input: usize, subfield_boundary: usize) {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let logic = CompilerLogic::new(&arena, &f);
-    let x = logic.input(1);
-    let square = logic.mul(&x, &x);
-    let assertion = logic.assert0("square", &square);
-
-    compile_compiler::top::compile(
-        &arena,
-        &f,
-        assertion,
-        logic.tracker,
-        npublic_input,
-        subfield_boundary,
-    );
+    compile_compiler::compile(&f, |logic| {
+        let x = logic.input(1);
+        let square = logic.mul(&x, &x);
+        let assertion = logic.assert0("square", &square);
+        (assertion, npublic_input, subfield_boundary)
+    });
 }

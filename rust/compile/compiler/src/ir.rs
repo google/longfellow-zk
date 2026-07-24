@@ -275,7 +275,7 @@ impl<'a, F: CompileField, T: RewriteT<'a, F>> RewriteT<'a, F> for &T {
 
 /// Recursively walks the expression/assertion tree from input arena ('a) to target arena ('b).
 pub fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
-    arena: &'b crate::CompilerArena<'b, F>,
+    arena: &'b crate::arena::CompilerArena<'b, F>,
     assertions: Assertions<'a, F>,
     rewriter: &NEXT,
 ) -> Assertions<'b, F> {

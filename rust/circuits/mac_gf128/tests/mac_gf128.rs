@@ -14,24 +14,21 @@
 
 use circuits_mac_gf128::{circuit::MAC, concrete::given};
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use core_algebra::SerializableField;
 
 fn test_compile_mac_gf128_for_field<FC: CompileField + SerializableField>(fc: &FC, name: &str) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+    let (circuit, stats, _symbols) = compile_compiler::compile(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let mac_circuit = MAC::new(&iologic);
-    let given = circuits_mac_gf128::allocate_given(&iologic, &mac_circuit.bv, &mut pos);
+        let mac_circuit = MAC::new(&iologic);
+        let given = circuits_mac_gf128::allocate_given(&iologic, &mac_circuit.bv, &mut pos);
 
-    let assertion = mac_circuit.assert_mac(&given);
+        let assertion = mac_circuit.assert_mac(&given);
 
-    // Compile!
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
+        (assertion, 1, 0)
+    });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 #[test]

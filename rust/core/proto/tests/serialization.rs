@@ -14,7 +14,6 @@
 
 use circuits_boolean::Boolean;
 use compile_algebra::p256::P256Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::SerializableField;
 use compile_logic::LogicIO;
 use core_proto::{reader::CircuitReader, writer::CircuitWriter, FieldID};
@@ -23,21 +22,17 @@ use core_proto::{reader::CircuitReader, writer::CircuitWriter, FieldID};
 fn test_circuit_serialization_lfc2_roundtrip() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &f);
-    let boolean = Boolean::new(&iologic);
+    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let a = iologic.input(1);
+        let b = iologic.input(2);
 
-    let a = iologic.input(1);
-    let b = iologic.input(2);
+        let ab = boolean.of_eltw(a);
+        let bb = boolean.of_eltw(b);
 
-    let ab = boolean.of_eltw(a);
-    let bb = boolean.of_eltw(b);
-
-    let x = boolean.xorb(&ab, &bb);
-    let assertion = boolean.assert_true("assert_x", &x);
-
-    let (circuit, _, _) =
-        compile_compiler::top::compile(&arena, &f, assertion, iologic.tracker, 1, 0);
+        let x = boolean.xorb(&ab, &bb);
+        (boolean.assert_true("assert_x", &x), 1, 0)
+    });
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
     let serialized = writer.to_bytes_lfc2(&circuit);
@@ -85,21 +80,17 @@ fn test_circuit_serialization_lfc2_roundtrip() {
 fn test_circuit_serialization_lfc1_roundtrip() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &f);
-    let boolean = Boolean::new(&iologic);
+    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let a = iologic.input(1);
+        let b = iologic.input(2);
 
-    let a = iologic.input(1);
-    let b = iologic.input(2);
+        let ab = boolean.of_eltw(a);
+        let bb = boolean.of_eltw(b);
 
-    let ab = boolean.of_eltw(a);
-    let bb = boolean.of_eltw(b);
-
-    let x = boolean.xorb(&ab, &bb);
-    let assertion = boolean.assert_true("assert_x", &x);
-
-    let (circuit, _, _) =
-        compile_compiler::top::compile(&arena, &f, assertion, iologic.tracker, 1, 0);
+        let x = boolean.xorb(&ab, &bb);
+        (boolean.assert_true("assert_x", &x), 1, 0)
+    });
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
     let serialized = writer.to_bytes_lfc1(&circuit);
@@ -121,21 +112,17 @@ fn test_circuit_serialization_lfc1_roundtrip() {
 fn test_circuit_serialization_compatibility() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &f);
-    let boolean = Boolean::new(&iologic);
+    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let a = iologic.input(1);
+        let b = iologic.input(2);
 
-    let a = iologic.input(1);
-    let b = iologic.input(2);
+        let ab = boolean.of_eltw(a);
+        let bb = boolean.of_eltw(b);
 
-    let ab = boolean.of_eltw(a);
-    let bb = boolean.of_eltw(b);
-
-    let x = boolean.xorb(&ab, &bb);
-    let assertion = boolean.assert_true("assert_x", &x);
-
-    let (circuit, _, _) =
-        compile_compiler::top::compile(&arena, &f, assertion, iologic.tracker, 1, 0);
+        let x = boolean.xorb(&ab, &bb);
+        (boolean.assert_true("assert_x", &x), 1, 0)
+    });
 
     let writer = CircuitWriter::new(&f, FieldID::P256);
     let serialized_lfc1 = writer.to_bytes_lfc1(&circuit);
@@ -150,4 +137,44 @@ fn test_circuit_serialization_compatibility() {
     assert_eq!(c1.raw.ninput, c2.raw.ninput);
     assert_eq!(c1.raw.layers.len(), c2.raw.layers.len());
     assert_eq!(c1.raw.constants.len(), c2.raw.constants.len());
+}
+
+#[test]
+fn test_circuit_reader_rejects_public_input_exceeding_inputs_lfc2() {
+    let f = P256Field::new();
+    let rf = P256Field::new();
+    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let a = iologic.input(1);
+        let b = iologic.input(2);
+
+        let ab = boolean.of_eltw(a);
+        let bb = boolean.of_eltw(b);
+        let x = boolean.xorb(&ab, &bb);
+        (boolean.assert_true("assert_x", &x), 1, 0)
+    });
+
+    let writer = CircuitWriter::new(&f, FieldID::P256);
+    let mut serialized = writer.to_bytes_lfc2(&circuit);
+
+    // Header layout:
+    // [LFC2][field_id][noutput][ncopies][npublic_input][subfield_boundary][ninput]...
+    let npublic_offset = 4 + 3;
+    let invalid_npublic = circuit.raw.ninput + 1;
+    assert!(
+        invalid_npublic <= 127,
+        "test circuit inputs must fit in a single-byte uleb128 for mutation"
+    );
+    serialized[npublic_offset] = invalid_npublic as u8;
+
+    let reader = CircuitReader::new(&rf, FieldID::P256);
+    let deserialized = reader.from_bytes(&serialized, false);
+    assert!(deserialized.is_err());
+    let err = deserialized.unwrap_err();
+    assert!(err.contains("exceeds ninput"), "{err}");
+
+    // sanity-check control case remains valid
+    reader
+        .from_bytes(&writer.to_bytes_lfc2(&circuit), false)
+        .unwrap();
 }

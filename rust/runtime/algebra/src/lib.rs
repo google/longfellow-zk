@@ -55,5 +55,7 @@ pub trait ZkField<const W: usize>:
     InterpolationField<W> + core_algebra::SerializableField + SupportsSampling<W>
 {
 }
-impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + core_algebra::SerializableField + SupportsSampling<W>
-{}
+impl<const W: usize, F> ZkField<W> for F where
+    F: InterpolationField<W> + core_algebra::SerializableField + SupportsSampling<W>
+{
+}

@@ -14,11 +14,11 @@
 
 use compile_algebra::p256::P256Field;
 use compile_compiler::{
+    arena::CompilerArena,
     cse::Cse,
     ir::{AssertionItem, Assertions, RewriteT},
     ir_to_quad::rewrite,
     quad::WExpr,
-    CompilerArena,
 };
 
 #[test]

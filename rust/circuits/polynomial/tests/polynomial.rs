@@ -17,15 +17,12 @@ use compile_algebra::{
     field::{SupportsNatConversions, SupportsU64Conversions},
     p256::P256Field,
 };
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{Logic, LogicIO};
 
 #[test]
 fn test_compile_polynomial() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &f);
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
         let p = Polynomial::new(&iologic);
 
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
@@ -33,13 +30,10 @@ fn test_compile_polynomial() {
         let x = iologic.next(&mut pos);
 
         let res = p.eval(&cc, &x);
-        (iologic.assert0("poly_res", &res), iologic.tracker)
-    };
+        (iologic.assert0("poly_res", &res), 1, 0)
+    });
 
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
-
-    compile_compiler::top::dump_stats("polynomial_eval_compile", &circuit, &stats);
+    compile_compiler::dump_stats("polynomial_eval_compile", &circuit, &stats);
 }
 
 use compile_algebra::{field::CompileField, interpolation::eval_monomial};

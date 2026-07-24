@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::{gf2_128::Gf2_128Field, CompileNat};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use core_algebra::{Nat, SerializableField, SupportsU128Conversions};
 use mdoc_zk_circuits::{
     config::K_ZSTD_LEVEL,
@@ -30,7 +29,9 @@ use super::mdoc_hash_corruptors;
 pub fn mdoc_zk_circuits_hash_circuit<FC>(
     fc: &FC,
 ) -> (compile_eval::Circuit<FC>, compile_eval::CircuitGeometry)
-where FC: MdocHashCompileField {
+where
+    FC: MdocHashCompileField,
+{
     let (circuit, stats, _) = compile_hash_circuit(fc);
     (circuit, stats)
 }
@@ -42,28 +43,31 @@ fn compile_hash_circuit<FC>(
     compile_eval::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where FC: MdocHashCompileField {
-    let arena = CompilerArena::new();
+where
+    FC: MdocHashCompileField,
+{
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
-
-    let iologic = CompilerLogic::new(&arena, fc);
     let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-
     let num_attrs = hash_input.attrs.len();
 
-    let mdoc = MdocHash::new(&iologic, num_attrs);
-    let bv = circuits_bitvec::BitvecLogic::new(&iologic);
-    let given_wires = mdoc_zk_circuits::hash::allocate_given(&iologic, &bv, num_attrs, &mut pos);
-    let derived_wires = mdoc_zk_circuits::hash::allocate_derived::<
-        _,
-        { mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS },
-    >(&bv, num_attrs, &mut pos);
+    compile_compiler::compile(fc, |iologic| {
+        let mdoc = MdocHash::new(&iologic, num_attrs);
+        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+        let given_wires =
+            mdoc_zk_circuits::hash::allocate_given(&iologic, &bv, num_attrs, &mut pos);
+        let derived_wires = mdoc_zk_circuits::hash::allocate_derived::<
+            _,
+            { mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS },
+        >(&bv, num_attrs, &mut pos);
 
-    let assertion = mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires);
-
-    compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0)
+        (
+            mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    })
 }
 
 fn push_bits<const W: usize, FR: RuntimeField<W>>(
@@ -228,30 +232,30 @@ fn test_mdoc_zk_circuits_hash_for_field<
     fc: &FC,
     _fr: &FR,
 ) {
-    let arena = CompilerArena::new();
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
-
-    let iologic = CompilerLogic::new(&arena, fc);
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-
     let num_attrs = hash_input.attrs.len();
 
-    let mdoc = MdocHash::new(&iologic, num_attrs);
-    let bv = circuits_bitvec::BitvecLogic::new(&iologic);
-    let given_wires = mdoc_zk_circuits::hash::allocate_given(&iologic, &bv, num_attrs, &mut pos);
-    let derived_wires = mdoc_zk_circuits::hash::allocate_derived::<
-        _,
-        { mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS },
-    >(&bv, num_attrs, &mut pos);
+    let (_circuit, stats, _symbols) = compile_compiler::compile(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let mdoc = MdocHash::new(&iologic, num_attrs);
+        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+        let given_wires =
+            mdoc_zk_circuits::hash::allocate_given(&iologic, &bv, num_attrs, &mut pos);
+        let derived_wires = mdoc_zk_circuits::hash::allocate_derived::<
+            _,
+            { mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS },
+        >(&bv, num_attrs, &mut pos);
 
-    let assertion = mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires);
+        (
+            mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
 
-    let (_circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
-
-    compile_compiler::top::dump_stats("mdoc_hash", &_circuit, &stats);
+    compile_compiler::dump_stats("mdoc_hash", &_circuit, &stats);
 }
 
 #[test]
@@ -320,7 +324,7 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     let gf2_c = Gf2_128Field::new();
     let (circuit, stats) = mdoc_zk_circuits_hash_circuit(&gf2_c);
 
-    compile_compiler::top::dump_stats("mdoc_hash_serialized", &circuit, &stats);
+    compile_compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
         0x7f, 0xec, 0x95, 0x56, 0x51, 0x4f, 0x03, 0xfb, 0x2f, 0x83, 0x3c, 0xf2, 0xe5, 0xea, 0x7e,

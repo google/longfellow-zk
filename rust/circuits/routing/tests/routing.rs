@@ -16,15 +16,12 @@ use circuits_bitvec::{Bitvec, BitvecIO, BitvecLogic};
 use circuits_boolean::{Bitw, Boolean};
 use circuits_routing::Routing;
 use compile_algebra::{field::SupportsU64Conversions, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{Logic, LogicIO};
 
 #[test]
 fn test_compile_routing() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &f);
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
@@ -44,16 +41,10 @@ fn test_compile_routing() {
         for r in &res {
             asserts.push(iologic.assert0("res_zero", r));
         }
-        (
-            iologic.assert_all("shifte_routing", &asserts),
-            iologic.tracker,
-        )
-    };
+        (iologic.assert_all("shifte_routing", &asserts), 1, 0)
+    });
 
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
-
-    compile_compiler::top::dump_stats("shifte_16_16_2", &circuit, &stats);
+    compile_compiler::dump_stats("shifte_16_16_2", &circuit, &stats);
 
     assert_eq!(stats.ninput, 22);
     assert_eq!(stats.npublic_input, 1);

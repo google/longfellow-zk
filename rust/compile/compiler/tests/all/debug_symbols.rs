@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::eval_circuit_fc;
 use compile_logic::{Logic, LogicIO};
 use core_algebra::AlgebraicField;
@@ -23,30 +22,27 @@ use runtime_algebra::p256::P256Field as RuntimeP256Field;
 #[test]
 fn test_compiled_circuit_debug_symbols() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let l = CompilerLogic::new(&arena, &f);
+    let (circuit, _info, symbols) = compile_compiler::compile(&f, |l| {
+        let w1 = l.input(1);
+        let w2 = l.input(2);
 
-    let w1 = l.input(1);
-    let w2 = l.input(2);
+        let q1 = l.mul(&w1, &w1);
+        let q2 = l.mul(&w2, &w2);
 
-    let q1 = l.mul(&w1, &w1);
-    let q2 = l.mul(&w2, &w2);
+        let assert1 = l.assert0("check_w1", &q1);
+        let assert2 = l.assert0("check_w2", &q2);
 
-    let assert1 = l.assert0("check_w1", &q1);
-    let assert2 = l.assert0("check_w2", &q2);
+        let block_a = l.assert_all("block_a", &[assert1]);
+        let block_b = l.assert_all("block_b", &[assert2]);
+        let root = l.assert_all("root", &[block_a, block_b]);
+        (root, 1, 0)
+    });
 
-    let block_a = l.assert_all("block_a", &[assert1]);
-    let block_b = l.assert_all("block_b", &[assert2]);
-    let root = l.assert_all("root", &[block_a, block_b]);
-
-    let (circuit, _info, symbols) =
-        compile_compiler::top::compile(&arena, &f, root, l.tracker, 1, 0);
-
-    assert_eq!(symbols.symbols.len(), 2);
+    assert_eq!(symbols.assertion_count(), 2);
     let paths: Vec<String> = symbols
-        .symbols
+        .assertion_symbols()
         .iter()
-        .map(|s| symbols.tracker.get_path(s.id))
+        .map(|s| symbols.get_path(s.id).unwrap_or_default())
         .collect();
     assert!(paths.contains(&"root/block_a/check_w1".to_string()));
     assert!(paths.contains(&"root/block_b/check_w2".to_string()));
@@ -81,35 +77,24 @@ fn test_compiled_circuit_debug_symbols() {
 #[test]
 fn test_debug_symbols_record_assertion_layers() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let l = CompilerLogic::new(&arena, &f);
+    let (circuit, info, symbols) = compile_compiler::compile(&f, |l| {
+        let x = l.input(1);
+        let square = l.mul(&x, &x);
+        let fourth_power = l.mul(&square, &square);
 
-    let x = l.input(1);
-    let square = l.mul(&x, &x);
-    let fourth_power = l.mul(&square, &square);
-
-    let input_assertion = l.assert0("input", &x);
-    let output_assertion = l.assert0("output", &fourth_power);
-    let root = l.assert_all("root", &[input_assertion, output_assertion]);
-
-    let (circuit, info, symbols) =
-        compile_compiler::top::compile(&arena, &f, root, l.tracker, 1, 0);
+        let input_assertion = l.assert0("input", &x);
+        let output_assertion = l.assert0("output", &fourth_power);
+        let root = l.assert_all("root", &[input_assertion, output_assertion]);
+        (root, 1, 0)
+    });
     assert_eq!(info.nlayers, 2);
     assert_eq!(info.nassertions, 2);
-    assert_eq!(symbols.symbols.len(), 2);
+    assert_eq!(symbols.assertion_count(), 2);
 
-    let input_symbol = symbols
-        .symbols
-        .iter()
-        .find(|symbol| symbols.tracker.get_path(symbol.id) == "root/input")
-        .unwrap();
+    let input_symbol = symbols.get_symbol_by_path("root/input").unwrap();
     assert_eq!(input_symbol.wire.layer, 1);
 
-    let output_symbol = symbols
-        .symbols
-        .iter()
-        .find(|symbol| symbols.tracker.get_path(symbol.id) == "root/output")
-        .unwrap();
+    let output_symbol = symbols.get_symbol_by_path("root/output").unwrap();
     assert_eq!(output_symbol.wire.layer, 0);
 
     let runtime_f = RuntimeP256Field::new();
@@ -128,23 +113,20 @@ fn test_debug_symbols_record_assertion_layers() {
 #[test]
 fn test_attached_assertion_keeps_its_path() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let l = CompilerLogic::new(&arena, &f);
-
-    let computed = l.input(1);
-    let witness = l.input(2);
-    let sliced = l.slicing("slice", &witness, &computed);
-    let consumer = l.assert0("consumer", &sliced);
-    let root = l.assert_all("root", &[consumer]);
-
-    let (circuit, info, symbols) =
-        compile_compiler::top::compile(&arena, &f, root, l.tracker, 1, 0);
+    let (circuit, info, symbols) = compile_compiler::compile(&f, |l| {
+        let computed = l.input(1);
+        let witness = l.input(2);
+        let sliced = l.slicing("slice", &witness, &computed);
+        let consumer = l.assert0("consumer", &sliced);
+        let root = l.assert_all("root", &[consumer]);
+        (root, 1, 0)
+    });
     assert_eq!(info.nassertions, 2);
-    assert_eq!(symbols.symbols.len(), 2);
+    assert_eq!(symbols.assertion_count(), 2);
     assert!(symbols
-        .symbols
+        .assertion_symbols()
         .iter()
-        .any(|symbol| symbols.tracker.get_path(symbol.id) == "root/slice"));
+        .any(|symbol| symbols.get_path(symbol.id).as_deref() == Some("root/slice")));
 
     let runtime_f = RuntimeP256Field::new();
     let failed = eval_circuit_fc(

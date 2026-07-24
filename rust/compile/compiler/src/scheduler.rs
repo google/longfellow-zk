@@ -359,6 +359,7 @@ fn extract_debug_symbols<F: CompileField>(
     wire_ids: &[WireId],
     depth: &[usize],
     max_depth: usize,
+    tracker: compile_logic::scope::AssertionScope,
 ) -> crate::debug::CircuitDebugSymbols {
     let mut sym_list = Vec::new();
     for &(quad_idx, id) in quad_asserts {
@@ -380,19 +381,17 @@ fn extract_debug_symbols<F: CompileField>(
         }
     }
     sym_list.sort_by_key(|s| (s.wire.layer, s.wire.index));
-    crate::debug::CircuitDebugSymbols::new(
-        sym_list,
-        compile_logic::scope::AssertionScope::default(),
-    )
+    crate::debug::CircuitDebugSymbols::new(sym_list, tracker)
 }
 
 /// Transform the Quad circuit into a structured multi-layered Circuit with debug symbol extraction.
-pub fn schedule<F: CompileField + core_algebra::SerializableField>(
+pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
     f: &F,
     c: QuadCircuit<F>,
     quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
     subfield_boundary: usize,
+    tracker: compile_logic::scope::AssertionScope,
 ) -> (
     Circuit<F>,
     CircuitGeometry,
@@ -419,9 +418,10 @@ pub fn schedule<F: CompileField + core_algebra::SerializableField>(
 
     let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth);
 
-    let symbols = extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth);
+    let symbols =
+        extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth, tracker);
     assert_eq!(
-        symbols.symbols.len(),
+        symbols.assertion_count(),
         nassertions,
         "debug symbols do not cover all circuit assertions"
     );

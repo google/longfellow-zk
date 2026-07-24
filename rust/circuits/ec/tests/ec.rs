@@ -22,7 +22,6 @@ use compile_algebra::{
     secp256r1::Secp256r1,
     Curve,
 };
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use compile_logic::{concrete::push_eltw, Logic, LogicIO};
 use core_algebra::{Nat, SerializableField};
@@ -40,9 +39,7 @@ fn test_compile_ec_generic<
     curve_r: &CR,
     fr: &FR,
 ) {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, fc);
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let ec_circuit = EcCircuit::new(&iologic, curve_c);
 
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
@@ -64,17 +61,10 @@ fn test_compile_ec_generic<
         let a3 = ec_circuit.point_equality(&p1_double_proj, &p1_double_zinv, &p1_double_target);
         let a4 = ec_circuit.point_equality(&p3_proj, &p3_zinv, &p3_target);
 
-        (
-            iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]),
-            iologic.tracker,
-        )
-    };
+        (iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]), 1, 0)
+    });
 
-    // Compile the circuit
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, tracker, 1, 0);
-
-    compile_compiler::top::dump_stats("ec_add_double", &circuit, &stats);
+    compile_compiler::dump_stats("ec_add_double", &circuit, &stats);
 
     // Fill concrete values into environment using RuntimeField
     let g_2d_run = curve_r.g();

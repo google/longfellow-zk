@@ -17,7 +17,6 @@ use circuits_mac::{
     concrete::{given, ConcreteGiven},
 };
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use core_algebra::SerializableField;
 use runtime_algebra::field::RuntimeField;
@@ -62,19 +61,18 @@ fn test_compile_mac_for_field<
     name: &str,
     field_id: FieldID,
 ) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let mac_circuit = MAC::new(&iologic);
-    let given_wires = circuits_mac::allocate_given(&mac_circuit.bv, &mut pos);
+        let mac_circuit = MAC::new(&iologic);
+        let given_wires = circuits_mac::allocate_given(&mac_circuit.bv, &mut pos);
 
-    let assertion = mac_circuit.assert_mac(&given_wires);
+        let assertion = mac_circuit.assert_mac(&given_wires);
 
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
+        (assertion, 1, 0)
+    });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     let test_msg = [0x5au8; 32];
     let av_val: u128 = 0x112233445566778899aabbccddeeff00;

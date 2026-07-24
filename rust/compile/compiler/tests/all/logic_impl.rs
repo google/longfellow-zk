@@ -16,13 +16,15 @@ use compile_algebra::{
     field::{CompileField, SupportsNatConversions},
     p256::P256Field,
 };
-use compile_compiler::{ir::Expr, CompilerArena, CompilerLogic};
+use compile_compiler::{arena::CompilerArena, ir::Expr, CompilerLogic};
+use compile_logic::scope::AssertionScope;
 use compile_logic::{Logic, LogicIO};
 use core_algebra::Nat;
 
 fn run_test<const W: usize, F: CompileField + SupportsNatConversions<W>>(field: &F) {
     let arena = CompilerArena::new();
-    let l = CompilerLogic::new(&arena, field);
+    let tracker = AssertionScope::new();
+    let l = CompilerLogic::new(&arena, field, &tracker);
     let z = l.zero();
     let o = l.one();
     let add_node = l.add(&z, &o);
@@ -46,7 +48,8 @@ fn test_compiler_logic_terms() {
 fn test_precious_sum_behavior() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
-    let l = CompilerLogic::new(&arena, &f);
+    let tracker = AssertionScope::new();
+    let l = CompilerLogic::new(&arena, &f, &tracker);
 
     let w1 = l.input(1);
     let w2 = l.input(2);
@@ -59,7 +62,7 @@ fn test_precious_sum_behavior() {
         let expr = l.add(&precious_sum, &w3);
         let assert_expr = l.assert0("test_case_1", &expr);
         let items_ref = arena.alloc_slice(&assert_expr.items);
-        let rewritten = compile_compiler::assertion::rewrite(&arena, &f, items_ref, &l.tracker);
+        let rewritten = compile_compiler::assertion::rewrite(&arena, &f, items_ref, l.tracker());
         assert_eq!(rewritten.len(), 1);
         let rewritten_node = rewritten[0].expr;
 
@@ -105,7 +108,7 @@ fn test_precious_sum_behavior() {
         let expr = l.mul(&w3, &precious_sum);
         let assert_expr = l.assert0("test_case_2", &expr);
         let items_ref = arena.alloc_slice(&assert_expr.items);
-        let rewritten = compile_compiler::assertion::rewrite(&arena, &f, items_ref, &l.tracker);
+        let rewritten = compile_compiler::assertion::rewrite(&arena, &f, items_ref, l.tracker());
         assert_eq!(rewritten.len(), 1);
         let rewritten_node = rewritten[0].expr;
 
@@ -146,7 +149,7 @@ fn test_precious_sum_behavior() {
         let precious_val = l.precious(&w1);
         let assert_expr = l.assert0("test_case_3", &precious_val);
         let items_ref = arena.alloc_slice(&assert_expr.items);
-        let rewritten = compile_compiler::assertion::rewrite(&arena, &f, items_ref, &l.tracker);
+        let rewritten = compile_compiler::assertion::rewrite(&arena, &f, items_ref, l.tracker());
         assert_eq!(rewritten.len(), 1);
         let rewritten_node = rewritten[0].expr;
         match &rewritten_node.v {
@@ -160,7 +163,8 @@ fn test_precious_sum_behavior() {
 fn test_compiler_assertion_path_and_simplification() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
-    let l = CompilerLogic::new(&arena, &f);
+    let tracker = AssertionScope::new();
+    let l = CompilerLogic::new(&arena, &f, &tracker);
 
     let w1 = l.input(1);
     let w2 = l.input(2);
@@ -174,7 +178,7 @@ fn test_compiler_assertion_path_and_simplification() {
     assert_eq!(root.items.len(), 2);
 
     let items_ref = arena.alloc_slice(&root.items);
-    let simplified = compile_compiler::assertion::rewrite(&arena, &f, items_ref, &l.tracker);
+    let simplified = compile_compiler::assertion::rewrite(&arena, &f, items_ref, l.tracker());
     assert_eq!(simplified.len(), 2);
 }
 
@@ -182,7 +186,8 @@ fn test_compiler_assertion_path_and_simplification() {
 fn test_assertion_paths_do_not_expand_through_shared_groups() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
-    let l = CompilerLogic::new(&arena, &f);
+    let tracker = AssertionScope::new();
+    let l = CompilerLogic::new(&arena, &f, &tracker);
     let x = l.input(1);
 
     let mut assertion = l.assert0("leaf", &x);
@@ -191,16 +196,26 @@ fn test_assertion_paths_do_not_expand_through_shared_groups() {
         assert_eq!(assertion.items.len(), 1);
     }
 
-    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, assertion, l.tracker, 1, 0);
+    let (_, info, symbols) = compile_compiler::compile(&f, |logic| {
+        let x = logic.input(1);
+        let assert = logic.assert0("leaf", &x);
+        let mut root = logic.assert_all("shared", &[assert]);
+        for _ in 0..32 {
+            root = logic.assert_all("shared", &[root, root]);
+            assert_eq!(root.items.len(), 1);
+        }
+        (root, 1, 0)
+    });
     assert_eq!(info.nassertions, 1);
-    assert_eq!(symbols.symbols.len(), 1);
+    assert_eq!(symbols.assertion_count(), 1);
 }
 
 #[test]
 fn test_duplicate_assertion_paths_keep_first_path() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
-    let l = CompilerLogic::new(&arena, &f);
+    let tracker = AssertionScope::new();
+    let l = CompilerLogic::new(&arena, &f, &tracker);
     let x = l.input(1);
 
     let first = l.assert0("first", &x);
@@ -209,7 +224,13 @@ fn test_duplicate_assertion_paths_keep_first_path() {
 
     assert_eq!(root.items.len(), 2);
 
-    let (_, info, symbols) = compile_compiler::top::compile(&arena, &f, root, l.tracker, 1, 0);
+    let (_, info, symbols) = compile_compiler::compile(&f, |logic| {
+        let x = logic.input(1);
+        let first = logic.assert0("first", &x);
+        let second = logic.assert0("second", &x);
+        let root = logic.assert_all("root", &[first, second]);
+        (root, 1, 0)
+    });
     assert_eq!(info.nassertions, 1);
-    assert_eq!(symbols.symbols.len(), 1);
+    assert_eq!(symbols.assertion_count(), 1);
 }

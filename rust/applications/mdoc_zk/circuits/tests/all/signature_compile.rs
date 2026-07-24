@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::{p256::P256Field, secp256r1::Secp256r1};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use core_algebra::{AlgebraicField, Nat, SupportsNatConversions};
 use mdoc_zk_circuits::{
     config::K_ZSTD_LEVEL,
@@ -28,20 +27,21 @@ use mdoc_zk_circuits::{
 use super::mdoc_signature_corruptors;
 
 fn test_mdoc_zk_circuits_signature_generic(fc: &P256Field, _fr: &runtime_algebra::p256::P256Field) {
-    let arena = CompilerArena::new();
     let curve_c = Secp256r1::new(fc);
-    let iologic = CompilerLogic::new(&arena, fc);
     let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let mdoc_sig = MdocSignature::new(&iologic, &curve_c);
-    let bv = circuits_bitvec::BitvecLogic::new(&iologic);
-    let given_wires = mdoc_zk_circuits::signature::allocate_given(&iologic, &bv, &mut pos);
-    let derived_wires = mdoc_zk_circuits::signature::allocate_derived(&iologic, &mut pos);
+    let (_circuit, stats, _symbols) = compile_compiler::compile(fc, |iologic| {
+        let mdoc_sig = MdocSignature::new(&iologic, &curve_c);
+        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+        let given_wires = mdoc_zk_circuits::signature::allocate_given(&iologic, &bv, &mut pos);
+        let derived_wires = mdoc_zk_circuits::signature::allocate_derived(&iologic, &mut pos);
 
-    let assertion = mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires);
-
-    let (_circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
+        (
+            mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
     assert_eq!(
         stats,
         compile_eval::CircuitGeometry {
@@ -66,7 +66,9 @@ fn test_mdoc_zk_circuits_signature() {
 fn mdoc_zk_circuits_signature_circuit<FC>(
     fc: &FC,
 ) -> (compile_eval::Circuit<FC>, compile_eval::CircuitGeometry)
-where FC: MdocSigCompileField {
+where
+    FC: MdocSigCompileField,
+{
     let (circuit, stats, _) = compile_signature_circuit(fc);
     (circuit, stats)
 }
@@ -78,20 +80,24 @@ fn compile_signature_circuit<FC>(
     compile_eval::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where FC: MdocSigCompileField {
-    let arena = CompilerArena::new();
+where
+    FC: MdocSigCompileField,
+{
     let curve_c = Secp256r1::new(fc);
-
-    let iologic = CompilerLogic::new(&arena, fc);
     let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let mdoc_sig = MdocSignature::new(&iologic, &curve_c);
-    let bv = circuits_bitvec::BitvecLogic::new(&iologic);
-    let given_wires = mdoc_zk_circuits::signature::allocate_given(&iologic, &bv, &mut pos);
-    let derived_wires = mdoc_zk_circuits::signature::allocate_derived(&iologic, &mut pos);
-    let assertion = mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires);
+    compile_compiler::compile(fc, |iologic| {
+        let mdoc_sig = MdocSignature::new(&iologic, &curve_c);
+        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+        let given_wires = mdoc_zk_circuits::signature::allocate_given(&iologic, &bv, &mut pos);
+        let derived_wires = mdoc_zk_circuits::signature::allocate_derived(&iologic, &mut pos);
 
-    compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0)
+        (
+            mdoc_sig.assert_signatures_and_macs(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    })
 }
 
 fn push_nat_bits<F: AlgebraicField, N: Nat<4>>(

@@ -19,10 +19,7 @@ use compile_algebra::{
     secp256r1::Secp256r1,
     Curve,
 };
-use compile_compiler::{
-    top::{compile, dump_stats},
-    CompilerArena, CompilerLogic,
-};
+use compile_compiler::{compile, dump_stats};
 use compile_eval::FieldID;
 use compile_logic::K_FIRST_WIRE_POSITION;
 use core_algebra::{Nat, SerializableField};
@@ -120,9 +117,7 @@ fn test_compile_ecdsa_generic<
     let concrete_given_r = given(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
     let concrete_derived_r = derived(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
 
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, fc);
+    let (circuit, stats, symbols) = compile(fc, |iologic| {
         let mut pos = K_FIRST_WIRE_POSITION;
 
         let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
@@ -131,11 +126,10 @@ fn test_compile_ecdsa_generic<
 
         (
             ecdsa.assert_signature(&circuit_given, &circuit_derived),
-            iologic.tracker,
+            1,
+            0,
         )
-    };
-
-    let (circuit, stats, symbols) = compile(&arena, fc, assertion, tracker, 1, 0);
+    });
 
     dump_stats("ecdsa2", &circuit, &stats);
 
@@ -191,9 +185,7 @@ fn test_compile_ecdsa_signature_tampering_generic<
             curve_r, fr, fn_field, &d, &k, &e,
         );
 
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, fc);
+    let (circuit, _stats, symbols) = compile(fc, |iologic| {
         let mut pos = K_FIRST_WIRE_POSITION;
 
         let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
@@ -202,11 +194,10 @@ fn test_compile_ecdsa_signature_tampering_generic<
 
         (
             ecdsa.assert_signature(&circuit_given, &circuit_derived),
-            iologic.tracker,
+            1,
+            0,
         )
-    };
-
-    let (circuit, _stats, symbols) = compile(&arena, fc, assertion, tracker, 1, 0);
+    });
 
     // Verify valid inputs pass
     {

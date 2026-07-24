@@ -14,15 +14,12 @@
 
 use circuits_boolean::Boolean;
 use compile_algebra::{field::SupportsU64Conversions, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::LogicIO;
 
 #[test]
 fn test_compile_boolean() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &f);
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
 
         let a = iologic.input(1);
@@ -32,13 +29,10 @@ fn test_compile_boolean() {
         let bb = boolean.of_eltw(b);
 
         let x = boolean.xorb(&ab, &bb);
-        (boolean.assert_true("assert_x", &x), iologic.tracker)
-    };
+        (boolean.assert_true("assert_x", &x), 1, 0)
+    });
 
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
-
-    compile_compiler::top::dump_stats("boolean_xor_compile", &circuit, &stats);
+    compile_compiler::dump_stats("boolean_xor_compile", &circuit, &stats);
 }
 
 use circuits_boolean::Bitw;

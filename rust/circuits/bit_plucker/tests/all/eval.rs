@@ -22,7 +22,9 @@ use compile_algebra::{
 use compile_logic::{eval::EvalLogic, Logic};
 
 fn compare_bool<L: Logic>(boolean: &Boolean<L>, want: bool, got: &circuits_boolean::Bitw<L>)
-where compile_logic::Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    compile_logic::Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let got_val = boolean.as_eltw(got);
     let want_val = boolean.as_eltw(&boolean.konst(want));
     assert_eq!(got_val, want_val);

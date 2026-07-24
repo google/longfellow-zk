@@ -33,7 +33,9 @@ impl WireMemoizer {
     }
 
     fn call<'a, F: CompileField, FUNC>(&self, node: ExprNode<'a, F>, f: FUNC) -> Wire
-    where FUNC: FnOnce(&ExprNode<'a, F>) -> Wire {
+    where
+        FUNC: FnOnce(&ExprNode<'a, F>) -> Wire,
+    {
         let id = node.id;
         {
             let cache = self.cache.borrow();
@@ -115,11 +117,12 @@ fn compile_term<F: CompileField>(
 
 use compile_logic::scope::{AssertionId, AssertionScope};
 
-/// Rewrite into a stylized Quad circuit with debug info mapping quad node index to assertion ID.
-pub fn rewrite<'a, F: CompileField>(
-    _arena: &'a crate::CompilerArena<'a, F>,
-    f: &F,
-    x: Assertions<'a, F>,
+/// Rewrite into a stylized Quad circuit with debug info mapping quad node index
+/// to assertion ID.
+pub fn rewrite<'src, 'dst, F: CompileField>(
+    _arena: &'dst crate::arena::CompilerArena<'dst, F>,
+    f: &'dst F,
+    x: Assertions<'src, F>,
     tracker: &AssertionScope,
 ) -> (QuadCircuit<F>, Vec<(usize, AssertionId)>) {
     let one_wexpr = WExpr::Input {

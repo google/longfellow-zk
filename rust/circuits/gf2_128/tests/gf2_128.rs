@@ -16,7 +16,6 @@ use circuits_bitvec::{concrete::push_bitvec_u128, Bitvec, BitvecIO, BitvecLogic}
 use circuits_boolean::Boolean;
 use circuits_gf2_128::Gf2_128Mul;
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use core_algebra::{ElementOf, SerializableField};
 
 fn ref_mul(x: u128, y: u128) -> u128 {
@@ -51,27 +50,25 @@ fn test_compile_gf2_128_mul_for_field<
     field_id: FieldID,
     expected_stats: compile_eval::CircuitGeometry,
 ) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-    let bv = BitvecLogic::new(&iologic);
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
+        let bv = BitvecLogic::new(&iologic);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let bitvec_io = BitvecIO::new(&bv);
-    let a = bitvec_io.next::<128>(&mut pos);
-    let b = bitvec_io.next::<128>(&mut pos);
+        let bitvec_io = BitvecIO::new(&bv);
+        let a = bitvec_io.next::<128>(&mut pos);
+        let b = bitvec_io.next::<128>(&mut pos);
 
-    let mul_circuit = Gf2_128Mul::new(&iologic);
-    let c = mul_circuit.mul(&a, &b);
+        let mul_circuit = Gf2_128Mul::new(&iologic);
+        let c = mul_circuit.mul(&a, &b);
 
-    let target = bitvec_io.next::<128>(&mut pos);
-    let assertion = bv.assert_eq("c_eq_target", &c, &target);
+        let target = bitvec_io.next::<128>(&mut pos);
+        let assertion = bv.assert_eq("c_eq_target", &c, &target);
 
-    // Compile!
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
+        (assertion, 1, 0)
+    });
 
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
     assert_eq!(stats, expected_stats);
 
     // Evaluate in compiled mode!

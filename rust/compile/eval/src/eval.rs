@@ -51,7 +51,7 @@ pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + core_algebra::Seri
     inputs: &[ElementOf<FR>],
 ) -> crate::CompiledEvalAssertions<'a, EvalError> {
     let raw = &circuit.raw;
-    let tracker = &symbols.tracker;
+    let tracker = symbols.tracker();
 
     let vin = match process_inputs(fr, raw.ninput, inputs) {
         Ok(v) => v,

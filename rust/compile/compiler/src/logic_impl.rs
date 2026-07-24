@@ -17,9 +17,9 @@ use compile_logic::{scope::AssertionScope, Logic, LogicIO};
 
 use crate::{
     algsimp::AlgebraicRewriter,
+    arena::CompilerArena,
     cse::Cse,
     ir::{position_in_input_array, AssertionItem, Expr, ExprNode, RewriteT},
-    CompilerArena,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -40,20 +40,20 @@ pub struct CompilerLogic<
     F: CompileField,
     NEXT: RewriteT<'a, F> = AlgebraicRewriter<'a, F, Cse<'a, F>>,
 > {
-    pub arena: &'a CompilerArena<'a, F>,
-    pub f: &'a F,
-    pub tracker: AssertionScope,
-    pub next: NEXT,
+    arena: &'a CompilerArena<'a, F>,
+    f: &'a F,
+    tracker: &'a AssertionScope,
+    next: NEXT,
 }
 
 impl<'a, F: CompileField> CompilerLogic<'a, F> {
-    pub fn new(arena: &'a CompilerArena<'a, F>, f: &'a F) -> Self {
+    pub fn new(arena: &'a CompilerArena<'a, F>, f: &'a F, tracker: &'a AssertionScope) -> Self {
         let cse = Cse::new(arena);
         let next = AlgebraicRewriter::new(f, cse);
         Self {
             arena,
             f,
-            tracker: AssertionScope::new(),
+            tracker,
             next,
         }
     }
@@ -64,7 +64,8 @@ impl<'a, F: CompileField> CompilerLogic<'a, F> {
 }
 
 impl<'a, F: CompileField, NEXT> Logic for CompilerLogic<'a, F, NEXT>
-where NEXT: RewriteT<'a, F>
+where
+    NEXT: RewriteT<'a, F>,
 {
     type F = F;
     type Wire = ExprNode<'a, F>;
@@ -196,7 +197,8 @@ where NEXT: RewriteT<'a, F>
 }
 
 impl<'a, F: CompileField, NEXT> LogicIO for CompilerLogic<'a, F, NEXT>
-where NEXT: RewriteT<'a, F>
+where
+    NEXT: RewriteT<'a, F>,
 {
     fn input(&self, position_in_input_array: usize) -> Self::Wire {
         assert!(
@@ -212,7 +214,8 @@ where NEXT: RewriteT<'a, F>
 }
 
 impl<'a, F: CompileField, NEXT> std::fmt::Debug for CompilerLogic<'a, F, NEXT>
-where NEXT: RewriteT<'a, F>
+where
+    NEXT: RewriteT<'a, F>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CompilerLogic").finish()
