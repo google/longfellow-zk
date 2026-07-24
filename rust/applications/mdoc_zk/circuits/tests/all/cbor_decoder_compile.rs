@@ -47,7 +47,7 @@ fn test_compile_cbor_decoder_for_field<
         let full_assertion =
             iologic.assert_all("cbor_decoder_assert", &[add_assertion, not_invalid]);
 
-        (full_assertion, iologic.tracker, 1, 0)
+        (full_assertion, 1, 0)
     });
 
     compile_compiler::dump_stats(name, &circuit, &stats);

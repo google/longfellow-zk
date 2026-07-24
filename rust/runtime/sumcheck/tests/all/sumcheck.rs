@@ -52,7 +52,7 @@ fn test_sumcheck_prover_verifier_end_to_end() {
         let x = iologic.input(1);
         let y = iologic.input(2);
         let z = iologic.mul(&x, &y);
-        (iologic.assert0("assert_z", &z), iologic.tracker, 1, 0)
+        (iologic.assert0("assert_z", &z), 1, 0)
     });
 
     let f = RuntimeP256::new();
@@ -106,7 +106,7 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
         let x = iologic.input(1);
         let y = iologic.input(2);
         let z = iologic.mul(&x, &y);
-        (iologic.assert0("assert_z", &z), iologic.tracker, 1, 0)
+        (iologic.assert0("assert_z", &z), 1, 0)
     });
 
     let f = RuntimeP256::new();
@@ -168,7 +168,7 @@ fn test_sumcheck_multi_layer() {
             let sum = iologic.add(&x, &y);
             x = iologic.mul(&sum, &x);
         }
-        (iologic.assert0("assert_x", &x), iologic.tracker, 1, 0)
+        (iologic.assert0("assert_x", &x), 1, 0)
     });
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc, FieldID::P256);

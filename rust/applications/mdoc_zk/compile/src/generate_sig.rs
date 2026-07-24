@@ -49,12 +49,7 @@ where
 
         let mdoc_sig = MdocSignature::new(&iologic, &curve);
         let assertion = mdoc_sig.assert_signatures_and_macs(&given, &derived);
-        (
-            assertion,
-            iologic.tracker,
-            pub_inputs_count,
-            subfield_boundary_val,
-        )
+        (assertion, pub_inputs_count, subfield_boundary_val)
     })
 }
 

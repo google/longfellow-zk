@@ -39,6 +39,6 @@ fn compile_with_metadata(npublic_input: usize, subfield_boundary: usize) {
         let x = logic.input(1);
         let square = logic.mul(&x, &x);
         let assertion = logic.assert0("square", &square);
-        (assertion, logic.tracker, npublic_input, subfield_boundary)
+        (assertion, npublic_input, subfield_boundary)
     });
 }

@@ -25,7 +25,7 @@ fn test_compile_mac_gf128_for_field<FC: CompileField + SerializableField>(fc: &F
 
         let assertion = mac_circuit.assert_mac(&given);
 
-        (assertion, iologic.tracker, 1, 0)
+        (assertion, 1, 0)
     });
 
     compile_compiler::dump_stats(name, &circuit, &stats);

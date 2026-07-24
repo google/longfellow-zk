@@ -29,7 +29,7 @@ fn test_precious_alias_in_prime_field() {
         let precious_sum = logic.precious(&sum);
         let expression = logic.add(&sum, &precious_sum);
         let assertion = logic.assert0("alias", &expression);
-        (assertion, logic.tracker, 1, 0)
+        (assertion, 1, 0)
     });
 
     let runtime_f = RuntimeP256Field::new();
@@ -72,7 +72,7 @@ fn test_precious_alias_cancels_in_binary_field() {
         let alias = logic.assert0("alias", &expression);
         let guard = logic.assert0("guard", &square);
         let assertions = logic.assert_all("root", &[alias, guard]);
-        (assertions, logic.tracker, 1, 0)
+        (assertions, 1, 0)
     });
     let runtime_f = Gf2_128RuntimeField::new();
 

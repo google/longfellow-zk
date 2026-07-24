@@ -20,9 +20,9 @@ use compile_algebra::{
 };
 use compile_compiler::{
     algsimp::AlgebraicRewriter,
+    arena::CompilerArena,
     cse::Cse,
     ir::{Expr, RewriteT},
-    arena::CompilerArena,
 };
 use core_algebra::Nat;
 

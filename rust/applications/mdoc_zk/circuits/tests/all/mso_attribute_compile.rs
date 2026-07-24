@@ -39,7 +39,6 @@ where
         let derived_wires = mdoc_zk_circuits::mso_attribute::allocate_derived(&bv, &mut pos);
         (
             verifier.assert_attribute(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )

@@ -69,7 +69,7 @@ fn test_compile_mac_for_field<
 
         let assertion = mac_circuit.assert_mac(&given_wires);
 
-        (assertion, iologic.tracker, 1, 0)
+        (assertion, 1, 0)
     });
 
     compile_compiler::dump_stats(name, &circuit, &stats);

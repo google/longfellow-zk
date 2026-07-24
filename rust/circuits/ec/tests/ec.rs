@@ -61,12 +61,7 @@ fn test_compile_ec_generic<
         let a3 = ec_circuit.point_equality(&p1_double_proj, &p1_double_zinv, &p1_double_target);
         let a4 = ec_circuit.point_equality(&p3_proj, &p3_zinv, &p3_target);
 
-        (
-            iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]), 1, 0)
     });
 
     compile_compiler::dump_stats("ec_add_double", &circuit, &stats);

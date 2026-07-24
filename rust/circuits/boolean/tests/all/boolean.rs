@@ -29,7 +29,7 @@ fn test_compile_boolean() {
         let bb = boolean.of_eltw(b);
 
         let x = boolean.xorb(&ab, &bb);
-        (boolean.assert_true("assert_x", &x), iologic.tracker, 1, 0)
+        (boolean.assert_true("assert_x", &x), 1, 0)
     });
 
     compile_compiler::dump_stats("boolean_xor_compile", &circuit, &stats);

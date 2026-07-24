@@ -418,9 +418,10 @@ pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
 
     let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth);
 
-    let symbols = extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth, tracker);
+    let symbols =
+        extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth, tracker);
     assert_eq!(
-        symbols.symbols.len(),
+        symbols.assertion_count(),
         nassertions,
         "debug symbols do not cover all circuit assertions"
     );

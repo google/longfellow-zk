@@ -22,24 +22,17 @@ fn test_compile_for_field<F: CompileField + FieldWrappingSum + SerializableField
     f: &F,
     name: &str,
 ) {
-    let (circuit, stats, _symbols) =
-        compile_compiler::compile(f, |iologic| {
-            let bv = BitvecLogic::new(&iologic);
-            let bitvec_io = BitvecIO::new(&bv);
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
 
-            let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-            let addends: Vec<Bitvec<_, 32>> =
-                (0..7).map(|_| bitvec_io.next(&mut pos)).collect();
-            let expected: Bitvec<_, 32> = bitvec_io.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let addends: Vec<Bitvec<_, 32>> = (0..7).map(|_| bitvec_io.next(&mut pos)).collect();
+        let expected: Bitvec<_, 32> = bitvec_io.next(&mut pos);
 
-            let adder = AnalogAdder::new(&iologic);
-            (
-                f.assert_wrapping_sum(&adder, &expected, &[&addends]),
-                iologic.tracker,
-                1,
-                0,
-            )
-        });
+        let adder = AnalogAdder::new(&iologic);
+        (f.assert_wrapping_sum(&adder, &expected, &[&addends]), 1, 0)
+    });
 
     compile_compiler::dump_stats(name, &circuit, &stats);
 }

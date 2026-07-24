@@ -90,7 +90,6 @@ fn test_compile_sha256_for_field<
 
         (
             sha256.assert_transform_block(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )
@@ -172,7 +171,6 @@ fn test_compile_sha256_tampering() {
 
         (
             sha256.assert_transform_block(&given_wires, &derived_wires),
-            iologic.tracker,
             1,
             0,
         )

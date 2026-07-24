@@ -48,7 +48,7 @@ fn test_compile_ecmul_generic<
         let derived = circuits_experimental::ecmul::allocate_derived(&iologic, n, &mut pos);
         let assertion = circuit.assert_scalar_mul(&given, &derived);
 
-        (assertion, iologic.tracker, 1, 0)
+        (assertion, 1, 0)
     });
 
     compile_compiler::dump_stats("ecmul", &compiled_circuit, &stats);

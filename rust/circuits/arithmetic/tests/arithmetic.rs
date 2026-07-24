@@ -37,12 +37,7 @@ fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) 
         let (sum, carry) = arith.unchecked_add(&a, &b);
         let a1 = arith.assert_false("sum_zero", &sum);
         let a2 = boolean.assert_false("no_carry", &carry);
-        (
-            iologic.assert_all("test_add", &[a1, a2]),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (iologic.assert_all("test_add", &[a1, a2]), 1, 0)
     });
     compile_compiler::dump_stats(name, &circuit, &stats);
 }
@@ -66,12 +61,7 @@ fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) 
         let (diff, carry) = arith.unchecked_sub(&a, &b);
         let a1 = arith.assert_false("diff_zero", &diff);
         let a2 = boolean.assert_false("no_carry", &carry);
-        (
-            iologic.assert_all("test_sub", &[a1, a2]),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (iologic.assert_all("test_sub", &[a1, a2]), 1, 0)
     });
     compile_compiler::dump_stats(name, &circuit, &stats);
 }
@@ -93,12 +83,7 @@ fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
         }
 
         let res = arith.lt(&a, &b);
-        (
-            boolean.assert_false("lt_false", &res),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (boolean.assert_false("lt_false", &res), 1, 0)
     });
     compile_compiler::dump_stats(name, &circuit, &stats);
 }
@@ -120,12 +105,7 @@ fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) 
         }
 
         let res = arith.leq(&a, &b);
-        (
-            boolean.assert_false("leq_false", &res),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (boolean.assert_false("leq_false", &res), 1, 0)
     });
     compile_compiler::dump_stats(name, &circuit, &stats);
 }
@@ -147,12 +127,7 @@ fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
         }
 
         let res = arith.eqb(&a, &b);
-        (
-            boolean.assert_false("eq_false", &res),
-            iologic.tracker,
-            1,
-            0,
-        )
+        (boolean.assert_false("eq_false", &res), 1, 0)
     });
     compile_compiler::dump_stats(name, &circuit, &stats);
 }

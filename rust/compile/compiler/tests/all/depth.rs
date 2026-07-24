@@ -25,7 +25,7 @@ fn test_direct_input_assertion_has_one_layer() {
     let (circuit, geometry, symbols) = compile_compiler::compile(&f, |logic| {
         let x = logic.input(1);
         let assertion = logic.assert0("input", &x);
-        (assertion, logic.tracker, 1, 0)
+        (assertion, 1, 0)
     });
     assert_eq!(geometry.nlayers, 1);
 

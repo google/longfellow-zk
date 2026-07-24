@@ -17,9 +17,9 @@ use compile_logic::scope::AssertionScope;
 
 use crate::{
     algsimp::AlgebraicRewriter,
+    arena::CompilerArena,
     cse::Cse,
     ir::{AssertionItem, Assertions, ExprNode, RawAssertions, RewriteT},
-    arena::CompilerArena,
 };
 
 fn dedup_assertions<'a, F: CompileField>(

@@ -30,7 +30,7 @@ fn test_compile_polynomial() {
         let x = iologic.next(&mut pos);
 
         let res = p.eval(&cc, &x);
-        (iologic.assert0("poly_res", &res), iologic.tracker, 1, 0)
+        (iologic.assert0("poly_res", &res), 1, 0)
     });
 
     compile_compiler::dump_stats("polynomial_eval_compile", &circuit, &stats);

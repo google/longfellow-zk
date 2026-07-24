@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field;
-use compile_compiler::{segment_circuit};
+use compile_compiler::segment_circuit;
 use compile_logic::{Logic, LogicIO};
 
 #[test]
@@ -29,7 +29,7 @@ fn test_circuit_compression_and_recompression() {
             x = logic.add(&prod, &y);
         }
         let assert_expr = logic.assert0("assert_x", &x);
-        (assert_expr, logic.tracker, 1, 0)
+        (assert_expr, 1, 0)
     });
 
     for layer in &original_circuit.raw.layers {

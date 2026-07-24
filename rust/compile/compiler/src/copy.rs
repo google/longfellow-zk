@@ -16,9 +16,9 @@ use compile_algebra::field::CompileField;
 use util::memoize::Memoizer;
 
 use crate::{
+    arena::CompilerArena,
     cse::Cse,
     ir::{Assertions, Expr, ExprNode, RewriteT},
-    arena::CompilerArena,
 };
 
 /// Introduce copy wires. Note that algsimp will remove
