@@ -42,14 +42,14 @@ enum ScopeNode {
 
 struct ScopeTree {
     scopes: Vec<ScopeNode>,
-    map: HashMap<(String, ScopeId), ScopeId>,
+    children: HashMap<ScopeId, HashMap<String, ScopeId>>,
 }
 
 impl ScopeTree {
     fn new() -> Self {
         Self {
             scopes: vec![ScopeNode::Empty],
-            map: HashMap::new(),
+            children: HashMap::new(),
         }
     }
 
@@ -58,13 +58,17 @@ impl ScopeTree {
     }
 
     fn cons(&mut self, name: &str, parent: ScopeId) -> ScopeId {
-        let key = (name.to_string(), parent);
-        if let Some(&id) = self.map.get(&key) {
-            return id;
+        if let Some(child_map) = self.children.get(&parent) {
+            if let Some(&id) = child_map.get(name) {
+                return id;
+            }
         }
         let id = ScopeId(self.scopes.len() as u32);
         self.scopes.push(ScopeNode::Cons(name.to_string(), parent));
-        self.map.insert(key, id);
+        self.children
+            .entry(parent)
+            .or_default()
+            .insert(name.to_string(), id);
         id
     }
 
@@ -83,11 +87,10 @@ impl ScopeTree {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct AssertionRecord {
     scope: ScopeId,
-    representative: AssertionId,
-    next: AssertionId,
+    parent: AssertionId,
 }
 
 pub struct AssertionScope {
@@ -96,6 +99,7 @@ pub struct AssertionScope {
 
 struct AssertionState {
     records: Vec<AssertionRecord>,
+    members: HashMap<AssertionId, Vec<AssertionId>>,
     tree: ScopeTree,
 }
 
@@ -106,16 +110,14 @@ impl std::fmt::Debug for AssertionScope {
 }
 
 impl AssertionScope {
-    // --- Public API ---
-
     pub fn new() -> Self {
         Self {
             state: RefCell::new(AssertionState {
                 records: vec![AssertionRecord {
                     scope: ScopeTree::empty_scope(),
-                    representative: NIL_ASSERTION_ID,
-                    next: NIL_ASSERTION_ID,
+                    parent: NIL_ASSERTION_ID,
                 }],
+                members: HashMap::new(),
                 tree: ScopeTree::new(),
             }),
         }
@@ -125,11 +127,8 @@ impl AssertionScope {
         let mut state = self.state.borrow_mut();
         let id = AssertionId(state.records.len() as u32);
         let scope = state.tree.cons(name, ScopeTree::empty_scope());
-        state.records.push(AssertionRecord {
-            scope,
-            representative: id,
-            next: NIL_ASSERTION_ID,
-        });
+        state.records.push(AssertionRecord { scope, parent: id });
+        state.members.insert(id, vec![id]);
         id
     }
 
@@ -153,15 +152,15 @@ impl AssertionScope {
             return;
         }
         let mut state = self.state.borrow_mut();
-        let rep = find_record(&state.records, id);
+        let rep = find_rep(&mut state.records, id);
         if rep.is_nil() {
             return;
         }
-        let mut curr = rep;
-        while !curr.is_nil() {
-            let parent = state.records[curr.0 as usize].scope;
-            state.records[curr.0 as usize].scope = state.tree.cons(name, parent);
-            curr = state.records[curr.0 as usize].next;
+        if let Some(members) = state.members.get(&rep).cloned() {
+            for member_id in members {
+                let parent = state.records[member_id.0 as usize].scope;
+                state.records[member_id.0 as usize].scope = state.tree.cons(name, parent);
+            }
         }
     }
 
@@ -169,7 +168,7 @@ impl AssertionScope {
         if id.is_nil() {
             return NIL_ASSERTION_ID;
         }
-        find_record(&self.state.borrow().records, id)
+        find_rep(&mut self.state.borrow_mut().records, id)
     }
 
     pub fn union(&self, id1: AssertionId, id2: AssertionId) {
@@ -177,27 +176,19 @@ impl AssertionScope {
             return;
         }
         let mut state = self.state.borrow_mut();
-        let rep1 = find_record(&state.records, id1);
-        let rep2 = find_record(&state.records, id2);
+        let rep1 = find_rep(&mut state.records, id1);
+        let rep2 = find_rep(&mut state.records, id2);
 
         if rep1.is_nil() || rep2.is_nil() || rep1 == rep2 {
             return;
         }
 
-        // 1. Find tail of list 1
-        let mut tail1 = rep1;
-        while !state.records[tail1.0 as usize].next.is_nil() {
-            tail1 = state.records[tail1.0 as usize].next;
-        }
+        // DSU Union: point rep2's parent to rep1
+        state.records[rep2.0 as usize].parent = rep1;
 
-        // 2. Link tail of list 1 to rep2
-        state.records[tail1.0 as usize].next = rep2;
-
-        // 3. Update all representatives in list 2 to rep1
-        let mut curr = rep2;
-        while !curr.is_nil() {
-            state.records[curr.0 as usize].representative = rep1;
-            curr = state.records[curr.0 as usize].next;
+        // Transfer members of rep2 to rep1
+        if let Some(mut m2) = state.members.remove(&rep2) {
+            state.members.entry(rep1).or_default().append(&mut m2);
         }
     }
 
@@ -285,25 +276,20 @@ impl AssertionScope {
         );
     }
 
-    // --- Private Helpers ---
-
     fn query_fates(
         &self,
         path_prefix: &str,
         fates: &HashMap<AssertionId, AssertionStatus>,
     ) -> Vec<(String, AssertionStatus)> {
         let mut results = Vec::new();
-        let state = self.state.borrow();
+        let mut state = self.state.borrow_mut();
         let mut sorted_fates: Vec<_> = fates.iter().collect();
         sorted_fates.sort_by_key(|(id, _)| id.0);
 
-        // A unioned assertion group has one logical outcome.  Aggregate all
-        // aliases before rendering paths so a later failure cannot be hidden
-        // by an earlier passing alias.
         let mut group_fates = HashMap::new();
         let mut reps = Vec::new();
         for (id, fate) in sorted_fates {
-            let rep = find_record(&state.records, *id);
+            let rep = find_rep(&mut state.records, *id);
             if rep.is_nil() {
                 continue;
             }
@@ -317,14 +303,14 @@ impl AssertionScope {
 
         for rep in reps {
             let fate = &group_fates[&rep];
-            let mut curr = rep;
-            while !curr.is_nil() {
-                let rec = &state.records[curr.0 as usize];
-                let full_path = state.tree.resolve_path(rec.scope).join("/");
-                if path_matches(&full_path, path_prefix) {
-                    results.push((full_path, fate.clone()));
+            if let Some(members) = state.members.get(&rep).cloned() {
+                for member_id in members {
+                    let rec = &state.records[member_id.0 as usize];
+                    let full_path = state.tree.resolve_path(rec.scope).join("/");
+                    if path_matches(&full_path, path_prefix) {
+                        results.push((full_path, fate.clone()));
+                    }
                 }
-                curr = rec.next;
             }
         }
         results
@@ -337,12 +323,21 @@ impl Default for AssertionScope {
     }
 }
 
-fn find_record(records: &[AssertionRecord], id: AssertionId) -> AssertionId {
+fn find_rep(records: &mut [AssertionRecord], id: AssertionId) -> AssertionId {
     if id.is_nil() || (id.0 as usize) >= records.len() {
-        NIL_ASSERTION_ID
-    } else {
-        records[id.0 as usize].representative
+        return NIL_ASSERTION_ID;
     }
+    let mut root = id;
+    while records[root.0 as usize].parent != root && !records[root.0 as usize].parent.is_nil() {
+        root = records[root.0 as usize].parent;
+    }
+    let mut curr = id;
+    while curr != root && !curr.is_nil() {
+        let nxt = records[curr.0 as usize].parent;
+        records[curr.0 as usize].parent = root;
+        curr = nxt;
+    }
+    root
 }
 
 fn path_matches(path: &str, prefix: &str) -> bool {
