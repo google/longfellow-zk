@@ -100,6 +100,7 @@ pub fn read_subfield_elt<SF: Subfield>(bytes: &mut &[u8], sf: &SF) -> Result<SF:
 
 /// Helper to write size (4 bytes).
 pub fn write_size_4bytes(bytes: &mut Vec<u8>, val: usize) {
+    assert!(val <= u32::MAX as usize, "size does not fit in u32");
     bytes.extend_from_slice(&(val as u32).to_le_bytes());
 }
 
