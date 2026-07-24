@@ -20,7 +20,7 @@ use compile_compiler::{
     algsimp::AlgebraicRewriter,
     cse::Cse,
     ir::{AssertionItem, Expr, RewriteT},
-    CompilerArena,
+    arena::CompilerArena,
 };
 use core_algebra::{AlgebraicField, Nat};
 

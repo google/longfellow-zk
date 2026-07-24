@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod algsimp;
-pub mod arena;
+mod arena;
 pub mod assertion;
 pub mod copy;
 pub mod cse;
@@ -26,7 +26,6 @@ pub mod scheduler;
 pub mod segment;
 pub mod top;
 
-pub use arena::CompilerArena;
 pub use compile_proto::debug;
 pub use debug::{
     AssertionSymbol, CircuitDebugSymbols, CompiledAssertionStatus, CompiledEvalAssertions,
@@ -35,3 +34,10 @@ pub use debug::{
 pub use ir::AssertionItem;
 pub use logic_impl::{CompilerAssertions, CompilerLogic};
 pub use segment::{segment_circuit, segment_layer};
+
+#[cfg(test)]
+extern crate self as compile_compiler;
+
+#[cfg(test)]
+#[path = "../tests/all/mod.rs"]
+mod compiler_tests;

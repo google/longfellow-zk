@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use compile_algebra::{gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
+use compile_compiler::{arena::CompilerArena, CompilerLogic};
 use compile_eval::eval_circuit_fc;
 use compile_logic::{Logic, LogicIO};
 use core_algebra::AlgebraicField;

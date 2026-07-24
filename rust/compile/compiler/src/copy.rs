@@ -18,7 +18,7 @@ use util::memoize::Memoizer;
 use crate::{
     cse::Cse,
     ir::{Assertions, Expr, ExprNode, RewriteT},
-    CompilerArena,
+    arena::CompilerArena,
 };
 
 /// Introduce copy wires. Note that algsimp will remove

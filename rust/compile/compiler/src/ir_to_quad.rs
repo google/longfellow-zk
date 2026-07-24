@@ -120,7 +120,7 @@ use compile_logic::scope::{AssertionId, AssertionScope};
 /// Rewrite into a stylized Quad circuit with debug info mapping quad node index
 /// to assertion ID.
 pub fn rewrite<'src, 'dst, F: CompileField>(
-    _arena: &'dst crate::CompilerArena<'dst, F>,
+    _arena: &'dst crate::arena::CompilerArena<'dst, F>,
     f: &'dst F,
     x: Assertions<'src, F>,
     tracker: &AssertionScope,

@@ -22,7 +22,7 @@ use compile_compiler::{
     algsimp::AlgebraicRewriter,
     cse::Cse,
     ir::{Expr, RewriteT},
-    CompilerArena,
+    arena::CompilerArena,
 };
 use core_algebra::Nat;
 

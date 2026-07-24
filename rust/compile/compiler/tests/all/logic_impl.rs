@@ -16,7 +16,7 @@ use compile_algebra::{
     field::{CompileField, SupportsNatConversions},
     p256::P256Field,
 };
-use compile_compiler::{ir::Expr, CompilerArena, CompilerLogic};
+use compile_compiler::{arena::CompilerArena, ir::Expr, CompilerLogic};
 use compile_logic::{Logic, LogicIO};
 use core_algebra::Nat;
 

@@ -18,7 +18,7 @@ use compile_compiler::{
     ir::{AssertionItem, Assertions, RewriteT},
     ir_to_quad::rewrite,
     quad::WExpr,
-    CompilerArena,
+    arena::CompilerArena,
 };
 
 #[test]
