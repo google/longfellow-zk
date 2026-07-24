@@ -35,7 +35,8 @@ impl<F: SerializableField> Clone for Term<F> {
 }
 
 impl<F: SerializableField> PartialEq for Term<F>
-where F::E: PartialEq
+where
+    F::E: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.g == other.g && self.h0 == other.h0 && self.h1 == other.h1 && self.k == other.k

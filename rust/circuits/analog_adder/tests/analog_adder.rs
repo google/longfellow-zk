@@ -15,7 +15,6 @@
 use circuits_analog_adder::{AnalogAdder, FieldWrappingSum};
 use circuits_bitvec::{Bitvec, BitvecIO, BitvecLogic};
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{eval::EvalLogic, Logic};
 use core_algebra::SerializableField;
 
@@ -23,24 +22,24 @@ fn test_compile_for_field<F: CompileField + FieldWrappingSum + SerializableField
     f: &F,
     name: &str,
 ) {
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, f);
-        let bv = BitvecLogic::new(&iologic);
-        let bitvec_io = BitvecIO::new(&bv);
-
-        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-        let addends: Vec<Bitvec<_, 32>> = (0..7).map(|_| bitvec_io.next(&mut pos)).collect();
-        let expected: Bitvec<_, 32> = bitvec_io.next(&mut pos);
-
-        let adder = AnalogAdder::new(&iologic);
-        (
-            f.assert_wrapping_sum(&adder, &expected, &[&addends]),
-            iologic.tracker,
-        )
-    };
     let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, f, assertion, tracker, 1, 0);
+        compile_compiler::top::compile_new(f, |iologic| {
+            let bv = BitvecLogic::new(&iologic);
+            let bitvec_io = BitvecIO::new(&bv);
+
+            let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+            let addends: Vec<Bitvec<_, 32>> =
+                (0..7).map(|_| bitvec_io.next(&mut pos)).collect();
+            let expected: Bitvec<_, 32> = bitvec_io.next(&mut pos);
+
+            let adder = AnalogAdder::new(&iologic);
+            (
+                f.assert_wrapping_sum(&adder, &expected, &[&addends]),
+                iologic.tracker,
+                1,
+                0,
+            )
+        });
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 }

@@ -15,7 +15,7 @@
 use circuits_analog_adder::FieldWrappingSum;
 use circuits_sha256msg::{concrete::given, Sha256Msg};
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
+use compile_compiler::CompilerLogic;
 use compile_eval::FieldID;
 use core_algebra::SerializableField;
 use runtime_algebra::field::RuntimeField;
@@ -40,10 +40,7 @@ fn test_compile_sha256msg_for_field<
     hasher.update(message);
     let _reference_hash = hasher.finalize();
 
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, fc);
-
+    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let sha256msg = Sha256Msg::<_, MAX_BLOCKS>::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
@@ -56,15 +53,13 @@ fn test_compile_sha256msg_for_field<
         (
             sha256msg.assert_message_hash::<MAX_BLOCKS>(&given_wires, &derived_wires),
             iologic.tracker,
+            1,
+            0,
         )
-    };
+    });
 
     let given = given(message, &circuits_sha256::constants::INITIAL, MAX_BLOCKS).unwrap();
     let derived = circuits_sha256msg::concrete::derived(&given, MAX_BLOCKS);
-
-    // Compile!
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, tracker, 1, 0);
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 
@@ -129,10 +124,7 @@ fn test_compile_sha256msg_tampering() {
     .unwrap();
     let derived_orig = circuits_sha256msg::concrete::derived(&given_orig, const_max_blocks);
 
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &fc);
-
+    let (circuit, _stats, symbols) = compile_compiler::top::compile_new(&fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
         let sha256msg = Sha256Msg::<_, 2>::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
@@ -144,10 +136,10 @@ fn test_compile_sha256msg_tampering() {
         (
             sha256msg.assert_message_hash::<2>(&given_wires, &derived_wires),
             iologic.tracker,
+            1,
+            0,
         )
-    };
-    let (circuit, _stats, symbols) =
-        compile_compiler::top::compile(&arena, &fc, assertion, tracker, 1, 0);
+    });
 
     let corruptors = test_support::all_sha256msg_corruptors();
 

@@ -15,7 +15,6 @@
 use circuits_bitvec::BitvecLogic;
 use circuits_boolean::Boolean;
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use compile_logic::Logic;
 use core_algebra::SerializableField;
@@ -33,23 +32,23 @@ fn test_compile_cbor_decoder_for_field<
     name: &str,
     field_id: FieldID,
 ) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+    let (circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let bv = BitvecLogic::new(&iologic);
-    let boolean = Boolean::new(&iologic);
-    let decoder = CborByteDecoder::new(&iologic);
-    let given_wires = allocate_given(&bv, &mut pos);
+        let bv = BitvecLogic::new(&iologic);
+        let boolean = Boolean::new(&iologic);
+        let decoder = CborByteDecoder::new(&iologic);
+        let given_wires = allocate_given(&bv, &mut pos);
 
-    let (decoded, add_assertion) = decoder.decode_one_v8::<8>(&given_wires.v);
+        let (decoded, add_assertion) = decoder.decode_one_v8::<8>(&given_wires.v);
 
-    // Combine add_assertion with an assertion on invalid
-    let not_invalid = boolean.assert_false("valid_cbor_byte", &decoded.invalid);
-    let full_assertion = iologic.assert_all("cbor_decoder_assert", &[add_assertion, not_invalid]);
+        // Combine add_assertion with an assertion on invalid
+        let not_invalid = boolean.assert_false("valid_cbor_byte", &decoded.invalid);
+        let full_assertion =
+            iologic.assert_all("cbor_decoder_assert", &[add_assertion, not_invalid]);
 
-    let (circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, full_assertion, iologic.tracker, 1, 0);
+        (full_assertion, iologic.tracker, 1, 0)
+    });
 
     compile_compiler::top::dump_stats(name, &circuit, &stats);
 

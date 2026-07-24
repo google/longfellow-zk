@@ -21,7 +21,6 @@ use compile_algebra::{
     p256::P256Field,
     secp256r1::Secp256r1,
 };
-use compile_compiler::CompilerArena;
 use compile_eval::FieldID;
 use core_algebra::{Nat, SerializableField};
 use runtime_algebra::field::RuntimeField;
@@ -40,22 +39,17 @@ fn test_compile_ecmul_generic<
     fc: &FC,
     fr: &FR,
 ) {
-    use compile_compiler::CompilerLogic;
-
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-
     let n = 256;
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+    let (compiled_circuit, stats, symbols) = compile_compiler::top::compile_new(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let circuit = EcmulCircuit::new(&iologic, curve_c, n);
-    let given = circuits_experimental::ecmul::allocate_given(&iologic, n, &mut pos);
-    let derived = circuits_experimental::ecmul::allocate_derived(&iologic, n, &mut pos);
+        let circuit = EcmulCircuit::new(&iologic, curve_c, n);
+        let given = circuits_experimental::ecmul::allocate_given(&iologic, n, &mut pos);
+        let derived = circuits_experimental::ecmul::allocate_derived(&iologic, n, &mut pos);
+        let assertion = circuit.assert_scalar_mul(&given, &derived);
 
-    let assertion = circuit.assert_scalar_mul(&given, &derived);
-
-    let (compiled_circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, iologic.tracker, 1, 0);
+        (assertion, iologic.tracker, 1, 0)
+    });
 
     compile_compiler::top::dump_stats("ecmul", &compiled_circuit, &stats);
 

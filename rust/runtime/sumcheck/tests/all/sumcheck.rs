@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field as CompileP256;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{Logic, LogicIO};
 use core_proto::{
     circuit::Circuit, reader::CircuitReader, writer::CircuitWriter, FieldID, SerializableField,
@@ -46,20 +45,15 @@ fn zero_proof<const W: usize, F: SerializableField + RuntimeField<W>>(
     SumcheckProof { layers }
 }
 
-fn compile_circuit(
-    build_fn: impl for<'a> FnOnce(
-        &'a CompilerArena<'a, CompileP256>,
-        &'a CompileP256,
-    ) -> (
-        compile_compiler::CompilerAssertions<'a, CompileP256>,
-        compile_logic::scope::AssertionScope,
-    ),
-) -> (Circuit<RuntimeP256>, RuntimeP256) {
+#[test]
+fn test_sumcheck_prover_verifier_end_to_end() {
     let fc = CompileP256::new();
-    let arena = CompilerArena::new();
-    let (assert_expr, tracker) = build_fn(&arena, &fc);
-
-    let (circ_comp, _, _) = compile_compiler::top::compile(&arena, &fc, assert_expr, tracker, 1, 0);
+    let (circ_comp, _, _) = compile_compiler::top::compile_new(&fc, |iologic| {
+        let x = iologic.input(1);
+        let y = iologic.input(2);
+        let z = iologic.mul(&x, &y);
+        (iologic.assert0("assert_z", &z), iologic.tracker, 1, 0)
+    });
 
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc, FieldID::P256);
@@ -68,19 +62,6 @@ fn compile_circuit(
     let (circ, _) = reader
         .from_bytes_lfc2(&bytes, true)
         .expect("Circuit conversion to runtime field failed");
-
-    (circ, f)
-}
-
-#[test]
-fn test_sumcheck_prover_verifier_end_to_end() {
-    let (circ, f) = compile_circuit(|arena, fc| {
-        let logic = CompilerLogic::new(arena, fc);
-        let x = logic.input(1);
-        let y = logic.input(2);
-        let z = logic.mul(&x, &y);
-        (logic.assert0("assert_z", &z), logic.tracker)
-    });
 
     // Witness where x = 1, y = 0 => z = 1 * 0 = 0 (satisfies assert0)
     let mut w0 = vec![f.zero(); circ.raw.ninput];
@@ -120,13 +101,21 @@ fn test_sumcheck_prover_verifier_end_to_end() {
 
 #[test]
 fn test_sumcheck_prover_verifier_with_nonzero_pad() {
-    let (circ, f) = compile_circuit(|arena, fc| {
-        let logic = CompilerLogic::new(arena, fc);
-        let x = logic.input(1);
-        let y = logic.input(2);
-        let z = logic.mul(&x, &y);
-        (logic.assert0("assert_z", &z), logic.tracker)
+    let fc = CompileP256::new();
+    let (circ_comp, _, _) = compile_compiler::top::compile_new(&fc, |iologic| {
+        let x = iologic.input(1);
+        let y = iologic.input(2);
+        let z = iologic.mul(&x, &y);
+        (iologic.assert0("assert_z", &z), iologic.tracker, 1, 0)
     });
+
+    let f = RuntimeP256::new();
+    let writer = CircuitWriter::new(&fc, FieldID::P256);
+    let bytes = writer.to_bytes_lfc2(&circ_comp);
+    let reader = CircuitReader::new(&f, FieldID::P256);
+    let (circ, _) = reader
+        .from_bytes_lfc2(&bytes, true)
+        .expect("Circuit conversion to runtime field failed");
 
     let mut w_pad = vec![f.zero(); circ.raw.ninput];
     w_pad[0] = f.one();
@@ -171,16 +160,23 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
 
 #[test]
 fn test_sumcheck_multi_layer() {
-    let (circ, f) = compile_circuit(|arena, fc| {
-        let logic = CompilerLogic::new(arena, fc);
-        let mut x = logic.input(1);
-        let y = logic.input(2);
+    let fc = CompileP256::new();
+    let (circ_comp, _, _) = compile_compiler::top::compile_new(&fc, |iologic| {
+        let mut x = iologic.input(1);
+        let y = iologic.input(2);
         for _ in 0..6 {
-            let sum = logic.add(&x, &y);
-            x = logic.mul(&sum, &x);
+            let sum = iologic.add(&x, &y);
+            x = iologic.mul(&sum, &x);
         }
-        (logic.assert0("assert_x", &x), logic.tracker)
+        (iologic.assert0("assert_x", &x), iologic.tracker, 1, 0)
     });
+    let f = RuntimeP256::new();
+    let writer = CircuitWriter::new(&fc, FieldID::P256);
+    let bytes = writer.to_bytes_lfc2(&circ_comp);
+    let reader = CircuitReader::new(&f, FieldID::P256);
+    let (circ, _) = reader
+        .from_bytes_lfc2(&bytes, true)
+        .expect("Circuit conversion to runtime field failed");
     assert!(
         circ.raw.layers.len() > 1,
         "Circuit must have multiple layers"

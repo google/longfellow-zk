@@ -18,15 +18,12 @@ use compile_algebra::{
     field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
     p256::P256Field,
 };
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{eval::EvalLogic, Logic, LogicIO};
 
 #[test]
 fn test_compile_analog_decoder() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
         let ad = AnalogDecoder::new(&iologic);
 
         let n = 5;
@@ -35,20 +32,15 @@ fn test_compile_analog_decoder() {
 
         let decoder = ad.unary(n);
         let (exactly_one, _decoded) = decoder.decode(&x);
-        (exactly_one, iologic.tracker)
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
+        (exactly_one, iologic.tracker, 1, 0)
+    });
     compile_compiler::top::dump_stats("analog_decoder_compile", &circuit, &stats);
 }
 
 #[test]
 fn test_compile_analog_decoder_binary() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let (assertion, tracker) = {
-        let iologic = CompilerLogic::new(&arena, &f);
+    let (circuit, stats, _symbols) = compile_compiler::top::compile_new(&f, |iologic| {
         let ad = AnalogDecoder::new(&iologic);
         let boolean = Boolean::new(&iologic);
 
@@ -62,11 +54,10 @@ fn test_compile_analog_decoder_binary() {
         (
             boolean.assert_true("assert_decoded0", &decoded[0]),
             iologic.tracker,
+            1,
+            0,
         )
-    };
-
-    let (circuit, stats, _symbols) =
-        compile_compiler::top::compile(&arena, &f, assertion, tracker, 1, 0);
+    });
 
     compile_compiler::top::dump_stats("analog_decoder_binary_compile", &circuit, &stats);
 }

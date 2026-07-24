@@ -260,7 +260,10 @@ fn test_eval_union_reports_failure_from_any_alias() {
     let mut fates = passed.items.clone();
     fates.extend(failed.items);
 
-    assert!(tracker.failed_paths(&fates).iter().all(|p| p == "passed" || p == "failed"));
+    assert!(tracker
+        .failed_paths(&fates)
+        .iter()
+        .all(|p| p == "passed" || p == "failed"));
     assert!(!tracker.is_ok(&fates));
 }
 

@@ -105,7 +105,9 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
     }
 
     pub fn from_fn<const N: usize, F>(&self, f: F) -> Bitvec<L, N>
-    where F: Fn(usize) -> Bitw<L> {
+    where
+        F: Fn(usize) -> Bitw<L>,
+    {
         Bitvec { bits: init(N, f) }
     }
 
@@ -133,18 +135,15 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
     }
 
     pub fn map<const N: usize, F>(&self, bv: &Bitvec<L, N>, f: F) -> Bitvec<L, N>
-    where F: Fn(&Bitw<L>) -> Bitw<L> {
+    where
+        F: Fn(&Bitw<L>) -> Bitw<L>,
+    {
         Bitvec {
             bits: map(&bv.bits, f),
         }
     }
 
-    pub fn map2<const N: usize, F>(
-        &self,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-        f: F,
-    ) -> Bitvec<L, N>
+    pub fn map2<const N: usize, F>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>, f: F) -> Bitvec<L, N>
     where
         F: Fn(&Bitw<L>, &Bitw<L>) -> Bitw<L>,
     {
@@ -612,7 +611,8 @@ impl<'a, L: compile_logic::LogicIO> BitvecIO<'a, L> {
 }
 
 impl<L: Logic, const N: usize> std::fmt::Debug for Bitvec<L, N>
-where Bitw<L>: std::fmt::Debug
+where
+    Bitw<L>: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Bitvec").field("bits", &self.bits).finish()

@@ -18,7 +18,8 @@ use core_algebra::{AlgebraicField, Nat, SupportsNatConversions};
 use mdoc_zk_circuits::signature::concrete::ConcreteGiven;
 
 pub struct MdocSignatureCorruptor<F>
-where F: AlgebraicField + SupportsNatConversions<4>
+where
+    F: AlgebraicField + SupportsNatConversions<4>,
 {
     pub name: String,
     pub expected_path: String,
