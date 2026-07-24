@@ -239,7 +239,7 @@ pub fn all_ecdsa_corruptors<
         },
         EcdsaCorruptor {
             name: "round255_0",
-            expected_path: "ecdsa/slice_wx",
+            expected_path: "slice_wx",
             corrupt: Box::new({
                 let fr = fr.clone();
                 move |_g, d| {
@@ -249,7 +249,7 @@ pub fn all_ecdsa_corruptors<
         },
         EcdsaCorruptor {
             name: "round255_2",
-            expected_path: "ecdsa/slice_wz",
+            expected_path: "slice_wz",
             corrupt: Box::new({
                 let fr = fr.clone();
                 move |_g, d| {
