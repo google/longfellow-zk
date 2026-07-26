@@ -66,9 +66,7 @@ fn test_mdoc_zk_circuits_signature() {
 fn mdoc_zk_circuits_signature_circuit<FC>(
     fc: &FC,
 ) -> (compile_eval::Circuit<FC>, compile_eval::CircuitGeometry)
-where
-    FC: MdocSigCompileField,
-{
+where FC: MdocSigCompileField {
     let (circuit, stats, _) = compile_signature_circuit(fc);
     (circuit, stats)
 }
@@ -80,9 +78,7 @@ fn compile_signature_circuit<FC>(
     compile_eval::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where
-    FC: MdocSigCompileField,
-{
+where FC: MdocSigCompileField {
     let curve_c = Secp256r1::new(fc);
     let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
@@ -108,8 +104,8 @@ fn push_nat_bits<F: AlgebraicField, N: Nat<4>>(
 ) {
     let bytes = value.to_bytes_le();
     for bit in 0..nbits {
-        let value = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
-        inputs.push(if value == 1 { f.one() } else { f.zero() });
+        let bit_val = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
+        inputs.push(if bit_val == 1 { f.one() } else { f.zero() });
     }
 }
 

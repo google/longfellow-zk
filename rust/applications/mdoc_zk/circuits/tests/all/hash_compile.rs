@@ -29,9 +29,7 @@ use super::mdoc_hash_corruptors;
 pub fn mdoc_zk_circuits_hash_circuit<FC>(
     fc: &FC,
 ) -> (compile_eval::Circuit<FC>, compile_eval::CircuitGeometry)
-where
-    FC: MdocHashCompileField,
-{
+where FC: MdocHashCompileField {
     let (circuit, stats, _) = compile_hash_circuit(fc);
     (circuit, stats)
 }
@@ -43,9 +41,7 @@ fn compile_hash_circuit<FC>(
     compile_eval::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where
-    FC: MdocHashCompileField,
-{
+where FC: MdocHashCompileField {
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
@@ -109,8 +105,8 @@ fn push_nat<const W: usize, FR: RuntimeField<W>, N: Nat<4>>(
 ) {
     let bytes = value.to_bytes_le();
     for bit in 0..nbits {
-        let value = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
-        inputs.push(if value == 1 { fr.one() } else { fr.zero() });
+        let bit_val = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
+        inputs.push(if bit_val == 1 { fr.one() } else { fr.zero() });
     }
 }
 

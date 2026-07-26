@@ -31,9 +31,7 @@ pub fn mdoc_zk_circuits_signature<FC>(
     core_proto::circuit::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where
-    FC: MdocSigCompileField,
-{
+where FC: MdocSigCompileField {
     compile_compiler::compile(fc, |iologic| {
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);

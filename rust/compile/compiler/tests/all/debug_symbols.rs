@@ -126,7 +126,7 @@ fn test_attached_assertion_keeps_its_path() {
     assert!(symbols
         .assertion_symbols()
         .iter()
-        .any(|symbol| symbols.get_path(symbol.id).as_deref() == Some("root/slice")));
+        .any(|symbol| symbols.get_path(symbol.id).as_deref() == Some("slice")));
 
     let runtime_f = RuntimeP256Field::new();
     let failed = eval_circuit_fc(
@@ -138,5 +138,5 @@ fn test_attached_assertion_keeps_its_path() {
         FieldID::P256,
     )
     .unwrap();
-    assert_eq!(failed.failed_paths(), vec!["root/slice"]);
+    assert_eq!(failed.failed_paths(), vec!["slice"]);
 }

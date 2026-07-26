@@ -44,7 +44,7 @@ fn run_test_eval_logic<F: CompileField + SupportsU64Conversions>(field: &F) {
     assert_eq!(neg_one, field.one());
 
     let assert_z = l.assert0("assert_z", &z);
-    assert!(tracker.is_ok(&assert_z.items));
+    assert!(tracker.is_ok(&assert_z.all_items()));
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn run_test_eval_assert0_panic<F: CompileField>(field: &F) {
     let l = L::new(field, &tracker);
     let o = l.one();
     let assert_o = l.assert0("assert_o", &o);
-    assert!(tracker.is_err(&assert_o.items));
+    assert!(tracker.is_err(&assert_o.all_items()));
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn run_test_eval_with_assertions_propagation<F: CompileField>(field: &F) {
     let assert_propagated = |wire: EvalWire<F>| {
         assert!(tracker.is_err(&wire.assertions));
         let result = l.assert0("consumer", &wire);
-        tracker.assert_any_failed_at("assert_one", &result.items);
+        tracker.assert_any_failed_at("assert_one", &result.all_items());
     };
 
     assert_propagated(l.precious(&val_err));
@@ -117,8 +117,8 @@ fn run_test_eval_with_assertions_propagation<F: CompileField>(field: &F) {
 
     let newly_attached = l.with_assertions(l.assert0("check_one", &one), &zero);
     let result = l.assert0("consumer", &newly_attached);
-    assert_eq!(tracker.failed_paths(&result.items), vec!["check_one"]);
-    assert_eq!(tracker.passed_paths(&result.items), vec!["consumer"]);
+    assert_eq!(tracker.failed_paths(&result.all_items()), vec!["check_one"]);
+    assert_eq!(tracker.passed_paths(&result.all_items()), vec!["consumer"]);
 }
 
 #[test]
@@ -144,7 +144,7 @@ fn test_eval_assertion_dag_paths() {
     let inner = l.assert_all("inner_block", &[leaf1, leaf2]);
     let outer = l.assert_all("outer_block", &[inner, leaf3]);
 
-    let path_strings = tracker.all_paths(&outer.items);
+    let path_strings = tracker.all_paths(&outer.all_items());
     assert_eq!(
         path_strings,
         vec![
@@ -164,7 +164,7 @@ fn test_eval_assert_mapi() {
     let z = l.zero();
 
     let mapi_assertion = l.assert_mapi("loop_check", 0..3, |_i| l.assert0("check", &z));
-    let mapi_paths = tracker.all_paths(&mapi_assertion.items);
+    let mapi_paths = tracker.all_paths(&mapi_assertion.all_items());
     assert_eq!(
         mapi_paths,
         vec![
@@ -189,12 +189,18 @@ fn test_eval_assertion_status_tracking() {
 
     let combined = l.assert_all("top", &[pass_a, fail_a]);
 
-    assert!(tracker.is_err(&combined.items));
-    assert_eq!(tracker.passed_paths(&combined.items), vec!["top/good_zero"]);
-    assert_eq!(tracker.failed_paths(&combined.items), vec!["top/bad_zero"]);
+    assert!(tracker.is_err(&combined.all_items()));
+    assert_eq!(
+        tracker.passed_paths(&combined.all_items()),
+        vec!["top/good_zero"]
+    );
+    assert_eq!(
+        tracker.failed_paths(&combined.all_items()),
+        vec!["top/bad_zero"]
+    );
 
-    tracker.assert_any_failed_at("top/bad_zero", &combined.items);
-    tracker.assert_all_passed_at("top/good_zero", &combined.items);
+    tracker.assert_any_failed_at("top/bad_zero", &combined.all_items());
+    tracker.assert_all_passed_at("top/good_zero", &combined.all_items());
 }
 
 #[test]
@@ -210,11 +216,14 @@ fn test_eval_attached_assertion_keeps_exact_scoped_path() {
     let root = l.assert_all("root", &[consumer]);
 
     assert_eq!(
-        tracker.all_paths(&root.items),
-        vec!["root/slice", "root/consumer"]
+        tracker.all_paths(&root.all_items()),
+        vec!["slice", "root/consumer"]
     );
-    assert_eq!(tracker.failed_paths(&root.items), vec!["root/slice"]);
-    assert_eq!(tracker.passed_paths(&root.items), vec!["root/consumer"]);
+    assert_eq!(tracker.failed_paths(&root.all_items()), vec!["slice"]);
+    assert_eq!(
+        tracker.passed_paths(&root.all_items()),
+        vec!["root/consumer"]
+    );
 }
 
 #[test]
@@ -228,8 +237,8 @@ fn test_eval_shared_attached_assertion_is_reported_once() {
     let diamond = l.add(&wire, &wire);
     let result = l.assert0("consumer", &diamond);
 
-    assert_eq!(tracker.failed_paths(&result.items), vec!["attached"]);
-    assert_eq!(tracker.passed_paths(&result.items), vec!["consumer"]);
+    assert_eq!(tracker.failed_paths(&result.all_items()), vec!["attached"]);
+    assert_eq!(tracker.passed_paths(&result.all_items()), vec!["consumer"]);
 }
 
 #[test]
@@ -242,8 +251,11 @@ fn test_eval_distinct_assertions_with_the_same_path_remain_distinct() {
 
     let result = l.assert0("consumer", &l.add(&left, &right));
 
-    assert_eq!(tracker.failed_paths(&result.items), vec!["same", "same"]);
-    assert_eq!(tracker.passed_paths(&result.items), vec!["consumer"]);
+    assert_eq!(
+        tracker.failed_paths(&result.all_items()),
+        vec!["same", "same"]
+    );
+    assert_eq!(tracker.passed_paths(&result.all_items()), vec!["consumer"]);
 }
 
 #[test]
@@ -253,12 +265,12 @@ fn test_eval_union_reports_failure_from_any_alias() {
     let l = EvalLogic::new(&field, &tracker);
     let passed = l.assert0("passed", &l.zero());
     let failed = l.assert0("failed", &l.one());
-    let passed_id = *passed.items.keys().next().unwrap();
-    let failed_id = *failed.items.keys().next().unwrap();
+    let passed_id = *passed.all_items().keys().next().unwrap();
+    let failed_id = *failed.all_items().keys().next().unwrap();
     tracker.union(passed_id, failed_id);
 
-    let mut fates = passed.items.clone();
-    fates.extend(failed.items);
+    let mut fates = passed.all_items().clone();
+    fates.extend(failed.all_items());
 
     assert!(tracker
         .failed_paths(&fates)

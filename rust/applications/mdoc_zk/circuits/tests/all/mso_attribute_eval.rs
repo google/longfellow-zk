@@ -139,13 +139,13 @@ where
     let zero_v8 = bv.of_u8(0);
 
     let mut oa_attr = std::array::from_fn(|_| zero_v8.clone());
-    for i in 0..mock.disclosed_name.len().min(32) {
-        oa_attr[i] = bv.of_u8(mock.disclosed_name[i]);
+    for (slot, &b) in oa_attr.iter_mut().zip(mock.disclosed_name.iter().take(32)) {
+        *slot = bv.of_u8(b);
     }
 
     let mut oa_v1 = std::array::from_fn(|_| zero_v8.clone());
-    for i in 0..mock.disclosed_value.len().min(64) {
-        oa_v1[i] = bv.of_u8(mock.disclosed_value[i]);
+    for (slot, &b) in oa_v1.iter_mut().zip(mock.disclosed_value.iter().take(64)) {
+        *slot = bv.of_u8(b);
     }
 
     let da = DisclosedAttribute {

@@ -72,10 +72,10 @@ pub fn compile_all_circuits() -> Vec<
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::scope(|s| {
         for num_attrs in 1..=4 {
-            let tx = tx.clone();
+            let tx_thread = tx.clone();
             s.spawn(move || {
                 let res = compile_circuits(num_attrs);
-                tx.send((num_attrs, res)).unwrap();
+                tx_thread.send((num_attrs, res)).unwrap();
             });
         }
     });

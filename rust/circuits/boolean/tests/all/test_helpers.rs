@@ -31,17 +31,13 @@ pub(crate) fn new_f65537_field() -> F65537Field {
 }
 
 pub(crate) fn compare_bitw<L: Logic>(boolean: &Boolean<L>, want: &Bitw<L>, got: &Bitw<L>)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let got_val = boolean.as_eltw(got);
     let want_val = boolean.as_eltw(want);
     assert_eq!(got_val, want_val);
 }
 
 pub(crate) fn compare_bool<L: Logic>(boolean: &Boolean<L>, want: bool, got: &Bitw<L>)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     compare_bitw(boolean, &boolean.konst(want), got);
 }
