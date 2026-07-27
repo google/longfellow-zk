@@ -1,0 +1,30 @@
+[package]
+name = "circuits-mac-gf128"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-logic = { path = "../../compile/logic" }
+compile-eval = { path = "../../compile/eval", optional = true }
+core-algebra = { path = "../../core/algebra" }
+circuits-boolean = { path = "../boolean" }
+circuits-bitvec = { path = "../bitvec" }
+circuits-bit-plucker = { path = "../bit_plucker" }
+runtime-algebra = { path = "../../runtime/algebra", optional = true }
+
+[features]
+testonly = [
+    "dep:compile-eval",
+    "dep:runtime-algebra",
+    "compile-logic/testonly",
+    "circuits-boolean/testonly",
+    "circuits-bitvec/testonly",
+]
+
+[dev-dependencies]
+compile-compiler = { path = "../../compile/compiler" }
+circuits-mac-gf128 = { path = "./", features = ["testonly"] }

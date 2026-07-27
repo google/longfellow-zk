@@ -1,0 +1,26 @@
+[package]
+name = "circuits-boolean"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-logic = { path = "../../compile/logic" }
+util = { path = "../../util" }
+compile-eval = { path = "../../compile/eval", optional = true }
+core-algebra = { path = "../../core/algebra" }
+runtime-algebra = { path = "../../runtime/algebra", optional = true }
+
+[features]
+testonly = [
+    "dep:compile-eval",
+    "dep:runtime-algebra",
+    "compile-logic/testonly",
+]
+
+[dev-dependencies]
+compile-compiler = { path = "../../compile/compiler" }
+circuits-boolean = { path = "./", features = ["testonly"] }

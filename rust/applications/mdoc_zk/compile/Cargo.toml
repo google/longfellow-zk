@@ -1,0 +1,28 @@
+[package]
+name = "mdoc-zk-compile"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+core-proto = { path = "../../../core/proto" }
+core-algebra = { path = "../../../core/algebra" }
+runtime-proto = { path = "../../../runtime/proto" }
+runtime-algebra = { path = "../../../runtime/algebra" }
+runtime-ligero = { path = "../../../runtime/ligero" }
+compile-compiler = { path = "../../../compile/compiler" }
+compile-algebra = { path = "../../../compile/algebra" }
+mdoc-zk-circuits = { path = "../circuits" }
+circuits-sha256 = { path = "../../../circuits/sha256" }
+circuits-bitvec = { path = "../../../circuits/bitvec" }
+circuits-analog-adder = { path = "../../../circuits/analog_adder" }
+circuits-mac = { path = "../../../circuits/mac" }
+circuits-sha256msg = { path = "../../../circuits/sha256msg" }
+circuits-ec = { path = "../../../circuits/ec" }
+circuits-ecdsa2 = { path = "../../../circuits/ecdsa2" }
+circuits-bit-plucker = { path = "../../../circuits/bit_plucker" }
+circuits-boolean = { path = "../../../circuits/boolean" }
+compile-logic = { path = "../../../compile/logic" }
+zstd = "0.13"

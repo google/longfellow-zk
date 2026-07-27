@@ -1,0 +1,9 @@
+[package]
+name = "mdoc-zk-artifacts"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]

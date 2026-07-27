@@ -1,0 +1,12 @@
+[package]
+name = "core-algebra"
+version = "0.1.0"
+edition = "2021"
+[lints]
+workspace = true
+
+
+[dependencies]
+
+[dev-dependencies]
+num-bigint = "0.4"

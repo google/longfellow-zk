@@ -1,0 +1,12 @@
+[build]
+rustflags = ["-C", "target-cpu=native"]
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+rustflags = ["-C", "target-feature=+aes,+sha2"]
+rustdocflags = ["-C", "target-feature=+aes,+sha2"]
+
+[target.i686-unknown-linux-gnu]
+linker = "i686-linux-gnu-gcc"
+rustflags = []
+rustdocflags = []

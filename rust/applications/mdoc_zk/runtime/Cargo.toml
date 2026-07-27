@@ -1,0 +1,67 @@
+[package]
+name = "mdoc-zk-runtime"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+core-proto = { path = "../../../core/proto" }
+core-algebra = { path = "../../../core/algebra" }
+runtime-proto = { path = "../../../runtime/proto" }
+runtime-algebra = { path = "../../../runtime/algebra" }
+runtime-zk = { path = "../../../runtime/zk" }
+runtime-random = { path = "../../../runtime/random" }
+runtime-ligero = { path = "../../../runtime/ligero" }
+compile-compiler = { path = "../../../compile/compiler" }
+compile-algebra = { path = "../../../compile/algebra" }
+mdoc-zk-proto = { path = "../proto" }
+mdoc-zk-compile = { path = "../compile" }
+mdoc-zk-circuits = { path = "../circuits", features = ["testonly"] }
+circuits-sha256 = { path = "../../../circuits/sha256", features = ["testonly"] }
+circuits-bitvec = { path = "../../../circuits/bitvec", features = ["testonly"] }
+circuits-analog-adder = { path = "../../../circuits/analog_adder" }
+circuits-mac = { path = "../../../circuits/mac", features = ["testonly"] }
+circuits-sha256msg = { path = "../../../circuits/sha256msg", features = ["testonly"] }
+circuits-ec = { path = "../../../circuits/ec", features = ["testonly"] }
+circuits-ecdsa2 = { path = "../../../circuits/ecdsa2", features = ["testonly"] }
+circuits-bit-plucker = { path = "../../../circuits/bit_plucker" }
+compile-logic = { path = "../../../compile/logic", features = ["testonly"] }
+libc = "0.2"
+zstd = "0.13"
+sha2 = { version = "0.10", features = ["asm"] }
+num-bigint = "0.4"
+mdoc-zk-artifacts = { path = "../artifacts" }
+
+[features]
+testonly = [
+    "runtime-algebra/testonly",
+    "runtime-random/testonly",
+    
+    "compile-logic/testonly",
+    "circuits-bitvec/testonly",
+    "circuits-sha256/testonly",
+    "circuits-sha256msg/testonly",
+    "circuits-ec/testonly",
+    "circuits-ecdsa2/testonly",
+    "circuits-mac/testonly",
+]
+
+[dev-dependencies]
+mdoc-zk-runtime = { path = "./", features = ["testonly"] }
+mdoc-zk-testcases = { path = "../testcases" }
+runtime-random = { path = "../../../runtime/random", features = ["testonly"] }
+criterion = "0.5"
+
+[[bench]]
+name = "mdoc_zk_bench_v7"
+harness = false
+
+[[bench]]
+name = "mdoc_zk_bench_current"
+harness = false
+
+[[bin]]
+name = "convert_circuits"
+path = "src/bin/convert_circuits.rs"

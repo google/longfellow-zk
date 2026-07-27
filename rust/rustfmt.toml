@@ -1,0 +1,17 @@
+# Google-compliant rustfmt configuration
+max_width = 100
+comment_width = 100
+wrap_comments = true
+
+# Use standard Unix newlines
+newline_style = "Unix"
+
+# Group imports into Std, External, and Local/Workspace modules
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+
+# Keep where clauses on a single line if they fit
+where_single_line = true
+
+# Standard heuristics for wrapping code structures
+use_small_heuristics = "Default"

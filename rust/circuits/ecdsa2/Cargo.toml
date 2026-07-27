@@ -1,0 +1,35 @@
+[package]
+name = "circuits-ecdsa2"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-logic = { path = "../../compile/logic" }
+compile-eval = { path = "../../compile/eval", optional = true }
+core-algebra = { path = "../../core/algebra" }
+circuits-boolean = { path = "../boolean" }
+circuits-bitvec = { path = "../bitvec" }
+circuits-arithmetic = { path = "../arithmetic" }
+circuits-big-bitvec = { path = "../big_bitvec" }
+circuits-ec = { path = "../ec" }
+circuits-lookup = { path = "../lookup" }
+runtime-algebra = { path = "../../runtime/algebra", optional = true }
+
+[features]
+testonly = [
+    "dep:compile-eval",
+    "dep:runtime-algebra",
+    "compile-logic/testonly",
+    "circuits-boolean/testonly",
+    "circuits-bitvec/testonly",
+    "circuits-big-bitvec/testonly",
+    "circuits-ec/testonly",
+]
+
+[dev-dependencies]
+compile-compiler = { path = "../../compile/compiler" }
+circuits-ecdsa2 = { path = "./", features = ["testonly"] }

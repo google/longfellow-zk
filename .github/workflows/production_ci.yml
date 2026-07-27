@@ -1,0 +1,38 @@
+name: Production Rust CI
+
+on:
+  push:
+    branches:
+      - main
+      - rust
+  pull_request:
+    paths:
+      - 'rust/**'
+      - '.github/workflows/production_ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & Run All Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Ensure Rust toolchain is up to date
+        run: rustup update stable
+
+      - name: Compilation Check
+        run: cargo check --all-targets
+        working-directory: rust
+
+      - name: Run clippy
+        run: cargo clippy --all-targets
+        working-directory: rust
+
+      - name: Run All Workspace Tests in Release Mode
+        run: cargo test -r --workspace --all-targets
+        working-directory: rust

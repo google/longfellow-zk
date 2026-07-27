@@ -1,0 +1,29 @@
+[package]
+name = "circuits-sha256"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-logic = { path = "../../compile/logic" }
+compile-eval = { path = "../../compile/eval", optional = true }
+core-algebra = { path = "../../core/algebra" }
+circuits-bitvec = { path = "../bitvec" }
+circuits-bit-plucker = { path = "../bit_plucker" }
+circuits-analog-adder = { path = "../analog_adder" }
+runtime-algebra = { path = "../../runtime/algebra", optional = true }
+
+[features]
+testonly = [
+    "dep:compile-eval",
+    "dep:runtime-algebra",
+    "compile-logic/testonly",
+    "circuits-bitvec/testonly",
+]
+
+[dev-dependencies]
+compile-compiler = { path = "../../compile/compiler" }
+circuits-sha256 = { path = "./", features = ["testonly"] }

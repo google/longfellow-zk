@@ -1,0 +1,49 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use circuits_bitvec::BitvecLogic;
+use circuits_experimental::sha3::{
+    derived,
+    evaluate::{evaluate_derived, evaluate_given},
+    ConcreteGiven, Sha3,
+};
+use compile_algebra::gf2_128::Gf2_128Field;
+use compile_logic::eval::EvalLogic;
+
+#[test]
+fn test_eval_keccak_f_1600() {
+    let f = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    type L<'a> = EvalLogic<'a, Gf2_128Field>;
+    let l = L::new(&f, &tracker);
+    let bv = BitvecLogic::new(&l);
+
+    // Initialize state 0 values
+    let mut s0 = [[0u64; 5]; 5];
+    for (x, row) in s0.iter_mut().enumerate() {
+        for (y, val) in row.iter_mut().enumerate() {
+            *val = ((x * 5 + y) as u64 + 1) * 0x123456789abcdef;
+        }
+    }
+
+    let concrete_given = ConcreteGiven { initial_state: s0 };
+    let concrete_derived = derived(&concrete_given);
+
+    let wire_given = evaluate_given(&concrete_given, &bv);
+    let wire_derived = evaluate_derived(&concrete_derived, &bv);
+
+    let sha3 = Sha3::new(&l);
+    let assertion = sha3.assert_circuit(&wire_given, &wire_derived);
+    assertion.unwrap();
+}

@@ -1,0 +1,16 @@
+[package]
+name = "runtime-ligero"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+util = { path = "../../util" }
+runtime-algebra = { path = "../algebra" }
+runtime-proto = { path = "../proto" }
+runtime-random = { path = "../random" }
+runtime-merkle = { path = "../merkle" }
+sha2 = { version = "0.10.8", features = ["asm"] }
+core-algebra = { path = "../../core/algebra" }

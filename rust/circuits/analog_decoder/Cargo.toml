@@ -1,0 +1,18 @@
+[package]
+name = "circuits-analog-decoder"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../compile/algebra" }
+compile-logic = { path = "../../compile/logic" }
+core-algebra = { path = "../../core/algebra" }
+circuits-boolean = { path = "../boolean" }
+circuits-lookup = { path = "../lookup" }
+
+[dev-dependencies]
+compile-compiler = { path = "../../compile/compiler" }
+compile-logic = { path = "../../compile/logic", features = ["testonly"] }

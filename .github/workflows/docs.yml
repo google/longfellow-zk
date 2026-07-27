@@ -6,30 +6,33 @@ on:
     branches:
     - main
   pull_request:
+    branches:
+    - main
 
 jobs:
   build-and-deploy:
     permissions:
       contents: write
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
     - name: Checkout
-      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+      uses: actions/checkout@v4 
       with:
         fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
+        submodules: recursive
 
     - name: Setup Hugo
-      uses: peaceiris/actions-hugo@75d2e84710de30f6ff7268e08f310b60ef14033f #v3.0.0
+      uses: peaceiris/actions-hugo@v3 
       with:
-        hugo-version: '0.147.9'
+        hugo-version: '0.164.0'
         extended: true
 
     - name: Setup Node
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '25'
         cache: 'npm'
         # The action defaults to search for the dependency file (package-lock.json,
         # npm-shrinkwrap.json or yarn.lock) in the repository root, and uses its
@@ -74,3 +77,4 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./docs/public        
+

@@ -1,0 +1,65 @@
+[workspace]
+resolver = "2"
+members = [
+    "core/algebra",
+    "compile/algebra",
+    "compile/proto",
+    "compile/eval",
+    "circuits/analog_adder",
+    "circuits/analog_decoder",
+    "circuits/arithmetic",
+    "circuits/bitvec",
+    "circuits/bit_plucker",
+    "circuits/bignum",
+    "circuits/big_bitvec",
+    "circuits/boolean",
+    "circuits/ec",
+    "circuits/ecdsa2",
+    "circuits/gf2_128",
+    "circuits/lookup",
+    "circuits/mac",
+    "circuits/mac_gf128",
+    "circuits/memcmp",
+    "circuits/polynomial",
+    "circuits/routing",
+    "circuits/sha256",
+    "circuits/sha256msg",
+    "compile/compiler",
+    "circuits/experimental",
+    "compile/logic",
+    "applications/mdoc_zk/circuits",
+    "core/proto",
+    "applications/mdoc_zk/runtime",
+    "applications/mdoc_zk/prover_only",
+    "applications/mdoc_zk/verifier_only",
+    "applications/mdoc_zk/proto",
+    "applications/mdoc_zk/compile",
+    "applications/mdoc_zk/testcases",
+    "applications/mdoc_zk/artifacts",
+    "util",
+    "runtime/random",
+    "runtime/algebra",
+    "runtime/proto",
+    "runtime/merkle",
+    "runtime/sumcheck",
+    "runtime/ligero",
+    "runtime/zk",
+]
+
+[workspace.lints.clippy]
+shadow_same = "warn"
+shadow_reuse = "warn"
+shadow_unrelated = "warn"
+type_complexity = "allow"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 2
+lto = false
+
+

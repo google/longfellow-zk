@@ -1,0 +1,78 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use compile_algebra::{
+    field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
+    p256::P256Field,
+};
+use compile_compiler::{
+    algsimp::AlgebraicRewriter,
+    arena::CompilerArena,
+    cse::Cse,
+    ir::{AssertionItem, Expr, RewriteT},
+};
+use core_algebra::{AlgebraicField, Nat};
+
+fn run_test<
+    const W: usize,
+    F: CompileField + SupportsNatConversions<W> + SupportsU64Conversions,
+>(
+    f: &F,
+) {
+    let arena = CompilerArena::new();
+    let cse = Cse::new(&arena);
+    let algebraic = AlgebraicRewriter::new(f, cse);
+
+    // Constant folding
+    let c1 = algebraic.constant(&f.u64_to_element(10));
+    let c2 = algebraic.constant(&f.u64_to_element(20));
+    let sum_nodes = algebraic.sum(&[c1, c2], false);
+
+    match &sum_nodes.v {
+        Expr::Constant(val) => {
+            assert_eq!(f.to_nat(val), F::N::from_u64(30));
+        }
+        _ => panic!("Expected Constant(30), got {sum_nodes:?}"),
+    }
+}
+
+#[test]
+fn test_rewrite_algebraic_simplification() {
+    let f = P256Field::new();
+    run_test::<4, P256Field>(&f);
+}
+
+#[test]
+fn test_rewrite_coalesces_algebraically_equal_assertions() {
+    let f = P256Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let aid1 = tracker.new_leaf("first");
+    let aid2 = tracker.new_leaf("second");
+    let source_arena = CompilerArena::new();
+    let cse = Cse::new(&source_arena);
+    let x = cse.input(1);
+    let linear_x = cse.linear(&f.one(), &x);
+    let assertions = source_arena.alloc_slice(&[
+        AssertionItem { id: aid1, expr: x },
+        AssertionItem {
+            id: aid2,
+            expr: linear_x,
+        },
+    ]);
+
+    let target_arena = CompilerArena::new();
+    let rewritten = compile_compiler::assertion::rewrite(&target_arena, &f, assertions, &tracker);
+    assert_eq!(rewritten.len(), 1);
+    assert_eq!(rewritten[0].id, aid1);
+}

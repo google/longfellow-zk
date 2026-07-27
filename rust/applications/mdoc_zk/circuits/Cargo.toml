@@ -1,0 +1,53 @@
+[package]
+name = "mdoc-zk-circuits"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+compile-algebra = { path = "../../../compile/algebra" }
+circuits-boolean = { path = "../../../circuits/boolean" }
+circuits-bitvec = { path = "../../../circuits/bitvec" }
+circuits-analog-adder = { path = "../../../circuits/analog_adder" }
+circuits-routing = { path = "../../../circuits/routing" }
+circuits-mac = { path = "../../../circuits/mac" }
+circuits-mac-gf128 = { path = "../../../circuits/mac_gf128" }
+circuits-sha256 = { path = "../../../circuits/sha256" }
+circuits-sha256msg = { path = "../../../circuits/sha256msg" }
+circuits-big-bitvec = { path = "../../../circuits/big_bitvec" }
+circuits-ecdsa2 = { path = "../../../circuits/ecdsa2" }
+circuits-memcmp = { path = "../../../circuits/memcmp" }
+compile-eval = { path = "../../../compile/eval", optional = true }
+compile-compiler = { path = "../../../compile/compiler" }
+compile-logic = { path = "../../../compile/logic" }
+num-bigint = "0.4"
+sha2 = { version = "0.10", features = ["asm"] }
+
+core-algebra = { path = "../../../core/algebra" }
+runtime-algebra = { path = "../../../runtime/algebra", optional = true }
+mdoc-zk-testcases = { path = "../testcases" }
+mdoc-zk-proto = { path = "../proto" }
+
+[features]
+testonly = [
+    "dep:compile-eval",
+    "dep:runtime-algebra",
+    "compile-logic/testonly",
+    "circuits-boolean/testonly",
+    "circuits-bitvec/testonly",
+    "circuits-big-bitvec/testonly",
+    "circuits-sha256/testonly",
+    "circuits-sha256msg/testonly",
+    "circuits-ecdsa2/testonly",
+    "circuits-mac/testonly",
+    "circuits-mac-gf128/testonly",
+    "runtime-algebra/testonly",
+]
+
+[dev-dependencies]
+core-proto = { path = "../../../core/proto" }
+circuits-ec = { path = "../../../circuits/ec", features = ["testonly"] }
+mdoc-zk-circuits = { path = "./", features = ["testonly"] }
+zstd = "0.13"

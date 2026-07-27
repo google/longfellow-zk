@@ -1,0 +1,15 @@
+[package]
+name = "mdoc-zk-prover-only"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "prover_only"
+path = "src/main.rs"
+
+[dependencies]
+mdoc-zk-runtime = { path = "../runtime" }
+runtime-random = { path = "../../../runtime/random" }

@@ -1,0 +1,176 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use runtime_algebra::{
+    field::RuntimeField,
+    fp2::{Fp2Element, Fp2Field},
+    middle_product::{FFTExtMiddleProduct, FFTMiddleProduct, MiddleProduct},
+    p256::P256Field,
+    AlgebraicField,
+};
+
+fn get_test_field_and_omega(
+    p256: &P256Field,
+) -> (Fp2Field<'_, 4, P256Field>, Fp2Element<4, P256Field>, u64) {
+    let f: Fp2Field<'_, 4, _> = Fp2Field::new(p256);
+    let re_bytes = [
+        98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
+        133, 252, 92, 102, 245, 132, 189, 142, 51, 13, 249,
+    ];
+    let im_bytes = [
+        172, 62, 164, 96, 79, 23, 244, 219, 198, 50, 210, 116, 100, 138, 115, 132, 64, 227, 6, 1,
+        226, 194, 79, 160, 77, 204, 151, 188, 66, 30, 232, 185,
+    ];
+    use core_algebra::SerializableField;
+    let omega = Fp2Element {
+        re: p256.bytes_to_element(&re_bytes).unwrap(),
+        im: p256.bytes_to_element(&im_bytes).unwrap(),
+    };
+    (f, omega, 1 << 31)
+}
+
+struct SimplePrg {
+    state: u64,
+}
+
+impl SimplePrg {
+    fn new() -> Self {
+        Self { state: 42 }
+    }
+    fn next<const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversions>(
+        &mut self,
+        f: &F,
+    ) -> F::E {
+        self.state = self.state.wrapping_mul(6364136223846793005).wrapping_add(1);
+        f.u64_to_element(self.state)
+    }
+}
+
+#[test]
+fn test_fft_middle_product() {
+    let p256 = P256Field::new();
+    let (f, omega, omega_order) = get_test_field_and_omega(&p256);
+
+    let n = 15;
+    let m = 20;
+
+    let mut prg = SimplePrg::new();
+    let mut x = Vec::with_capacity(n);
+    let mut y = Vec::with_capacity(m);
+    for _ in 0..n {
+        x.push(prg.next(&f));
+    }
+    for _ in 0..m {
+        y.push(prg.next(&f));
+    }
+
+    // Slow reference middle product
+    let mut expected = vec![f.zero(); m];
+    for k in (n - 1)..m {
+        let mut s = f.zero();
+        for i in 0..n {
+            if k >= i && (k - i) < m {
+                let term = f.mulf(&x[i], &y[k - i]);
+                s = f.addf(&s, &term);
+            }
+        }
+        expected[k] = s;
+    }
+
+    let product = FFTMiddleProduct::<4, _>::new(n, m, &omega, omega_order, &y, &f);
+    let mut got = vec![f.zero(); m];
+    product.middle_product(&x, &mut got);
+
+    assert_eq!(&got[n - 1..m], &expected[n - 1..m]);
+}
+
+#[test]
+fn test_fft_ext_middle_product() {
+    let p256 = P256Field::new();
+    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
+
+    let re_bytes = [
+        98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
+        133, 252, 92, 102, 245, 132, 189, 142, 51, 13, 249,
+    ];
+    let im_bytes = [
+        172, 62, 164, 96, 79, 23, 244, 219, 198, 50, 210, 116, 100, 138, 115, 132, 64, 227, 6, 1,
+        226, 194, 79, 160, 77, 204, 151, 188, 66, 30, 232, 185,
+    ];
+
+    use core_algebra::SerializableField;
+    let omega = Fp2Element {
+        re: p256.bytes_to_element(&re_bytes).unwrap(),
+        im: p256.bytes_to_element(&im_bytes).unwrap(),
+    };
+    let omega_order = 1u64 << 31;
+
+    let n = 15;
+    let m = 20;
+
+    let mut prg = SimplePrg::new();
+    let mut x = Vec::with_capacity(n);
+    let mut y = Vec::with_capacity(m);
+    for _ in 0..n {
+        x.push(prg.next(&p256));
+    }
+    for _ in 0..m {
+        y.push(prg.next(&p256));
+    }
+
+    // Slow reference middle product
+    let mut expected = vec![p256.zero(); m];
+    for k in (n - 1)..m {
+        let mut s = p256.zero();
+        for i in 0..n {
+            if k >= i && (k - i) < m {
+                let term = p256.mulf(&x[i], &y[k - i]);
+                s = p256.addf(&s, &term);
+            }
+        }
+        expected[k] = s;
+    }
+
+    let product = FFTExtMiddleProduct::<4, _>::new(n, m, &omega, omega_order, &y, &p256, &fp2);
+    let mut got = vec![p256.zero(); m];
+    product.middle_product(&x, &mut got);
+
+    assert_eq!(&got[n - 1..m], &expected[n - 1..m]);
+}
+
+#[test]
+fn test_middle_product_rejects_invalid_dimensions() {
+    let p256 = P256Field::new();
+    let (fp2, omega, omega_order) = get_test_field_and_omega(&p256);
+
+    for (n, m, y_len) in [(0, 1, 1), (2, 1, 1), (1, 2, 1)] {
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let y = vec![fp2.zero(); y_len];
+                FFTMiddleProduct::new(n, m, &omega, omega_order, &y, &fp2);
+            }))
+            .is_err(),
+            "accepted middle-product dimensions n={n}, m={m}, y_len={y_len}"
+        );
+    }
+
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let y = vec![p256.zero()];
+            FFTExtMiddleProduct::new(1, 1, &omega, omega_order, &y, &p256, &fp2);
+        }))
+        .is_err(),
+        "accepted a one-element real FFT middle product"
+    );
+}
