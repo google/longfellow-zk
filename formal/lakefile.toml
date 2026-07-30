@@ -9,7 +9,7 @@ relaxedAutoImplicit = false
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-path = "../../../lean/mathlib4"
+path = "../../mathlib4"
 rev = "v4.31.0"
 
 [[lean_lib]]
@@ -21,3 +21,8 @@ globs = ["ECDSA.+"]
 name = "pk_circuit"
 srcDir = "circuits/tests/ec"
 roots = ["PkCircuit", "PkCircuitPoly"]
+
+[[lean_lib]]
+name = "lfzk"
+srcDir = "lfzk"
+roots = ["types", "fiat_shamir", "circuit", "ligero", "lfzk", "sumcheck_soundness"]
