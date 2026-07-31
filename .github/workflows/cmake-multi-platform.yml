@@ -111,7 +111,7 @@ jobs:
         CPP_COMPILER: ${{ matrix.cpp_compiler }}
       run: >
         cmake -B "${BUILD_DIR}"
-        -DCMAKE_CXX_COMPILER"${CPP_COMPILER}"
+        -DCMAKE_CXX_COMPILER "${CPP_COMPILER}"
         -DCMAKE_BUILD_TYPE=Release
         -S "$GITHUB_WORKSPACE/lib"
 
@@ -119,7 +119,7 @@ jobs:
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       env:
         BUILD_DIR: ${{ steps.strings.outputs.build-output-dir }}
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} -j 16
+      run: cmake --build "${BUILD_DIR}" -j 16
 
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
