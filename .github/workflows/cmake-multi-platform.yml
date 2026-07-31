@@ -111,7 +111,7 @@ jobs:
         CPP_COMPILER: ${{ matrix.cpp_compiler }}
       run: >
         cmake -B "${BUILD_DIR}"
-        -DCMAKE_CXX_COMPILER "${CPP_COMPILER}"
+        -DCMAKE_CXX_COMPILER="${CPP_COMPILER}"
         -DCMAKE_BUILD_TYPE=Release
         -S "$GITHUB_WORKSPACE/lib"
 
