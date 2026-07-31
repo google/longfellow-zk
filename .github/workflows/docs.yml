@@ -21,6 +21,8 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 
       with:
         fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
+        submodules: recursive
+        persist-credentials: false
 
     - name: Setup Hugo
       uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1 
