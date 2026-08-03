@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build on ${{ matrix.os_name }}
@@ -94,7 +97,9 @@ jobs:
       shell: bash
 
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
@@ -106,15 +111,20 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      env:
+        BUILD_DIR: ${{ steps.strings.outputs.build-output-dir }}
+        CPP_COMPILER: ${{ matrix.cpp_compiler }}
       run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        cmake -B "${BUILD_DIR}"
+        -DCMAKE_CXX_COMPILER="${CPP_COMPILER}"
         -DCMAKE_BUILD_TYPE=Release
-        -S $GITHUB_WORKSPACE/lib
+        -S "$GITHUB_WORKSPACE/lib"
 
     - name: Build
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} -j 16
+      env:
+        BUILD_DIR: ${{ steps.strings.outputs.build-output-dir }}
+      run: cmake --build "${BUILD_DIR}" -j 16
 
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}

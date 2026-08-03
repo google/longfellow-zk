@@ -7,6 +7,9 @@ on:
     - main
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   sage:
     name: Test Sage
@@ -18,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: sage --pip install pycryptodome mypy
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
     - name: Run tests
