@@ -138,6 +138,17 @@ impl<'a> CborParser<'a> {
         let end = self.offset;
         Ok(CborElement { value, start, end })
     }
+
+    pub fn parse_exact(&mut self) -> Result<CborElement, String> {
+        let element = self.parse_val()?;
+        if self.offset != self.data.len() {
+            return Err(format!(
+                "Trailing data after CBOR item: {} bytes",
+                self.data.len() - self.offset
+            ));
+        }
+        Ok(element)
+    }
 }
 
 pub fn parse_mso_cbor(data: &[u8]) -> Result<CborElement, String> {
