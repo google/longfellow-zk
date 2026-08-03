@@ -57,11 +57,15 @@ impl<'a> CborParser<'a> {
     }
 
     fn read_bytes(&mut self, len: usize) -> Result<&'a [u8], String> {
-        if self.offset + len > self.data.len() {
-            return Err("Unexpected EOF".to_string());
-        }
-        let res = &self.data[self.offset..self.offset + len];
-        self.offset += len;
+        let end = self
+            .offset
+            .checked_add(len)
+            .ok_or_else(|| "CBOR length overflow".to_string())?;
+        let res = self
+            .data
+            .get(self.offset..end)
+            .ok_or_else(|| "Unexpected EOF".to_string())?;
+        self.offset = end;
         Ok(res)
     }
 
@@ -95,11 +99,15 @@ impl<'a> CborParser<'a> {
             0 => CborValue::Integer(val),
             1 => CborValue::Integer(val),
             2 => {
-                let bytes = self.read_bytes(val as usize)?.to_vec();
+                let len = usize::try_from(val)
+                    .map_err(|_| "CBOR byte string length does not fit usize".to_string())?;
+                let bytes = self.read_bytes(len)?.to_vec();
                 CborValue::Bytes(bytes)
             }
             3 => {
-                let bytes = self.read_bytes(val as usize)?;
+                let len = usize::try_from(val)
+                    .map_err(|_| "CBOR text string length does not fit usize".to_string())?;
+                let bytes = self.read_bytes(len)?;
                 let s = String::from_utf8(bytes.to_vec()).map_err(|e| e.to_string())?;
                 CborValue::Text(s)
             }
@@ -285,7 +293,7 @@ pub fn find_device_key_coordinate(
 ) -> Option<Vec<u8>> {
     if let CborValue::Map(pairs) = &device_key_map.value {
         for (k, v) in pairs {
-            if mdoc_or_mso[k.start] == coordinate_byte {
+            if mdoc_or_mso.get(k.start) == Some(&coordinate_byte) {
                 if let CborValue::Bytes(b) = &v.value {
                     return Some(b.clone());
                 }

@@ -31,6 +31,7 @@ pub fn parse_test_data<const W: usize, N: Nat<W> + Nat<4>>(
     };
 
     let issuer_pk = (parse_hex_nat(data.pkx), parse_hex_nat(data.pky));
-    let parsed = parse_mdoc(data.mdoc, data.transcript, data.doc_type);
+    let parsed = parse_mdoc(data.mdoc, data.transcript, data.doc_type)
+        .expect("test fixture must contain a valid mdoc");
     (issuer_pk, parsed, data.now)
 }
