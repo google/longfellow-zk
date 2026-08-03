@@ -41,6 +41,12 @@ struct Sha3Witness {
                                        size_t outlen,
                                        std::vector<BlockWitness>& witnesses);
 
+  // Generate BlockWitnesses for a keccak256 computation (Ethereum's hash).
+  // Padding byte is 0x01 instead of SHAKE256's 0x1F.  Output is always 32
+  // bytes so no squeeze-phase witnesses are needed.
+  static void compute_witness_keccak256(const std::vector<uint8_t>& seed,
+                                        std::vector<BlockWitness>& witnesses);
+
   // Fills a Dense array mapping with exactly the bit outputs of the block
   // witnesses.
   template <class Field>

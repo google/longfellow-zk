@@ -53,6 +53,12 @@ class Sha3Reference {
   static void shake256Hash(const uint8_t* in, size_t inlen, uint8_t* out,
                            size_t outlen);
   static void xorin(uint64_t A[5][5], const uint8_t* d, size_t n);
+
+  // Keccak-256 as used by Ethereum.  Identical to SHA3-256 except the padding
+  // byte is 0x01 instead of 0x06.  To derive an Ethereum address from a 64-byte
+  // uncompressed public key (without the 0x04 prefix), hash those 64 bytes with
+  // this function and take the last 20 bytes of the result.
+  static void keccak256Hash(const uint8_t* in, size_t inlen, uint8_t out[32]);
 };
 
 }  // namespace proofs
