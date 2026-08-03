@@ -21,10 +21,7 @@ use crate::{
             K_COSE1_PREFIX_LEN, K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER,
             K_TAG24,
         },
-        parse::{
-            find_device_key_coordinate, find_element_by_key, find_key_in_map, get_array, get_bytes,
-            CborElement, CborIndexVal, CborParser, CborValue,
-        },
+        parse::{CborElement, CborIndexVal, CborParser, CborValue},
     },
     mso_attribute::concrete::FieldLocator,
 };
@@ -82,6 +79,7 @@ pub enum MdocParseError {
         message: String,
     },
     MissingField(&'static str),
+    DuplicateField(&'static str),
     UnexpectedType(&'static str),
     InvalidLength {
         field: &'static str,
@@ -102,6 +100,7 @@ impl core::fmt::Display for MdocParseError {
                 write!(f, "failed to decode {context}: {message}")
             }
             Self::MissingField(field) => write!(f, "missing field: {field}"),
+            Self::DuplicateField(field) => write!(f, "duplicate field: {field}"),
             Self::UnexpectedType(field) => write!(f, "unexpected CBOR type for {field}"),
             Self::InvalidLength {
                 field,
@@ -135,22 +134,27 @@ pub fn parse_mdoc<N: Nat<4>>(
 
     let mut root_parser = CborParser::new(mdoc);
     let root = root_parser
-        .parse_val()
+        .parse_exact()
         .map_err(|message| MdocParseError::Cbor {
             context: "root mdoc",
             message,
         })?;
 
-    let docs_el = required_element(&root, "documents")?;
-    let docs_arr = required_array(&docs_el, "documents")?;
+    let docs_el = required_map_value(&root, "documents", "root.documents")?;
+    let docs_arr = required_array(&docs_el, "root.documents")?;
     let doc0 = docs_arr
         .first()
-        .ok_or(MdocParseError::MissingField("document 0"))?;
+        .ok_or(MdocParseError::MissingField("root.documents[0]"))?;
 
     // Traverse issuerSigned -> issuerAuth to find MSO and issuer signature
-    let issuer_signed = required_element(doc0, "issuerSigned")?;
-    let issuer_auth = required_element(&issuer_signed, "issuerAuth")?;
-    let issuer_auth_arr = required_array(&issuer_auth, "issuerAuth")?;
+    let issuer_signed = required_map_value(doc0, "issuerSigned", "documents[0].issuerSigned")?;
+    let issuer_auth = required_map_value(
+        &issuer_signed,
+        "issuerAuth",
+        "documents[0].issuerSigned.issuerAuth",
+    )?;
+    let issuer_auth_arr =
+        required_cose_sign1_array(&issuer_auth, "documents[0].issuerSigned.issuerAuth")?;
 
     // MSO is the third element of the COSE_Sign1 structure in issuerAuth
     let cbor_mso_wrapped = required_bytes(
@@ -164,7 +168,7 @@ pub fn parse_mdoc<N: Nat<4>>(
     // Unwrap the Tag 24 wrapping the MSO Map
     let mut mso_unwrap_parser = CborParser::new(&cbor_mso_wrapped);
     let mso_val = mso_unwrap_parser
-        .parse_val()
+        .parse_exact()
         .map_err(|message| MdocParseError::Cbor {
             context: "wrapped MSO",
             message,
@@ -189,21 +193,30 @@ pub fn parse_mdoc<N: Nat<4>>(
 
     let mut map_parser = CborParser::new(&cbor_mso_map_bytes);
     let mso_map = map_parser
-        .parse_val()
+        .parse_exact()
         .map_err(|message| MdocParseError::Cbor {
             context: "MSO map",
             message,
         })?;
-    let dev_key_info_el = required_element(&mso_map, "deviceKeyInfo")?;
-    let dev_key_el = required_element(&dev_key_info_el, "deviceKey")?;
+    let dev_key_info_el = required_map_value(&mso_map, "deviceKeyInfo", "MSO.deviceKeyInfo")?;
+    let dev_key_el =
+        required_map_value(&dev_key_info_el, "deviceKey", "MSO.deviceKeyInfo.deviceKey")?;
 
     // Extract device public key coordinates (keep original big-endian
     // coordinates)
-    let dpkx_bytes = find_device_key_coordinate(&dev_key_el, &cbor_mso_map_bytes, 0x21)
-        .ok_or(MdocParseError::MissingField("device key x-coordinate"))?;
+    let dpkx_bytes = required_device_coordinate(
+        &dev_key_el,
+        &cbor_mso_map_bytes,
+        0x21,
+        "MSO.deviceKeyInfo.deviceKey.x",
+    )?;
     let dpkx = N::from_bytes_be(&dpkx_bytes);
-    let dpky_bytes = find_device_key_coordinate(&dev_key_el, &cbor_mso_map_bytes, 0x22)
-        .ok_or(MdocParseError::MissingField("device key y-coordinate"))?;
+    let dpky_bytes = required_device_coordinate(
+        &dev_key_el,
+        &cbor_mso_map_bytes,
+        0x22,
+        "MSO.deviceKeyInfo.deviceKey.y",
+    )?;
     let dpky = N::from_bytes_be(&dpky_bytes);
 
     // Issuer signature is the fourth element of issuerAuth COSE_Sign1 structure
@@ -217,10 +230,21 @@ pub fn parse_mdoc<N: Nat<4>>(
 
     // Traverse deviceSigned -> deviceAuth -> deviceSignature to get device
     // signature
-    let device_signed = required_element(doc0, "deviceSigned")?;
-    let device_auth = required_element(&device_signed, "deviceAuth")?;
-    let device_signature = required_element(&device_auth, "deviceSignature")?;
-    let device_signature_arr = required_array(&device_signature, "deviceSignature")?;
+    let device_signed = required_map_value(doc0, "deviceSigned", "documents[0].deviceSigned")?;
+    let device_auth = required_map_value(
+        &device_signed,
+        "deviceAuth",
+        "documents[0].deviceSigned.deviceAuth",
+    )?;
+    let device_signature = required_map_value(
+        &device_auth,
+        "deviceSignature",
+        "documents[0].deviceSigned.deviceAuth.deviceSignature",
+    )?;
+    let device_signature_arr = required_cose_sign1_array(
+        &device_signature,
+        "documents[0].deviceSigned.deviceAuth.deviceSignature",
+    )?;
 
     // Device signature is the fourth element of deviceSignature COSE_Sign1
     // structure
@@ -236,13 +260,16 @@ pub fn parse_mdoc<N: Nat<4>>(
     let device_sig_digest = N::from_bytes_be(&hash_tr_bytes);
 
     // Locate offset indices in raw CBOR map_bytes for MSO fields
-    let doc_type_entry = required_map_key(&mso_map, "docType")?;
-    let valid_from = required_map_key(&mso_map, "validFrom")?;
-    let valid_until = required_map_key(&mso_map, "validUntil")?;
-    let device_key_info = required_map_key(&mso_map, "deviceKeyInfo")?;
-    let value_digests = required_map_key(&mso_map, "valueDigests")?;
+    let doc_type_entry = required_map_key(&mso_map, "docType", "MSO.docType")?;
+    let validity_info = required_map_value(&mso_map, "validityInfo", "MSO.validityInfo")?;
+    let valid_from = required_map_key(&validity_info, "validFrom", "MSO.validityInfo.validFrom")?;
+    let valid_until =
+        required_map_key(&validity_info, "validUntil", "MSO.validityInfo.validUntil")?;
+    let device_key_info = required_map_key(&mso_map, "deviceKeyInfo", "MSO.deviceKeyInfo")?;
+    let value_digests = required_map_key(&mso_map, "valueDigests", "MSO.valueDigests")?;
+    let value_digests_el = required_map_value(&mso_map, "valueDigests", "MSO.valueDigests")?;
 
-    let attrs = extract_attrs(&root, mdoc, &mso_map)?;
+    let attrs = extract_attrs(&issuer_signed, mdoc, &value_digests_el)?;
 
     Ok(ParsedMdoc {
         cbor_mso,
@@ -263,32 +290,144 @@ pub fn parse_mdoc<N: Nat<4>>(
     })
 }
 
-fn required_element(
-    root: &CborElement,
-    field: &'static str,
+fn map_entry_unique<'a>(
+    map: &'a CborElement,
+    key: &str,
+    path: &'static str,
+) -> Result<(&'a CborElement, &'a CborElement), MdocParseError> {
+    let pairs = if let CborValue::Map(pairs) = &map.value {
+        pairs
+    } else {
+        return Err(MdocParseError::UnexpectedType(path));
+    };
+
+    let mut found = None;
+    for (candidate_key, value) in pairs {
+        if matches!(&candidate_key.value, CborValue::Text(text) if text == key) {
+            if found.is_some() {
+                return Err(MdocParseError::DuplicateField(path));
+            }
+            found = Some((candidate_key, value));
+        }
+    }
+    found.ok_or(MdocParseError::MissingField(path))
+}
+
+fn required_map_value(
+    map: &CborElement,
+    key: &str,
+    path: &'static str,
 ) -> Result<CborElement, MdocParseError> {
-    find_element_by_key(root, field).ok_or(MdocParseError::MissingField(field))
+    let (_, value) = map_entry_unique(map, key, path)?;
+    Ok(value.clone())
 }
 
 fn required_map_key(
-    root: &CborElement,
-    field: &'static str,
+    map: &CborElement,
+    key: &str,
+    path: &'static str,
 ) -> Result<CborIndexVal, MdocParseError> {
-    find_key_in_map(root, field).ok_or(MdocParseError::MissingField(field))
+    let (key_element, value) = map_entry_unique(map, key, path)?;
+    Ok(CborIndexVal {
+        k: key_element.start,
+        v: value.start,
+    })
 }
 
 fn required_array<'a>(
     element: &'a CborElement,
     field: &'static str,
 ) -> Result<&'a Vec<CborElement>, MdocParseError> {
-    get_array(element).ok_or(MdocParseError::UnexpectedType(field))
+    if let CborValue::Array(array) = &element.value {
+        Ok(array)
+    } else {
+        Err(MdocParseError::UnexpectedType(field))
+    }
+}
+
+fn required_cose_sign1_array<'a>(
+    element: &'a CborElement,
+    field: &'static str,
+) -> Result<&'a Vec<CborElement>, MdocParseError> {
+    match &element.value {
+        CborValue::Array(array) => Ok(array),
+        CborValue::Tag(18, inner) => required_array(inner, field),
+        _ => Err(MdocParseError::UnexpectedType(field)),
+    }
 }
 
 fn required_bytes<'a>(
     element: &'a CborElement,
     field: &'static str,
 ) -> Result<&'a Vec<u8>, MdocParseError> {
-    get_bytes(element).ok_or(MdocParseError::UnexpectedType(field))
+    if let CborValue::Bytes(bytes) = &element.value {
+        Ok(bytes)
+    } else {
+        Err(MdocParseError::UnexpectedType(field))
+    }
+}
+
+fn required_tagged_bytes<'a>(
+    element: &'a CborElement,
+    tag: u64,
+    field: &'static str,
+) -> Result<&'a Vec<u8>, MdocParseError> {
+    if let CborValue::Tag(actual_tag, inner) = &element.value {
+        if *actual_tag == tag {
+            return required_bytes(inner, field);
+        }
+    }
+    Err(MdocParseError::UnexpectedType(field))
+}
+
+fn required_device_coordinate(
+    device_key: &CborElement,
+    mso_bytes: &[u8],
+    encoded_key: u8,
+    field: &'static str,
+) -> Result<Vec<u8>, MdocParseError> {
+    let pairs = if let CborValue::Map(pairs) = &device_key.value {
+        pairs
+    } else {
+        return Err(MdocParseError::UnexpectedType(
+            "MSO.deviceKeyInfo.deviceKey",
+        ));
+    };
+
+    let mut found = None;
+    for (key, value) in pairs {
+        if mso_bytes.get(key.start) == Some(&encoded_key) {
+            if found.is_some() {
+                return Err(MdocParseError::DuplicateField(field));
+            }
+            found = Some(required_bytes(value, field)?.clone());
+        }
+    }
+    found.ok_or(MdocParseError::MissingField(field))
+}
+
+fn required_digest_offset(
+    value_digests: &CborElement,
+    namespace: &str,
+    digest_id: u64,
+) -> Result<usize, MdocParseError> {
+    let namespace_map = required_map_value(value_digests, namespace, "MSO.valueDigests namespace")?;
+    let pairs = if let CborValue::Map(pairs) = &namespace_map.value {
+        pairs
+    } else {
+        return Err(MdocParseError::UnexpectedType("MSO.valueDigests namespace"));
+    };
+
+    let mut found = None;
+    for (key, value) in pairs {
+        if matches!(key.value, CborValue::Integer(id) if id == digest_id) {
+            if found.is_some() {
+                return Err(MdocParseError::DuplicateField("attribute digest in MSO"));
+            }
+            found = Some(value.start);
+        }
+    }
+    found.ok_or(MdocParseError::MissingField("attribute digest in MSO"))
 }
 
 fn parse_signature<N: Nat<4>>(bytes: &[u8], field: &'static str) -> Result<(N, N), MdocParseError> {
@@ -335,30 +474,34 @@ fn validate_mso_layout(
 }
 
 fn extract_attrs(
-    root: &CborElement,
+    issuer_signed: &CborElement,
     mdoc_bytes: &[u8],
-    mso_map: &CborElement,
+    value_digests: &CborElement,
 ) -> Result<Vec<ParsedAttr>, MdocParseError> {
     let mut attrs = Vec::new();
-    let docs_el = required_element(root, "documents")?;
-    let docs_arr = required_array(&docs_el, "documents")?;
-    let doc0 = docs_arr
-        .first()
-        .ok_or(MdocParseError::MissingField("document 0"))?;
-    let issuer_signed = required_element(doc0, "issuerSigned")?;
-    let namespaces_el = required_element(&issuer_signed, "nameSpaces")?;
+    let namespaces_el = required_map_value(
+        issuer_signed,
+        "nameSpaces",
+        "documents[0].issuerSigned.nameSpaces",
+    )?;
     let ns_pairs = if let CborValue::Map(ns_pairs) = &namespaces_el.value {
         ns_pairs
     } else {
         return Err(MdocParseError::UnexpectedType("nameSpaces"));
     };
 
+    let mut namespace_names = std::collections::HashSet::new();
     for (ns_key, ns_val) in ns_pairs {
         let ns_name = if let CborValue::Text(name) = &ns_key.value {
             name.as_str()
         } else {
             return Err(MdocParseError::UnexpectedType("namespace name"));
         };
+        if !namespace_names.insert(ns_name) {
+            return Err(MdocParseError::DuplicateField(
+                "documents[0].issuerSigned.nameSpaces namespace",
+            ));
+        }
         let items_arr = required_array(ns_val, "namespace items")?;
         for signed_item_el in items_arr {
             // Extracts the raw IssuerSignedItem bytes wrapped in Tag 24.
@@ -366,22 +509,31 @@ fn extract_attrs(
                 .get(signed_item_el.start..signed_item_el.end)
                 .ok_or(MdocParseError::InvalidValue("IssuerSignedItem byte range"))?;
             let cbor_issuer_signed_item_map =
-                required_bytes(signed_item_el, "IssuerSignedItem tag payload")?;
+                required_tagged_bytes(signed_item_el, 24, "IssuerSignedItem tag-24 payload")?;
             let mut attr_parser = CborParser::new(cbor_issuer_signed_item_map);
-            let signed_item = attr_parser
-                .parse_val()
-                .map_err(|message| MdocParseError::Cbor {
-                    context: "IssuerSignedItem map",
-                    message,
-                })?;
+            let signed_item =
+                attr_parser
+                    .parse_exact()
+                    .map_err(|message| MdocParseError::Cbor {
+                        context: "IssuerSignedItem map",
+                        message,
+                    })?;
 
-            let element_id_el = required_element(&signed_item, "elementIdentifier")?;
+            let element_id_el = required_map_value(
+                &signed_item,
+                "elementIdentifier",
+                "IssuerSignedItem.elementIdentifier",
+            )?;
             let element_id = if let CborValue::Text(id) = &element_id_el.value {
                 id
             } else {
                 return Err(MdocParseError::UnexpectedType("elementIdentifier"));
             };
-            let element_value_el = required_element(&signed_item, "elementValue")?;
+            let element_value_el = required_map_value(
+                &signed_item,
+                "elementValue",
+                "IssuerSignedItem.elementValue",
+            )?;
             let cbor_value = cbor_issuer_signed_item_map
                 .get(element_value_el.start..element_value_el.end)
                 .ok_or(MdocParseError::InvalidValue("elementValue byte range"))?;
@@ -391,7 +543,7 @@ fn extract_attrs(
                 cbor_value.to_vec(),
                 cbor_issuer_signed_item_wrapped,
                 &signed_item,
-                mso_map,
+                value_digests,
                 ns_name,
             )?;
 
@@ -406,11 +558,9 @@ fn compute_witness(
     cbor_value: Vec<u8>,
     cbor_issuer_signed_item: &[u8],
     inner_map: &CborElement,
-    mso_map: &CborElement,
+    value_digests: &CborElement,
     namespace: &str,
 ) -> Result<ParsedAttr, MdocParseError> {
-    use crate::cbor::parse::find_digest_offset;
-
     let pairs = if let CborValue::Map(pairs) = &inner_map.value {
         pairs
     } else {
@@ -445,6 +595,9 @@ fn compute_witness(
 
         match key_str.as_str() {
             "digestID" => {
+                if slots[0].is_some() {
+                    return Err(MdocParseError::DuplicateField("IssuerSignedItem.digestID"));
+                }
                 slots[0] = Some(i);
                 if let CborValue::Integer(n) = v.value {
                     digest_id = Some(n);
@@ -452,9 +605,25 @@ fn compute_witness(
                     return Err(MdocParseError::UnexpectedType("digestID"));
                 }
             }
-            "random" => slots[1] = Some(i),
-            "elementIdentifier" => slots[2] = Some(i),
-            "elementValue" => slots[3] = Some(i),
+            "random" => {
+                if slots[1].replace(i).is_some() {
+                    return Err(MdocParseError::DuplicateField("IssuerSignedItem.random"));
+                }
+            }
+            "elementIdentifier" => {
+                if slots[2].replace(i).is_some() {
+                    return Err(MdocParseError::DuplicateField(
+                        "IssuerSignedItem.elementIdentifier",
+                    ));
+                }
+            }
+            "elementValue" => {
+                if slots[3].replace(i).is_some() {
+                    return Err(MdocParseError::DuplicateField(
+                        "IssuerSignedItem.elementValue",
+                    ));
+                }
+            }
             _ => return Err(MdocParseError::UnknownField(key_str.clone())),
         }
     }
@@ -492,8 +661,8 @@ fn compute_witness(
 
     let digest_id_val = digest_id.ok_or(MdocParseError::MissingField("digestID"))?;
 
-    let mso_digest_offset_in_preimage = find_digest_offset(mso_map, namespace, digest_id_val)
-        .ok_or(MdocParseError::MissingField("attribute digest in MSO"))?;
+    let mso_digest_offset_in_preimage =
+        required_digest_offset(value_digests, namespace, digest_id_val)?;
 
     Ok(ParsedAttr {
         name,
@@ -565,9 +734,13 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     use super::{
-        compute_transcript_hash, parse_mdoc, parse_signature, validate_mso_layout, MdocParseError,
+        compute_transcript_hash, parse_mdoc, parse_signature, required_map_value,
+        validate_mso_layout, MdocParseError,
     };
-    use crate::cbor::constants::{K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER};
+    use crate::cbor::{
+        constants::{K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER},
+        parse::CborParser,
+    };
 
     fn wrapped_mso(map_len: usize) -> (Vec<u8>, Vec<u8>) {
         let map = vec![0; map_len];
@@ -620,6 +793,58 @@ mod tests {
                 context: "root mdoc",
                 ..
             })
+        ));
+    }
+
+    #[test]
+    fn nested_decoy_key_does_not_satisfy_schema() {
+        let encoded = [
+            0xa1, 0x65, b'o', b'u', b't', b'e', b'r', 0xa1, 0x69, b'd', b'o', b'c', b'u', b'm',
+            b'e', b'n', b't', b's', 0x80,
+        ];
+        let mut parser = CborParser::new(&encoded);
+        let root = parser.parse_exact().expect("test CBOR must be valid");
+
+        assert!(matches!(
+            required_map_value(&root, "documents", "root.documents"),
+            Err(MdocParseError::MissingField("root.documents"))
+        ));
+    }
+
+    #[test]
+    fn duplicate_schema_key_is_rejected() {
+        let encoded = [
+            0xa2, 0x69, b'd', b'o', b'c', b'u', b'm', b'e', b'n', b't', b's', 0x80, 0x69, b'd',
+            b'o', b'c', b'u', b'm', b'e', b'n', b't', b's', 0x80,
+        ];
+        let mut parser = CborParser::new(&encoded);
+        let root = parser.parse_exact().expect("test CBOR must be valid");
+
+        assert!(matches!(
+            required_map_value(&root, "documents", "root.documents"),
+            Err(MdocParseError::DuplicateField("root.documents"))
+        ));
+    }
+
+    #[test]
+    fn wrong_schema_container_type_is_rejected() {
+        let encoded = [
+            0xa1, 0x69, b'd', b'o', b'c', b'u', b'm', b'e', b'n', b't', b's', 0x00,
+        ];
+        assert!(matches!(
+            parse_mdoc::<CompileNat<4>>(&encoded, &[], ""),
+            Err(MdocParseError::UnexpectedType("root.documents"))
+        ));
+    }
+
+    #[test]
+    fn trailing_cbor_data_is_rejected() {
+        assert!(matches!(
+            parse_mdoc::<CompileNat<4>>(&[0xa0, 0x00], &[], ""),
+            Err(MdocParseError::Cbor {
+                context: "root mdoc",
+                message,
+            }) if message.starts_with("Trailing data after CBOR item")
         ));
     }
 
