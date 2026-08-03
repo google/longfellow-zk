@@ -204,19 +204,9 @@ pub fn parse_mdoc<N: Nat<4>>(
 
     // Extract device public key coordinates (keep original big-endian
     // coordinates)
-    let dpkx_bytes = required_device_coordinate(
-        &dev_key_el,
-        &cbor_mso_map_bytes,
-        0x21,
-        "MSO.deviceKeyInfo.deviceKey.x",
-    )?;
+    let dpkx_bytes = required_device_coordinate(&dev_key_el, -2, "MSO.deviceKeyInfo.deviceKey.x")?;
     let dpkx = N::from_bytes_be(&dpkx_bytes);
-    let dpky_bytes = required_device_coordinate(
-        &dev_key_el,
-        &cbor_mso_map_bytes,
-        0x22,
-        "MSO.deviceKeyInfo.deviceKey.y",
-    )?;
+    let dpky_bytes = required_device_coordinate(&dev_key_el, -3, "MSO.deviceKeyInfo.deviceKey.y")?;
     let dpky = N::from_bytes_be(&dpky_bytes);
 
     // Issuer signature is the fourth element of issuerAuth COSE_Sign1 structure
@@ -382,8 +372,7 @@ fn required_tagged_bytes<'a>(
 
 fn required_device_coordinate(
     device_key: &CborElement,
-    mso_bytes: &[u8],
-    encoded_key: u8,
+    coordinate_key: i128,
     field: &'static str,
 ) -> Result<Vec<u8>, MdocParseError> {
     let pairs = if let CborValue::Map(pairs) = &device_key.value {
@@ -396,7 +385,7 @@ fn required_device_coordinate(
 
     let mut found = None;
     for (key, value) in pairs {
-        if mso_bytes.get(key.start) == Some(&encoded_key) {
+        if matches!(key.value, CborValue::Integer(parsed_key) if parsed_key == coordinate_key) {
             if found.is_some() {
                 return Err(MdocParseError::DuplicateField(field));
             }
@@ -420,7 +409,7 @@ fn required_digest_offset(
 
     let mut found = None;
     for (key, value) in pairs {
-        if matches!(key.value, CborValue::Integer(id) if id == digest_id) {
+        if matches!(key.value, CborValue::Integer(id) if id == i128::from(digest_id)) {
             if found.is_some() {
                 return Err(MdocParseError::DuplicateField("attribute digest in MSO"));
             }
@@ -600,7 +589,9 @@ fn compute_witness(
                 }
                 slots[0] = Some(i);
                 if let CborValue::Integer(n) = v.value {
-                    digest_id = Some(n);
+                    digest_id = Some(
+                        u64::try_from(n).map_err(|_| MdocParseError::InvalidValue("digestID"))?,
+                    );
                 } else {
                     return Err(MdocParseError::UnexpectedType("digestID"));
                 }
