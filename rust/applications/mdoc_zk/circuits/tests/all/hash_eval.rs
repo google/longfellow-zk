@@ -424,7 +424,8 @@ fn test_check_doc_type_suppression() {
     let wire_derived_wrong = evaluate_derived(&l2, &bv2, &derived_val);
 
     let mdoc2 = MdocHash::new(&l2, given_wrong.hash_input.attrs.len());
-    let res_wrong = mdoc2.assert_valid_presentation_and_macs(&wire_given_wrong, &wire_derived_wrong);
+    let res_wrong =
+        mdoc2.assert_valid_presentation_and_macs(&wire_given_wrong, &wire_derived_wrong);
     assert!(res_wrong.is_err());
     let failed_all = res_wrong.failed_paths();
     println!("ALL FAILED PATHS: {:?}", failed_all);

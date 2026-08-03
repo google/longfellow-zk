@@ -298,8 +298,10 @@ impl AssertionScope {
                     reps.push(rep);
                     e.insert(fate.clone());
                 }
-                std::collections::hash_map::Entry::Occupied(mut e) => if matches!(fate, AssertionStatus::Failed(_)) {
-                    e.insert(fate.clone());
+                std::collections::hash_map::Entry::Occupied(mut e) => {
+                    if matches!(fate, AssertionStatus::Failed(_)) {
+                        e.insert(fate.clone());
+                    }
                 }
             }
         }

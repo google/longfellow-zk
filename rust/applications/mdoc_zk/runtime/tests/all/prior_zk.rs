@@ -150,7 +150,8 @@ mod tests {
                                 test_data.mdoc,
                                 test_data.transcript,
                                 "org.iso.18013.5.1.mDL",
-                            );
+                            )
+                            .expect("test fixture must contain a valid mdoc");
 
                         if !is_supported_by_prior_version(spec, &parsed) {
                             return;
