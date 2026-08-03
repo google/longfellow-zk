@@ -18,8 +18,8 @@ use crate::{
     cbor::{
         append_bytes_len, append_text_len,
         constants::{
-            K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_COSE_SIGN1_SIGNING_HEADER,
-            K_DEVICE_AUTHENTICATION_HEADER, K_TAG24,
+            K_COSE1_PREFIX_LEN, K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER,
+            K_TAG24,
         },
         parse::{
             find_device_key_coordinate, find_element_by_key, find_key_in_map, get_array, get_bytes,
@@ -75,8 +75,23 @@ impl<N> ParsedMdoc<N> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MsoLayoutError {
+    UnsupportedEncoding,
+    TooBig,
+}
+
 #[must_use]
 pub fn parse_mdoc<N: Nat<4>>(mdoc: &[u8], transcript: &[u8], doc_type: &str) -> ParsedMdoc<N> {
+    try_parse_mdoc(mdoc, transcript, doc_type)
+        .expect("MSO encoding is not supported by the circuit")
+}
+
+pub fn try_parse_mdoc<N: Nat<4>>(
+    mdoc: &[u8],
+    transcript: &[u8],
+    doc_type: &str,
+) -> Result<ParsedMdoc<N>, MsoLayoutError> {
     use sha2::{Digest, Sha256};
 
     let mut root_parser = CborParser::new(mdoc);
@@ -111,6 +126,8 @@ pub fn parse_mdoc<N: Nat<4>>(mdoc: &[u8], transcript: &[u8], doc_type: &str) -> 
     } else {
         panic!("Expected Tag 24");
     };
+
+    validate_mso_layout(&cbor_mso_wrapped, &cbor_mso_map_bytes)?;
 
     // Calculate signed message hash `issuer_sig_digest` on the MSO bytes
     let cbor_mso = format_cose_sign1_message(&cbor_mso_wrapped);
@@ -172,7 +189,7 @@ pub fn parse_mdoc<N: Nat<4>>(mdoc: &[u8], transcript: &[u8], doc_type: &str) -> 
 
     let attrs = extract_attrs(&root, mdoc, &mso_map);
 
-    ParsedMdoc {
+    Ok(ParsedMdoc {
         cbor_mso,
         issuer_sig_digest,
         issuer_sig_r,
@@ -188,7 +205,38 @@ pub fn parse_mdoc<N: Nat<4>>(mdoc: &[u8], transcript: &[u8], doc_type: &str) -> 
         device_key_info_offset_in_mso: device_key_info.k,
         value_digests_offset_in_mso: value_digests.k,
         attrs,
+    })
+}
+
+fn validate_mso_layout(
+    cbor_mso_wrapped: &[u8],
+    cbor_mso_map_bytes: &[u8],
+) -> Result<(), MsoLayoutError> {
+    // SHA-256 padding needs one marker byte and an eight-byte length suffix.
+    let max_preimage_len = crate::hash::constants::K_MSO_PREIMAGE_LEN - 9;
+    let formatted_len = K_COSE1_PREFIX_LEN
+        .checked_add(2)
+        .and_then(|len| len.checked_add(cbor_mso_wrapped.len()))
+        .ok_or(MsoLayoutError::TooBig)?;
+    if formatted_len > max_preimage_len || cbor_mso_wrapped.len() > u16::MAX as usize {
+        return Err(MsoLayoutError::TooBig);
     }
+
+    // Current circuits assume the deterministic encoding
+    // tag(24) + bytes(u16 length) + MSO map bytes.
+    if cbor_mso_map_bytes.len() < 256
+        || cbor_mso_wrapped.get(..3) != Some(&[0xd8, 0x18, 0x59])
+        || cbor_mso_wrapped.len() != cbor_mso_map_bytes.len() + 5
+    {
+        return Err(MsoLayoutError::UnsupportedEncoding);
+    }
+
+    let encoded_map_len = u16::from_be_bytes([cbor_mso_wrapped[3], cbor_mso_wrapped[4]]) as usize;
+    if encoded_map_len != cbor_mso_map_bytes.len() {
+        return Err(MsoLayoutError::UnsupportedEncoding);
+    }
+
+    Ok(())
 }
 
 fn extract_attrs(root: &CborElement, mdoc_bytes: &[u8], mso_map: &CborElement) -> Vec<ParsedAttr> {
@@ -367,14 +415,12 @@ pub fn compute_transcript_hash(transcript: &[u8], doc_type: &str) -> Vec<u8> {
     // ]
     let mut cose_sign1_bytes = K_COSE_SIGN1_SIGNING_HEADER.to_vec();
 
-    let da_len = device_authentication_cbor.len();
-    // Payload length includes the Tag 24 prefix and the byte string header of
-    // the payload
-    let payload_len = da_len + if da_len < 256 { 4 } else { 5 };
-    append_bytes_len(&mut cose_sign1_bytes, payload_len);
-    cose_sign1_bytes.extend_from_slice(&K_TAG24);
-    append_bytes_len(&mut cose_sign1_bytes, da_len);
-    cose_sign1_bytes.extend_from_slice(&device_authentication_cbor);
+    let mut payload = K_TAG24.to_vec();
+    append_bytes_len(&mut payload, device_authentication_cbor.len());
+    payload.extend_from_slice(&device_authentication_cbor);
+
+    append_bytes_len(&mut cose_sign1_bytes, payload.len());
+    cose_sign1_bytes.extend_from_slice(&payload);
 
     use sha2::Digest;
     let mut hasher = sha2::Sha256::new();
@@ -383,10 +429,81 @@ pub fn compute_transcript_hash(transcript: &[u8], doc_type: &str) -> Vec<u8> {
 }
 
 fn format_cose_sign1_message(cbor_mso: &[u8]) -> Vec<u8> {
-    let mut buf = Vec::with_capacity(K_COSE1_PREFIX_LEN + 2 + cbor_mso.len());
-    buf.extend_from_slice(&K_COSE1_PREFIX);
-    buf.push(((cbor_mso.len() >> 8) & 0xff) as u8);
-    buf.push((cbor_mso.len() & 0xff) as u8);
+    let mut buf = Vec::with_capacity(K_COSE_SIGN1_SIGNING_HEADER.len() + 3 + cbor_mso.len());
+    buf.extend_from_slice(&K_COSE_SIGN1_SIGNING_HEADER);
+    append_bytes_len(&mut buf, cbor_mso.len());
     buf.extend_from_slice(cbor_mso);
     buf
+}
+
+#[cfg(test)]
+mod tests {
+    use sha2::{Digest, Sha256};
+
+    use super::{compute_transcript_hash, validate_mso_layout, MsoLayoutError};
+    use crate::cbor::constants::{K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER};
+
+    fn wrapped_mso(map_len: usize) -> (Vec<u8>, Vec<u8>) {
+        let map = vec![0; map_len];
+        let mut wrapped = vec![0xd8, 0x18, 0x59];
+        wrapped.extend_from_slice(&(map_len as u16).to_be_bytes());
+        wrapped.extend_from_slice(&map);
+        (wrapped, map)
+    }
+
+    #[test]
+    fn validates_fixed_mso_layout() {
+        let (valid_wrapped, valid_map) = wrapped_mso(256);
+        assert_eq!(validate_mso_layout(&valid_wrapped, &valid_map), Ok(()));
+
+        let (short_wrapped, short_map) = wrapped_mso(255);
+        assert_eq!(
+            validate_mso_layout(&short_wrapped, &short_map),
+            Err(MsoLayoutError::UnsupportedEncoding)
+        );
+
+        let (mut wrong_len_wrapped, wrong_len_map) = wrapped_mso(256);
+        wrong_len_wrapped[4] = 1;
+        assert_eq!(
+            validate_mso_layout(&wrong_len_wrapped, &wrong_len_map),
+            Err(MsoLayoutError::UnsupportedEncoding)
+        );
+
+        let (mut trailing_wrapped, trailing_map) = wrapped_mso(256);
+        trailing_wrapped.push(0);
+        assert_eq!(
+            validate_mso_layout(&trailing_wrapped, &trailing_map),
+            Err(MsoLayoutError::UnsupportedEncoding)
+        );
+    }
+
+    #[test]
+    fn rejects_mso_that_exceeds_sha_capacity() {
+        let (wrapped, map) = wrapped_mso(2527);
+        assert_eq!(
+            validate_mso_layout(&wrapped, &map),
+            Err(MsoLayoutError::TooBig)
+        );
+    }
+
+    #[test]
+    fn transcript_hash_uses_u32_lengths() {
+        // An empty docType gives a fixed 27-byte overhead in DeviceAuthentication.
+        let transcript = vec![0; 65_536 - 27];
+        let actual = compute_transcript_hash(&transcript, "");
+
+        let mut device_authentication = K_DEVICE_AUTHENTICATION_HEADER.to_vec();
+        device_authentication.extend_from_slice(&transcript);
+        device_authentication.push(0x60);
+        device_authentication.extend_from_slice(&[0xd8, 0x18, 0x41, 0xa0]);
+        assert_eq!(device_authentication.len(), 65_536);
+
+        let mut expected_preimage = K_COSE_SIGN1_SIGNING_HEADER.to_vec();
+        expected_preimage.extend_from_slice(&[0x5a, 0x00, 0x01, 0x00, 0x07]);
+        expected_preimage.extend_from_slice(&[0xd8, 0x18, 0x5a, 0x00, 0x01, 0x00, 0x00]);
+        expected_preimage.extend_from_slice(&device_authentication);
+        let expected = Sha256::digest(&expected_preimage).to_vec();
+
+        assert_eq!(actual, expected);
+    }
 }
