@@ -1,5 +1,6 @@
 import lfzk
 import layers
+import zk_layers
 
 open Classical Polynomial Finset
 
@@ -405,5 +406,96 @@ theorem layers_reduction_applies :
     · rw [myLD_next]
       rintro ⟨-, hEq⟩
       simp [myLC, myST, myLD] at hEq
+
+/-!
+## A ZK proof driving the layer loop
+
+`zk_layers.lean` is only worth anything if `ZkLayerRow` is satisfiable at every layer of a
+run whose claims are wrong.  Here is a two-layer instance over the same degenerate
+`LayeredCircuit`: the pad is zero, `EQQ` is zero (because `QUAD` is), and the incoming claim
+of `1` is carried by the builder's starting expression.
+
+The round challenge is `0`, which is a root of the middle Lagrange coefficient
+`lag1(r) = r(r − pt2)/(1 − pt2)` — so the builder's known part stays `0` and the
+`finalize` row is satisfied.
+-/
+
+/-- One `ConstraintBuilder` round transmitting zeros, with challenge `0`. -/
+noncomputable def zkRound : RoundData 1 F5 :=
+  { tr0 := 0, tr2 := 0, pp0 := 0, pp2 := 0, chal := 0 }
+
+/-- One ZK layer: masked evaluations `(1, 0)`, no combination (`alpha = 0`). -/
+noncomputable def zkL : ZkLayer 1 F5 :=
+  { rounds := [zkRound], wc0 := 1, wc1 := 0, alpha := 0, dwL := 0, dwR := 0, dwLR := 0 }
+
+/-- The sumcheck state the run sits at: a claim of `1` where the honest wire value is `0`. -/
+noncomputable def zkST : LayerState 0 1 F5 :=
+  { claim0 := 1, claim1 := 0, q := vec1 0, g0 := v0, g1 := v0 }
+
+lemma zk_next_state (cl : F5) :
+    next_state (zkL.toLayerData (logw := 0) (logc := 1) (fun _ => 0) cl) = zkST := by
+  rw [next_state, zkST]
+  congr 1
+
+/-- The builder's starting expression carries the incoming claim, and the `finalize` row
+holds because `EQQ = 0` and the builder's known part is `0`. -/
+lemma zk_row (ly : ℕ) : ZkLayerRow myLC (fun _ => (0 : F5)) ly zkST zkL := by
+  refine ⟨((1 : F5), fun _ => 0), ?_, ?_, ?_⟩
+  · simp [evaluates_to, zkST, zkL]
+  · show (∑ i, _ * (0 : F5)) = _
+    simp [builder_finalize, zkL, builder_run, builder_next, zkRound,
+          Expression.axpy, Expression.axmy, Expression.scale,
+          lag_coeffs, LayeredCircuit.eqq, myLC]
+  · simp
+
+lemma zk_rows_hold : ZkRowsHold myLC (fun _ => (0 : F5)) 0 zkST [zkL, zkL] := by
+  refine ⟨zk_row 0, ?_, trivial⟩
+  rw [zk_next_state]
+  exact zk_row 1
+
+/-- The whole two-layer ZK proof drives `VerifierLayers::layers` to accept. -/
+theorem zk_layers_verify_applies :
+    verify_layers myLC 0 zkST (zkLayerDatas (fun _ => (0 : F5)) zkST [zkL, zkL])
+      = some (zkFinalState (fun _ => (0 : F5)) zkST [zkL, zkL]) :=
+  zk_layers_verify myLC (fun _ => 0) [zkL, zkL] 0 zkST zk_rows_hold
+
+/-- Both layers of the run carry the same data. -/
+lemma zk_datas_two :
+    zkLayerDatas (fun _ => (0 : F5)) zkST [zkL, zkL]
+      = [zkL.toLayerData (logw := 0) (logc := 1) (fun _ => 0)
+            (zkST.claim0 + zkL.alpha * zkST.claim1),
+         zkL.toLayerData (logw := 0) (logc := 1) (fun _ => 0)
+            (zkST.claim0 + zkL.alpha * zkST.claim1)] := by
+  rw [zkLayerDatas, zk_next_state, zkLayerDatas, zk_next_state, zkLayerDatas]
+
+/-- And the multi-layer soundness reduction applies to it: the run's claims are wrong, so
+the prover was lucky somewhere or the input-layer claims are wrong. -/
+theorem zk_multi_layer_soundness_applies :
+    AnyLayerRoundBad myLC () 0 zkST (zkLayerDatas (fun _ => (0 : F5)) zkST [zkL, zkL])
+      ∨ ¬ ClaimsCorrect myLC [zkL, zkL].length ()
+          (zkFinalState (fun _ => (0 : F5)) zkST [zkL, zkL]) := by
+  refine zk_multi_layer_soundness myLC (fun _ => 0) () (by omega) [zkL, zkL] zkST
+    zk_rows_hold ?_ ?_ ?_
+  · rw [zk_datas_two]
+    intro ld hld
+    have hform : ld = zkL.toLayerData (logw := 0) (logc := 1) (fun _ => 0)
+        (zkST.claim0 + zkL.alpha * zkST.claim1) := by
+      rcases List.mem_cons.mp hld with h | h
+      · exact h
+      · rcases List.mem_cons.mp h with h2 | h2
+        · exact h2
+        · cases h2
+    subst hform
+    exact ⟨by simp [ZkLayer.toLayerData, zkL, run_polys, zkRound],
+           by simp [ZkLayer.toLayerData, zkL, run_challenges, zkRound]⟩
+  · rw [zk_datas_two]
+    refine ⟨?_, ?_, trivial⟩
+    · rintro ⟨-, hEq⟩
+      simp [myLC, zkST, ZkLayer.toLayerData, zkL] at hEq
+    · rw [zk_next_state]
+      rintro ⟨-, hEq⟩
+      simp [myLC, zkST, ZkLayer.toLayerData, zkL] at hEq
+  · rintro ⟨h0, -⟩
+    simp [zkST, myLC] at h0
 
 end LfzkExample

@@ -26,4 +26,4 @@ roots = ["PkCircuit", "PkCircuitPoly"]
 [[lean_lib]]
 name = "lfzk"
 srcDir = "lfzk"
-roots = ["types", "fiat_shamir", "circuit", "ligero", "lfzk", "sumcheck_soundness", "layers", "fs_derive", "builder", "example"]
+roots = ["types", "fiat_shamir", "circuit", "ligero", "lfzk", "sumcheck_soundness", "layers", "fs_derive", "builder", "instantiate", "zk_layers", "zk_soundness", "example"]

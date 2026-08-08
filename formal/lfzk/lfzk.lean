@@ -140,9 +140,9 @@ lemma final_binding {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fi
 Proves that `P(Event_C) ≤ eps_sumcheck` by reducing `Event_C` to `multi_round_bad_event`
 using `sumcheck_multi_reduction`.
 
-This lemma serves as the bridge between abstract sumcheck bounds and the specific 
-Longfellow protocol. It bounds the protocol-specific `Event_C` by instantiating the 
-generic `multi_round_bad_event` with Longfellow's specific arithmetized quadratic 
+This lemma serves as the bridge between abstract sumcheck bounds and the specific
+Longfellow protocol. It bounds the protocol-specific `Event_C` by instantiating the
+generic `multi_round_bad_event` with Longfellow's specific arithmetized quadratic
 form polynomials (`circuit_true_polys`).
 -/
 lemma lemma_sumcheck_soundness (eps_sumcheck : ℕ) {nc nv ninp logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
@@ -441,64 +441,73 @@ This is the main theorem of the formalization.  Read precisely, it says:
 
 > for **one sumcheck layer**, on the runs where the ZK verifier **accepts**, the number
 > of runs on which the combined extractor `E_prime` fails to output a satisfying witness
-> is at most `eps_FSK + eps_sumcheck`,
+> is at most `eps_FSK + eps_bind + eps_deg + eps_sumcheck`.
 
-granted `IsLigeroKnowledgeSound`, `IsWellFormedTranscript` and
-`IsSumcheckCorrelationIntractable`, and granted that the layer randomness avoids
-`AC.degenerate`.  It is a *reduction*, not a self-contained knowledge-soundness proof:
-`eps_FSK` and `eps_sumcheck` are supplied by the caller, not derived here.
+It is a *reduction*, not a self-contained knowledge-soundness proof: the four error terms
+are supplied by the caller.  `core_soundness_derived_eps` fills in the last of them.
 
 Rather than reasoning about real-valued probabilities, this formalization counts "bad"
 outcomes in a finite sample space `Ω`; all bounds are set cardinalities (`event_card`),
-not probability measures.  Note that the counts are **absolute** and never normalised by
-`Fintype.card Ω`, so `eps_FSK + eps_sumcheck` is only meaningful relative to `|Ω|`.
-(The counting bounds in `sumcheck_soundness.lean` *are* normalised: `n * d * |F|^(n-1)`
-out of `|F|^n`.)
+not probability measures.  The counts are **absolute** and never normalised by
+`Fintype.card Ω`, so the sum is only meaningful relative to `|Ω|`.  (The counting bounds in
+`sumcheck_soundness.lean` *are* normalised: `n * d * |F|^(n-1)` out of `|F|^n`.)
 
 ### High-Level Proof Structure
+
 1. **Event Partitioning (`event_fail_subset`)**:
    `Event_Fail` — the verifier accepted, yet `E_prime` returned nothing or returned a
-   witness with `eval = false` — is a subset of `Event_A ∪ Event_B ∪ Event_C`.  Each of the
-   four events carries the `accepts ω` conjunct; conditioning on acceptance is what makes
-   this the right statement, since a rejected run carries no soundness obligation.
+   witness with `eval = false` — is a subset of
+   `Event_A ∪ Event_B ∪ Event_Degenerate ∪ Event_C`.  Every one of these carries the
+   `accepts ω` conjunct; conditioning on acceptance is what makes this the right statement,
+   since a rejected run carries no soundness obligation.
 
-2. **Union Bound (`union_bound_3`)**:
-   `|Event_Fail| ≤ |Event_A| + |Event_B| + |Event_C|`.
+2. **Union Bound (`union_bound_4`)**.
 
 3. **Bounding Individual Error Terms**:
    - `|Event_A| ≤ eps_FSK`: assumed, via `IsLigeroKnowledgeSound.extraction_bound`.
      Ligero is treated as an ideal primitive; its Reed–Solomon internals are not modelled.
-   - `|Event_B| = 0`: **proved** (`event_b_empty`).  `extractor_soundness_bridge` shows
-     that a pad satisfying the `builder_finalize` row plus the quadratic pad relation, and
-     witness columns satisfying the input row of `ZkCommon::input_constraint`, force
-     `Transcript.checkV = true`.  The two hand-binding conjuncts come from
-     `input_row_binds_hands`, i.e. from the committed witness columns.
+     This is the one irreducibly cryptographic assumption.
+   - `|Event_B| ≤ eps_bind`: **reduced** (`event_b_subset`).  `extractor_soundness_bridge`
+     shows that a pad satisfying the `builder_finalize` row plus the quadratic pad relation,
+     and witness columns satisfying the input row of `ZkCommon::input_constraint`, force
+     `Transcript.checkV = true` — *unless* the run hits the single `alpha` that lets the
+     combined row hide a mismatch.  So `Event_B` sits inside `Event_AlphaBad`, which
+     `alpha_bad_card` bounds by a `1/|F|` fraction.
+   - `|Event_Degenerate| ≤ eps_deg`: the `alpha` of `claim[0] + alpha * claim[1]`
+     (`verifier_layers.h:L147`) collapsing a non-zero output claim vector.  `layer_claim_affine`
+     shows the honest claim is affine in `alpha`, so again at most one value is bad.
    - `|Event_C| ≤ eps_sumcheck`: `lemma_sumcheck_soundness` reduces `Event_C` to
-     `multi_round_bad_event` via `sumcheck_multi_reduction` (proved), and then *assumes*
-     the count of bad events through `IsSumcheckCorrelationIntractable.ci_bound`.
+     `multi_round_bad_event` via `sumcheck_multi_reduction` (proved), and then takes the
+     count from `IsSumcheckCorrelationIntractable.ci_bound` — which
+     `sumcheck_ci_of_nonadaptive` derives as `K * (n * d * |F|^(n-1))`.
 
-4. **Final Bound**: `|Event_Fail| ≤ eps_FSK + 0 + eps_sumcheck`.
+4. **Final Bound**: `|Event_Fail| ≤ eps_FSK + eps_bind + eps_deg + eps_sumcheck`.
+
+### What is assumed
+
+`IsLigeroKnowledgeSound` (Ligero as an ideal primitive, plus what its extractor returns and
+public-input consistency), `ArithmetizedCircuit.arith` (an unsatisfied circuit has a
+non-zero output claim vector — note this no longer mentions the layer randomness),
+`ArithmetizedCircuit.W_mle_is_mle` (definitional), `IsWellFormedTranscript.round_count`, and
+the four error bounds.  There is **no** non-degeneracy hypothesis: both randomness
+conditions are events, not side conditions.
 
 ### Non-vacuity
 
-`example.lean` constructs a concrete instance over `ZMod 5` — one round, `eval`
-identically `false` — discharging every hypothesis, and shows there that `Event_Fail`
-is in fact non-empty and the bound is tight.  Without such a witness this theorem would
-say nothing; an earlier version was vacuous on exactly this point.
+`example.lean` constructs a concrete instance over `ZMod 5` — one round, `eval` identically
+`false` — discharging every hypothesis, and shows there that `Event_Fail` is in fact
+non-empty and the bound is doing work.  Without such a witness this theorem would say
+nothing; an earlier version was vacuous on exactly this point.
 
 ### What this theorem does *not* establish
 
-* **A single layer.**  `verifier_layers.h::layers` runs `nl` layers, restarting each at
-  `claim[0] + alpha * claim[1]` and reducing through the `got != claim` check to two new
-  claims `wc[0], wc[1]`.  None of that inter-layer plumbing is modelled.
-* **`eps_sumcheck` is assumed, not derived.**  `combinatorial_fiat_shamir` in
-  `sumcheck_soundness.lean` proves the bound `n * d * |F|^(n-1)` for a non-adaptive
-  prover, but nothing connects it to `IsSumcheckCorrelationIntractable`.
-* **Degenerate layer randomness is unaccounted.**  `hgood` excludes it outright; in the
-  protocol `alpha`, `beta`, `q` and `g` are Fiat–Shamir challenges and the probability of
-  landing in `AC.degenerate` is a further error term with no counterpart here.  The same
-  applies to `IsLigeroKnowledgeSound.alpha_good`, though there `input_binding_bad_card`
-  proves the bad set has at most one element, so the cost is exactly `1/|F|`.
+* **A single layer.**  `verifier_layers.h::layers` runs `nl` layers.  `layers.lean` proves
+  the layer-to-layer reduction and the induction over all of them, but this theorem still
+  joins the Ligero pad machinery to *one* layer's sumcheck.
+* **Instantiated error terms.**  `eps_FSK`, `eps_bind` and `eps_deg` are parameters; nothing
+  here exhibits an `Ω` for which `alpha_bad_card` discharges the last two.
+* **Zero-knowledge.**  Only soundness is addressed; the pad is a vector the extractor
+  produces, not a distribution.
 * **Copy rounds.**  `RoundPoly` matches `WPoly = Poly<3, Field>` (degree 2), which is what
   the ZK path uses.  The non-ZK `VerifierLayers::layer_c` uses `CPoly = Poly<4, Field>`.
 * **Challenge ordering.**  `extract_vars` treats the two hands as contiguous blocks, while
