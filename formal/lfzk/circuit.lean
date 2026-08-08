@@ -1,7 +1,6 @@
 import Mathlib
 import sumcheck_soundness
 import types
-import fiat_shamir
 import builder
 
 open BigOperators
@@ -31,11 +30,15 @@ def eq_matrix_mle {F : Type} [Field F] (n logn : ℕ) (x y : Vector F logn) : F 
   ∑ i ∈ Finset.range n, (eq_mle_basis i x * eq_mle_basis i y)
 
 
+/-- The boolean point of the hypercube indexed by `i` — a gate corner. -/
+def boolean_vector {n : ℕ} {F : Type} [Field F] (i : ℕ) : Vector F n :=
+  Vector.ofFn (fun j => if bit_value i j.val = 1 then 1 else 0)
+
 /--
 The exact polynomial checked during the multi-round sumcheck for a single layer.
 This maps directly to `got = EQ[Q,C] QUAD[G|R,L] W[R,C] W[L,C]` in `verifier_layers.h:160`.
 -/
-noncomputable def layer_sumcheck_poly {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)]
+noncomputable def layer_sumcheck_poly {F : Type} [Field F] [Fintype F]
   (Quad_mle : Vector F logv → Vector F logw → Vector F logw → F)
   (W_mle : Vector F logw → Vector F logc → F)
   (alpha : F)
@@ -43,9 +46,11 @@ noncomputable def layer_sumcheck_poly {F : Type} [Field F] [Fintype F] [Fintype 
   (copy : Vector F logc) (l r : Vector F logw) : F :=
   -- EQ[Q, C] restricted to domain `nc`
   eq_matrix_mle nc logc q copy *
-  -- QUAD[G | L, R] bound with alpha (matches `bind_gh_all` in `quad.h`)
-  (∑ g ∈ (Finset.univ : Finset (Vector F logv)), Quad_mle g l r *
-    (eq_matrix_mle nv logv g0 g + alpha * eq_matrix_mle nv logv g1 g)) *
+  -- QUAD[G | L, R] bound with alpha.  `bind_g` (`quad.h:L153`) iterates over the *gates*,
+  -- looking each gate's corner `ec.g` up in `dot = raw_eq2(logv, nv, G0, G1, alpha)`, so the
+  -- sum is over the `nv` gate corners — not over all of `F^logv`.
+  (∑ i ∈ Finset.range nv, Quad_mle (boolean_vector i) l r *
+    (eq_mle_basis i g0 + alpha * eq_mle_basis i g1)) *
   -- W[L, C] * W[R, C]
   W_mle l copy * W_mle r copy
 
@@ -59,7 +64,7 @@ def extract_vars {logc logw : ℕ} {F : Type} [Field F] (concat : Vector F (logc
   (c, w1, w2)
 
 
-noncomputable def layer_sumcheck_poly_concat {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)]
+noncomputable def layer_sumcheck_poly_concat {F : Type} [Field F] [Fintype F]
   (Quad_mle : Vector F logv → Vector F logw → Vector F logw → F)
   (W_mle : Vector F logw → Vector F logc → F)
   (alpha : F)
@@ -80,8 +85,6 @@ def construct_assignment {n : ℕ} {F : Type} [Field F] (k : ℕ) (hk : k < n)
   )
 
 
-def boolean_vector {n : ℕ} {F : Type} [Field F] (i : ℕ) : Vector F n :=
-  Vector.ofFn (fun j => if bit_value i j.val = 1 then 1 else 0)
 
 
 def sumcheck_eval_round {n : ℕ} {F : Type} [Field F] (f : Vector F n → F) (k : ℕ) (hk : k < n)
@@ -460,16 +463,352 @@ lemma sumcheck_round_poly_natDegree_le {n : ℕ} {F : Type} [Field F] [Fintype F
   rw [sumcheck_round_poly_eq_of_agrees f k hk ch g (by omega) hag]
   exact hdg
 
+/-!
+## Degree 2, derived
+
+`combinatorial_fiat_shamir` is applied with a degree bound `d`; the implementation fixes it at
+`2`, because the hand-round polynomial is `WPoly = Poly<3, Field>` — three evaluation points,
+degree two (`sumcheck/circuit.h`).  That `2` is not a free parameter: the layer summand is
+`EQ[Q,C] · QUAD[G|L,R] · W[L,C] · W[R,C]` with `QUAD` and `W` multilinear in the hand
+variables, so binding one hand variable touches exactly two factors and leaves a quadratic.
+
+This section turns that observation into `sumcheck_round_poly_natDegree_le_two`, which is what
+`IsFiatShamirTranscript.hd` asks for.  Copy rounds are genuinely cubic (`CPoly = Poly<4>`);
+the ZK path has none, since `zk_common.h:L72` asserts `logc == 0`.
+-/
+
+/-- Multilinear: freezing every coordinate but one leaves an affine function. -/
+def IsMultilinear {n : ℕ} {F : Type} [Field F] (h : Vector F n → F) : Prop :=
+  ∀ (v : Vector F n) (j : ℕ) (hj : j < n), ∃ a b : F, ∀ X : F, h (v.set j X hj) = a + b * X
+
+/-- Quadratic in coordinate `j`: freezing every other coordinate leaves a degree-≤2 function. -/
+def QuadraticAt {n : ℕ} {F : Type} [Field F] (h : Vector F n → F) (j : ℕ) (hj : j < n) : Prop :=
+  ∀ v : Vector F n, ∃ a b c : F, ∀ X : F, h (v.set j X hj) = a + b * X + c * X ^ 2
+
+/-- Quadratic: freezing every coordinate but one leaves a degree-≤2 function. -/
+def IsQuadratic {n : ℕ} {F : Type} [Field F] (h : Vector F n → F) : Prop :=
+  ∀ (j : ℕ) (hj : j < n), QuadraticAt h j hj
+
+section closure
+variable {n : ℕ} {F : Type} [Field F]
+
+lemma IsMultilinear.const (k : F) : IsMultilinear (fun _ : Vector F n => k) :=
+  fun _ _ _ => ⟨k, 0, fun _ => by ring⟩
+
+lemma IsMultilinear.mul_const {h : Vector F n → F} (H : IsMultilinear h) (k : F) :
+    IsMultilinear (fun v => h v * k) := by
+  intro v j hj
+  obtain ⟨a, b, hab⟩ := H v j hj
+  exact ⟨a * k, b * k, fun X => by show h _ * k = _; rw [hab]; ring⟩
+
+lemma IsMultilinear.sum {ι : Type} (s : Finset ι) (h : ι → Vector F n → F)
+    (H : ∀ i, IsMultilinear (h i)) : IsMultilinear (fun v => ∑ i ∈ s, h i v) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty => intro v j hj; exact ⟨0, 0, fun X => by simp⟩
+  | insert i s hi ih =>
+      intro v j hj
+      obtain ⟨a1, b1, h1⟩ := H i v j hj
+      obtain ⟨a2, b2, h2⟩ := ih v j hj
+      refine ⟨a1 + a2, b1 + b2, fun X => ?_⟩
+      show ∑ i' ∈ insert i s, h i' _ = _
+      rw [Finset.sum_insert hi, h1]
+      have h2' := h2 X
+      simp only [] at h2'
+      rw [h2']; ring
+
+/-- A product of two affine functions is quadratic.  This is the whole degree argument:
+binding one hand variable of the layer polynomial touches exactly two factors. -/
+lemma quadratic_of_two_affine {F : Type} [Field F] (K : F) (f g : F → F)
+    (a1 b1 a2 b2 : F) (hf : ∀ X, f X = a1 + b1 * X) (hg : ∀ X, g X = a2 + b2 * X) :
+    ∃ a b c : F, ∀ X : F, K * f X * g X = a + b * X + c * X ^ 2 :=
+  ⟨K * a1 * a2, K * (a1 * b2 + b1 * a2), K * (b1 * b2), fun X => by rw [hf, hg]; ring⟩
+
+end closure
+
+section eqbasis
+variable {n : ℕ} {F : Type} [Field F]
+
+lemma eq_mle_basis_multilinear (i : ℕ) :
+    IsMultilinear (fun x : Vector F n => eq_mle_basis i x) := by
+  intro v j hj
+  set jf : Fin n := ⟨j, hj⟩ with hjf
+  set P : F := ∏ k ∈ (Finset.univ.erase jf),
+      (if bit_value i k.val = 1 then v.get k else 1 - v.get k) with hP
+  have key : ∀ X : F, eq_mle_basis i (v.set j X hj)
+      = (if bit_value i j = 1 then X else 1 - X) * P := by
+    intro X
+    rw [eq_mle_basis, ← Finset.mul_prod_erase _ _ (Finset.mem_univ jf)]
+    have hset : (v.set j X hj).get jf = X := by
+      show (v.set j X hj)[j] = X
+      rw [Vector.getElem_set hj hj]; simp
+    have hrest : ∀ k ∈ Finset.univ.erase jf, (v.set j X hj).get k = v.get k := by
+      intro k hk
+      have hkne : k ≠ jf := (Finset.mem_erase.mp hk).1
+      have hne : ¬ (j = k.val) := fun h => hkne (Fin.val_inj.mp h.symm)
+      show (v.set j X hj)[k.val] = v[k.val]
+      rw [Vector.getElem_set hj k.isLt, if_neg hne]
+    rw [hset, hjf]
+    exact congrArg _ (Finset.prod_congr rfl (fun k hk => by rw [hrest k hk]))
+  by_cases hb : bit_value i j = 1
+  · exact ⟨0, P, fun X => by show eq_mle_basis i _ = _; rw [key X, if_pos hb]; ring⟩
+  · exact ⟨P, -P, fun X => by show eq_mle_basis i _ = _; rw [key X, if_neg hb]; ring⟩
+
+end eqbasis
+
+section extract
+variable {logc logw : ℕ} {F : Type} [Field F]
+
+lemma extract_vars_copy (cc : Vector F (logc + 2 * logw)) :
+    (extract_vars cc).1 = Vector.ofFn (fun i : Fin logc => cc.get ⟨i.val, by omega⟩) := rfl
+
+lemma extract_vars_l (cc : Vector F (logc + 2 * logw)) :
+    (extract_vars cc).2.1 = Vector.ofFn (fun i : Fin logw => cc.get ⟨logc + i.val, by omega⟩) := rfl
+
+lemma extract_vars_r (cc : Vector F (logc + 2 * logw)) :
+    (extract_vars cc).2.2 = Vector.ofFn (fun i : Fin logw => cc.get ⟨logc + logw + i.val, by omega⟩) := rfl
+
+/-- Setting a hand-`L` coordinate sets the corresponding coordinate of `L`. -/
+lemma extract_set_L (cc : Vector F (logc + 2 * logw)) (j : ℕ) (hj : j < logc + 2 * logw)
+    (hlo : logc ≤ j) (hhi : j < logc + logw) (X : F) :
+    (extract_vars (cc.set j X hj)).2.1
+      = (extract_vars cc).2.1.set (j - logc) X (by omega) := by
+  rw [extract_vars_l, extract_vars_l]
+  refine Vector.ext (fun t ht => ?_)
+  rw [Vector.getElem_set (by omega) ht, Vector.getElem_ofFn, Vector.getElem_ofFn]
+  show (cc.set j X hj)[logc + t] = _
+  rw [Vector.getElem_set hj (by omega)]
+  by_cases h : j = logc + t
+  · rw [if_pos h, if_pos (by omega)]
+  · rw [if_neg h, if_neg (by omega)]; rfl
+
+/-- Setting a hand-`R` coordinate leaves `L` alone. -/
+lemma extract_set_L_const (cc : Vector F (logc + 2 * logw)) (j : ℕ) (hj : j < logc + 2 * logw)
+    (hlo : logc + logw ≤ j) (X : F) :
+    (extract_vars (cc.set j X hj)).2.1 = (extract_vars cc).2.1 := by
+  rw [extract_vars_l, extract_vars_l]
+  refine Vector.ext (fun t ht => ?_)
+  rw [Vector.getElem_ofFn, Vector.getElem_ofFn]
+  show (cc.set j X hj)[logc + t] = _
+  rw [Vector.getElem_set hj (by omega), if_neg (by omega)]
+  rfl
+
+/-- Setting a hand-`R` coordinate sets the corresponding coordinate of `R`. -/
+lemma extract_set_R (cc : Vector F (logc + 2 * logw)) (j : ℕ) (hj : j < logc + 2 * logw)
+    (hlo : logc + logw ≤ j) (X : F) :
+    (extract_vars (cc.set j X hj)).2.2
+      = (extract_vars cc).2.2.set (j - logc - logw) X (by omega) := by
+  rw [extract_vars_r, extract_vars_r]
+  refine Vector.ext (fun t ht => ?_)
+  rw [Vector.getElem_set (by omega) ht, Vector.getElem_ofFn, Vector.getElem_ofFn]
+  show (cc.set j X hj)[logc + logw + t] = _
+  rw [Vector.getElem_set hj (by omega)]
+  by_cases h : j = logc + logw + t
+  · rw [if_pos h, if_pos (by omega)]
+  · rw [if_neg h, if_neg (by omega)]; rfl
+
+/-- Setting a hand-`L` coordinate leaves `R` alone. -/
+lemma extract_set_R_const (cc : Vector F (logc + 2 * logw)) (j : ℕ) (hj : j < logc + 2 * logw)
+    (hhi : j < logc + logw) (X : F) :
+    (extract_vars (cc.set j X hj)).2.2 = (extract_vars cc).2.2 := by
+  rw [extract_vars_r, extract_vars_r]
+  refine Vector.ext (fun t ht => ?_)
+  rw [Vector.getElem_ofFn, Vector.getElem_ofFn]
+  show (cc.set j X hj)[logc + logw + t] = _
+  rw [Vector.getElem_set hj (by omega), if_neg (by omega)]
+  rfl
+
+/-- Setting a hand coordinate leaves the copy block alone. -/
+lemma extract_set_copy_const (cc : Vector F (logc + 2 * logw)) (j : ℕ) (hj : j < logc + 2 * logw)
+    (hlo : logc ≤ j) (X : F) :
+    (extract_vars (cc.set j X hj)).1 = (extract_vars cc).1 := by
+  rw [extract_vars_copy, extract_vars_copy]
+  refine Vector.ext (fun t ht => ?_)
+  rw [Vector.getElem_ofFn, Vector.getElem_ofFn]
+  show (cc.set j X hj)[t] = _
+  rw [Vector.getElem_set hj (by omega), if_neg (by omega)]
+  rfl
+
+end extract
+
+section layerquad
+variable {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F]
+
+lemma layer_sumcheck_poly_concat_eq
+    (Quad : Vector F logv → Vector F logw → Vector F logw → F)
+    (W : Vector F logw → Vector F logc → F) (alpha : F)
+    (q : Vector F logc) (g0 g1 : Vector F logv) (cc : Vector F (logc + 2 * logw)) :
+    layer_sumcheck_poly_concat (nc := nc) (nv := nv) Quad W alpha q g0 g1 cc
+      = layer_sumcheck_poly (nc := nc) (nv := nv) Quad W alpha q g0 g1
+          (extract_vars cc).1 (extract_vars cc).2.1 (extract_vars cc).2.2 := rfl
+
+/--
+**Every hand round of a layer's sumcheck is quadratic.**
+
+The summand is `EQ[Q,C] · QUAD[G|L,R] · W[L,C] · W[R,C]`.  Binding a hand variable freezes
+the copy block, so `EQ[Q,C]` and one of the two `W` factors are constants; the other two —
+`QUAD` and the remaining `W` — are affine by multilinearity.  A product of two affine
+factors has degree 2, which is exactly what `WPoly = Poly<3, Field>` encodes.
+-/
+lemma layer_quadratic_at_hand
+    (Quad : Vector F logv → Vector F logw → Vector F logw → F)
+    (W : Vector F logw → Vector F logc → F) (alpha : F)
+    (q : Vector F logc) (g0 g1 : Vector F logv)
+    (hQl : ∀ g r, IsMultilinear (fun l => Quad g l r))
+    (hQr : ∀ g l, IsMultilinear (fun r => Quad g l r))
+    (hW : ∀ copy, IsMultilinear (fun l => W l copy))
+    (j : ℕ) (hj : j < logc + 2 * logw) (hlo : logc ≤ j) :
+    QuadraticAt (layer_sumcheck_poly_concat (nc := nc) (nv := nv) Quad W alpha q g0 g1) j hj := by
+  intro cc
+  set cpy := (extract_vars cc).1 with hcpy
+  set L := (extract_vars cc).2.1 with hLdef
+  set R := (extract_vars cc).2.2 with hRdef
+  set E : ℕ → F := fun i => eq_mle_basis i g0 + alpha * eq_mle_basis i g1 with hE
+  have hcopy : ∀ X : F, (extract_vars (cc.set j X hj)).1 = cpy :=
+    fun X => extract_set_copy_const cc j hj hlo X
+  by_cases hcase : j < logc + logw
+  · -- an `L` round: `QUAD(·, R)` and `W(·, C)` are affine, `W(R, C)` is constant
+    have hLset : ∀ X : F, (extract_vars (cc.set j X hj)).2.1 = L.set (j - logc) X (by omega) :=
+      fun X => extract_set_L cc j hj hlo hcase X
+    have hRc : ∀ X : F, (extract_vars (cc.set j X hj)).2.2 = R :=
+      fun X => extract_set_R_const cc j hj hcase X
+    have hQQ : IsMultilinear
+        (fun l => ∑ i ∈ Finset.range nv, Quad (boolean_vector i) l R * E i) :=
+      IsMultilinear.sum _ _ (fun i => (hQl (boolean_vector i) R).mul_const (E i))
+    obtain ⟨a1, b1, e1⟩ := hQQ L (j - logc) (by omega)
+    obtain ⟨a2, b2, e2⟩ := hW cpy L (j - logc) (by omega)
+    have e1' : ∀ X : F,
+        (∑ i ∈ Finset.range nv,
+          Quad (boolean_vector i) (L.set (j - logc) X (by omega)) R * E i) = a1 + b1 * X := e1
+    have e2' : ∀ X : F, W (L.set (j - logc) X (by omega)) cpy = a2 + b2 * X := e2
+    obtain ⟨a, b, c, hq⟩ := quadratic_of_two_affine
+      (eq_matrix_mle nc logc q cpy * W R cpy)
+      (fun X => ∑ i ∈ Finset.range nv,
+        Quad (boolean_vector i) (L.set (j - logc) X (by omega)) R * E i)
+      (fun X => W (L.set (j - logc) X (by omega)) cpy) a1 b1 a2 b2 e1' e2'
+    refine ⟨a, b, c, fun X => ?_⟩
+    rw [layer_sumcheck_poly_concat_eq, hcopy X, hLset X, hRc X, layer_sumcheck_poly, ← hq X]
+    ring
+  · -- an `R` round: `QUAD(L, ·)` and `W(·, C)` are affine, `W(L, C)` is constant
+    have hRset : ∀ X : F,
+        (extract_vars (cc.set j X hj)).2.2 = R.set (j - logc - logw) X (by omega) :=
+      fun X => extract_set_R cc j hj (by omega) X
+    have hLc : ∀ X : F, (extract_vars (cc.set j X hj)).2.1 = L :=
+      fun X => extract_set_L_const cc j hj (by omega) X
+    have hQQ : IsMultilinear
+        (fun r => ∑ i ∈ Finset.range nv, Quad (boolean_vector i) L r * E i) :=
+      IsMultilinear.sum _ _ (fun i => (hQr (boolean_vector i) L).mul_const (E i))
+    obtain ⟨a1, b1, e1⟩ := hQQ R (j - logc - logw) (by omega)
+    obtain ⟨a2, b2, e2⟩ := hW cpy R (j - logc - logw) (by omega)
+    have e1' : ∀ X : F,
+        (∑ i ∈ Finset.range nv,
+          Quad (boolean_vector i) L (R.set (j - logc - logw) X (by omega)) * E i)
+          = a1 + b1 * X := e1
+    have e2' : ∀ X : F, W (R.set (j - logc - logw) X (by omega)) cpy = a2 + b2 * X := e2
+    obtain ⟨a, b, c, hq⟩ := quadratic_of_two_affine
+      (eq_matrix_mle nc logc q cpy * W L cpy)
+      (fun X => ∑ i ∈ Finset.range nv,
+        Quad (boolean_vector i) L (R.set (j - logc - logw) X (by omega)) * E i)
+      (fun X => W (R.set (j - logc - logw) X (by omega)) cpy) a1 b1 a2 b2 e1' e2'
+    refine ⟨a, b, c, fun X => ?_⟩
+    rw [layer_sumcheck_poly_concat_eq, hcopy X, hRset X, hLc X, layer_sumcheck_poly, ← hq X]
+    ring
+
+/--
+**The ZK path is quadratic in every coordinate.**  `zk_common.h:L72` asserts `logc == 0`, so
+there are no copy rounds and every sumcheck variable is a hand variable.
+-/
+lemma layer_quadratic
+    (Quad : Vector F logv → Vector F logw → Vector F logw → F)
+    (W : Vector F logw → Vector F 0 → F) (alpha : F)
+    (q : Vector F 0) (g0 g1 : Vector F logv)
+    (hQl : ∀ g r, IsMultilinear (fun l => Quad g l r))
+    (hQr : ∀ g l, IsMultilinear (fun r => Quad g l r))
+    (hW : ∀ copy, IsMultilinear (fun l => W l copy)) :
+    IsQuadratic (layer_sumcheck_poly_concat (nc := nc) (nv := nv) Quad W alpha q g0 g1) :=
+  fun j hj => layer_quadratic_at_hand Quad W alpha q g0 g1 hQl hQr hW j hj (Nat.zero_le j)
+
+end layerquad
+
+section rounddeg
+variable {n : ℕ} {F : Type} [Field F]
+
+/-- `construct_assignment` writes the free variable into coordinate `k`, so varying it is
+literally a `Vector.set` at `k`. -/
+lemma construct_assignment_set (k : ℕ) (hk : k < n) (pref : Vector F k) (X X0 : F)
+    (suf : Vector F (n - k - 1)) :
+    construct_assignment k hk pref X suf = (construct_assignment k hk pref X0 suf).set k X hk := by
+  refine Vector.ext (fun t ht => ?_)
+  rw [Vector.getElem_set hk ht]
+  simp only [construct_assignment, Vector.getElem_ofFn]
+  by_cases h : k = t
+  · subst h
+    rw [if_pos rfl, dif_neg (Nat.lt_irrefl k), dif_pos rfl]
+  · rw [if_neg h]
+    by_cases h1 : t < k
+    · rw [dif_pos h1, dif_pos h1]
+    · rw [dif_neg h1, dif_neg h1, dif_neg (fun hc => h hc.symm), dif_neg (fun hc => h hc.symm)]
+
+/-- The round function of a coordinate-`k`-quadratic `f` is a quadratic in the free variable:
+the hypercube sum of quadratics is quadratic. -/
+lemma sumcheck_eval_round_quadratic (f : Vector F n → F) (k : ℕ) (hk : k < n)
+    (hf : QuadraticAt f k hk) (ch : Vector F k) :
+    ∃ a b c : F, ∀ X : F, sumcheck_eval_round f k hk ch X = a + b * X + c * X ^ 2 := by
+  classical
+  choose a b c habc using fun i : Fin (2 ^ (n - k - 1)) =>
+    hf (construct_assignment k hk ch 0 (boolean_vector i.val))
+  refine ⟨∑ i, a i, ∑ i, b i, ∑ i, c i, fun X => ?_⟩
+  have hterm : ∀ i : Fin (2 ^ (n - k - 1)),
+      f (construct_assignment k hk ch X (boolean_vector i.val))
+        = a i + b i * X + c i * X ^ 2 := by
+    intro i
+    rw [construct_assignment_set k hk ch X 0, habc i X]
+  rw [sumcheck_eval_round, Finset.sum_congr rfl (fun i _ => hterm i),
+      Finset.sum_add_distrib, Finset.sum_add_distrib, ← Finset.sum_mul, ← Finset.sum_mul]
+
+variable [Fintype F] [DecidableEq F]
+
+/-- **The degree bound, at the value the implementation uses.**  `WPoly = Poly<3, Field>`
+carries three evaluation points, i.e. degree 2; this is that number, derived. -/
+lemma sumcheck_round_poly_natDegree_le_two (f : Vector F n → F) (k : ℕ) (hk : k < n)
+    (ch : Vector F k) (hf : QuadraticAt f k hk) (h3 : 2 < Fintype.card F) :
+    (sumcheck_round_poly f k hk ch).natDegree ≤ 2 := by
+  obtain ⟨a, b, c, habc⟩ := sumcheck_eval_round_quadratic f k hk hf ch
+  refine sumcheck_round_poly_natDegree_le f k hk ch
+    (Polynomial.C a + Polynomial.C b * Polynomial.X + Polynomial.C c * Polynomial.X ^ 2) 2
+    (by compute_degree) h3 (fun r => ?_)
+  rw [habc r]; simp
+
+/-- A field carrying a `SumcheckInterp` instance has at least three elements: `0`, `1` and
+the interpolation point `pt2`.  This is exactly the `2 < |F|` the degree bound needs. -/
+lemma three_le_card [SumcheckInterp F] : 2 < Fintype.card F := by
+  classical
+  have hne0 : (0 : F) ∉ ({1, (pt2 : F)} : Finset F) := by
+    simp only [Finset.mem_insert, Finset.mem_singleton, not_or]
+    exact ⟨zero_ne_one, Ne.symm SumcheckInterp.pt2_ne_zero⟩
+  have hne1 : (1 : F) ∉ ({(pt2 : F)} : Finset F) := by
+    simp only [Finset.mem_singleton]
+    exact Ne.symm SumcheckInterp.pt2_ne_one
+  have hcard : ({0, 1, (pt2 : F)} : Finset F).card = 3 := by
+    rw [Finset.card_insert_of_notMem hne0, Finset.card_insert_of_notMem hne1,
+        Finset.card_singleton]
+  calc (2 : ℕ) < 3 := by norm_num
+    _ = ({0, 1, (pt2 : F)} : Finset F).card := hcard.symm
+    _ ≤ Fintype.card F := Finset.card_le_univ _
+
+end rounddeg
+
+
 /-- The claim the layer's sumcheck starts from: the layer polynomial summed over the
 boolean hypercube, as a function of the combination coefficient `alpha`. -/
-noncomputable def layer_claim {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)]
+noncomputable def layer_claim {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F]
     (Quad : Vector F logv → Vector F logw → Vector F logw → F)
     (W : Vector F logw → Vector F logc → F)
     (alpha : F) (q : Vector F logc) (g0 g1 : Vector F logv) : F :=
   ∑ j ∈ Finset.range (2 ^ (logc + 2 * logw)),
     layer_sumcheck_poly_concat (nc := nc) (nv := nv) Quad W alpha q g0 g1 (boolean_vector j)
 
-lemma layer_poly_affine {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)]
+lemma layer_poly_affine {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F]
     (Quad : Vector F logv → Vector F logw → Vector F logw → F)
     (W : Vector F logw → Vector F logc → F)
     (alpha : F) (q : Vector F logc) (g0 g1 : Vector F logv)
@@ -479,19 +818,19 @@ lemma layer_poly_affine {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Finty
         + alpha * (layer_sumcheck_poly (nc := nc) (nv := nv) Quad W 1 q g0 g1 copy l r
                    - layer_sumcheck_poly (nc := nc) (nv := nv) Quad W 0 q g0 g1 copy l r) := by
   simp only [layer_sumcheck_poly]
-  have h : ∀ a : F, (∑ g ∈ (Finset.univ : Finset (Vector F logv)), Quad g l r *
-        (eq_matrix_mle nv logv g0 g + a * eq_matrix_mle nv logv g1 g))
-      = (∑ g ∈ (Finset.univ : Finset (Vector F logv)), Quad g l r * eq_matrix_mle nv logv g0 g)
-        + a * (∑ g ∈ (Finset.univ : Finset (Vector F logv)), Quad g l r * eq_matrix_mle nv logv g1 g) := by
+  have h : ∀ a : F, (∑ i ∈ Finset.range nv, Quad (boolean_vector i) l r *
+        (eq_mle_basis i g0 + a * eq_mle_basis i g1))
+      = (∑ i ∈ Finset.range nv, Quad (boolean_vector i) l r * eq_mle_basis i g0)
+        + a * (∑ i ∈ Finset.range nv, Quad (boolean_vector i) l r * eq_mle_basis i g1) := by
     intro a
     rw [Finset.mul_sum, ← Finset.sum_add_distrib]
-    exact Finset.sum_congr rfl (fun g _ => by ring)
+    exact Finset.sum_congr rfl (fun i _ => by ring)
   rw [h, h, h]
   ring
 
 /-- The layer claim is **affine in `alpha`**: `S(alpha) = S(0) + alpha * (S(1) - S(0))`.
 This is what makes the degenerate randomness countable. -/
-lemma layer_claim_affine {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)]
+lemma layer_claim_affine {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F]
     (Quad : Vector F logv → Vector F logw → Vector F logw → F)
     (W : Vector F logw → Vector F logc → F)
     (alpha : F) (q : Vector F logc) (g0 g1 : Vector F logv) :
@@ -504,99 +843,278 @@ lemma layer_claim_affine {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fint
       Finset.sum_add_distrib, ← Finset.mul_sum, Finset.sum_sub_distrib]
 
 
+/-- The layer polynomial is affine in the `QUAD` coefficients, hence in the layer's `beta`. -/
+lemma layer_poly_affine_quad {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F]
+    (Q Q0 Q1 : Vector F logv → Vector F logw → Vector F logw → F) (b : F)
+    (hq : ∀ g l r, Q g l r = Q0 g l r + b * (Q1 g l r - Q0 g l r))
+    (W : Vector F logw → Vector F logc → F) (alpha : F) (q : Vector F logc)
+    (g0 g1 : Vector F logv) (copy : Vector F logc) (l r : Vector F logw) :
+    layer_sumcheck_poly (nc := nc) (nv := nv) Q W alpha q g0 g1 copy l r
+      = layer_sumcheck_poly (nc := nc) (nv := nv) Q0 W alpha q g0 g1 copy l r
+        + b * (layer_sumcheck_poly (nc := nc) (nv := nv) Q1 W alpha q g0 g1 copy l r
+               - layer_sumcheck_poly (nc := nc) (nv := nv) Q0 W alpha q g0 g1 copy l r) := by
+  simp only [layer_sumcheck_poly]
+  have h : (∑ i ∈ Finset.range nv, Q (boolean_vector i) l r *
+        (eq_mle_basis i g0 + alpha * eq_mle_basis i g1))
+      = (∑ i ∈ Finset.range nv, Q0 (boolean_vector i) l r *
+          (eq_mle_basis i g0 + alpha * eq_mle_basis i g1))
+        + b * ((∑ i ∈ Finset.range nv, Q1 (boolean_vector i) l r *
+            (eq_mle_basis i g0 + alpha * eq_mle_basis i g1))
+          - ∑ i ∈ Finset.range nv, Q0 (boolean_vector i) l r *
+            (eq_mle_basis i g0 + alpha * eq_mle_basis i g1)) := by
+    rw [show ∀ (u v : F), u + b * (v - u) = u + (b * v - b * u) from fun u v => by ring,
+        Finset.mul_sum, Finset.mul_sum, ← Finset.sum_sub_distrib, ← Finset.sum_add_distrib]
+    exact Finset.sum_congr rfl (fun i _ => by rw [hq (boolean_vector i) l r]; ring)
+  rw [h]; ring
+
+/-- The layer *claim* is affine in the `QUAD` coefficients, hence in `beta`. -/
+lemma layer_claim_affine_quad {nc nv logv logw logc : ℕ} {F : Type} [Field F] [Fintype F]
+    (Q Q0 Q1 : Vector F logv → Vector F logw → Vector F logw → F) (b : F)
+    (hq : ∀ g l r, Q g l r = Q0 g l r + b * (Q1 g l r - Q0 g l r))
+    (W : Vector F logw → Vector F logc → F) (alpha : F) (q : Vector F logc)
+    (g0 g1 : Vector F logv) :
+    layer_claim (nc := nc) (nv := nv) Q W alpha q g0 g1
+      = layer_claim (nc := nc) (nv := nv) Q0 W alpha q g0 g1
+        + b * (layer_claim (nc := nc) (nv := nv) Q1 W alpha q g0 g1
+               - layer_claim (nc := nc) (nv := nv) Q0 W alpha q g0 g1) := by
+  simp only [layer_claim, layer_sumcheck_poly_concat]
+  rw [Finset.sum_congr rfl (fun j _ => layer_poly_affine_quad Q Q0 Q1 b hq W alpha q g0 g1 _ _ _),
+      Finset.sum_add_distrib, ← Finset.mul_sum, Finset.sum_sub_distrib]
+
+/-! ### The data an arithmetization is built from -/
+
+/-- `prep_v` (`quad.h:L213`): a gate whose coefficient is `0` is an *assert-zero* gate, and
+takes the layer's fresh random `beta` instead. -/
+def prepV {F : Type} [Field F] [DecidableEq F] (v b : F) : F := if v = 0 then b else v
+
+omit [Fintype F] in
+/-- `prepV` is affine in `beta` — which is what makes the layer claim affine in it. -/
+lemma prepV_affine {F : Type} [Field F] [DecidableEq F] (v b : F) :
+    prepV v b = prepV v 0 + b * (prepV v 1 - prepV v 0) := by
+  by_cases h : v = 0 <;> simp [prepV, h]
+
+/-- `Quad<Field>` as a multilinear extension of its gate table in `(g, l, r)`.  The gates are
+indexed by `(i, j, k)` with coefficient `gate_v i j k`; `bind_g` / `bind_h` (`quad.h`) bind
+these variables one at a time, which is exactly multilinear evaluation. -/
+noncomputable def quadMle {logv logw : ℕ} {F : Type} [Field F] [DecidableEq F] (nv nw : ℕ)
+    (gate_v : ℕ → ℕ → ℕ → F) (b : F)
+    (gv : Vector F logv) (l r : Vector F logw) : F :=
+  ∑ i ∈ Finset.range nv, ∑ j ∈ Finset.range nw, ∑ k ∈ Finset.range nw,
+    prepV (gate_v i j k) b * eq_mle_basis i gv * eq_mle_basis j l * eq_mle_basis k r
+
+/-- The full input wire vector: public wires from the verifier's own data, private wires from
+the Ligero commitment.  `ZkCommon::input_constraint` splits exactly here — `i < npub` is
+folded into the constant term, `i ≥ npub` becomes a committed column
+(`zk_common.h:L414-L418`). -/
+def wCol {ninp : ℕ} {F : Type} [Field F] (npub : ℕ) (pub priv : Fin ninp → F)
+    (i : Fin ninp) : F :=
+  if i.val < npub then pub i else priv i
+
+/-- The multilinear extension of `wCol` in the hand variables, matching `Eqs<Field>::at`
+(`arrays/eq.h`) and `Dense::bind_all`. -/
+noncomputable def wMle {ninp logw : ℕ} {F : Type} [Field F] (npub : ℕ)
+    (pub priv : Fin ninp → F) (g : Vector F logw) : F :=
+  ∑ i : Fin ninp, eq_mle_basis i.val g * wCol npub pub priv i
+
 /--
 **Structure: ArithmetizedCircuit**
 
-An abstract mathematical specification of a circuit arithmetization in the Longfellow ZK protocol.
-An `ArithmetizedCircuit` bundles the multilinear extension maps (`Quad_mle`, `W_mle`) and the arithmetization soundness
-property as first-class fields of the circuit object.
+The data of a circuit arithmetization, and the one property of it the soundness proof needs.
 
-This keeps the formal proof abstract and modular: any concrete compiler or DSL that generates
-valid multilinear polynomials and satisfies the arithmetization soundness condition can instantiate this structure.
+Everything except `arith` is *data*, not an assumption: `Quad_mle` and `W_mle` are
+*constructed* below as multilinear extensions of the gate table and the wire vector, so
+their multilinearity, their affineness in the layer's `beta`, and the fact that the public
+wires do not depend on the witness are all theorems.
 
-The hypotheses below are exactly the facts the verifier itself establishes about a transcript it accepts:
+* `gate_v c i j k` — the coefficient of the gate `(i, j, k)` in `Quad<Field>`.  A coefficient
+  of `0` marks an assert-zero gate (`compiler.h:L177`), which `prepV` replaces by the layer's
+  random `beta`.
+* `pub_col` — the public input wires, which the verifier supplies.
+* `priv_col` — the private input wires, which Ligero commits and the extractor returns.
 
-* `hlen_polys` / `hlen_challenges`: the verifier reads exactly one round
-  polynomial and one challenge per sumcheck variable
-  (`for (round = 0; round < logw; ++round) for (hand ...)` in
-  `verifier_layers.h:L119`, plus `logc` copy rounds).
-* `htarget`: `target` is the value the verifier's final layer identity
-  `got = EQ[Q,C] QUAD[G|R,L] W[R,C] W[L,C]` (`verifier_layers.h:L176-L185`)
-  pins the last claim to.  Callers instantiate it with `eqq * w_r_true * w_l_true`.
-* `hgood`: the layer randomness is not degenerate — see `degenerate` below.
+`arith` is the one assumption: the arithmetization faithfully encodes `eval`.  It says an
+unsatisfied circuit has a claim that is non-zero at one of the four corners of
+`(alpha, beta) ∈ {0,1}²` — equivalently, that the bilinear form `S(alpha, beta)` is not
+identically zero.  This is the correctness of the circuit compiler
+(`QuadCircuit::mkcircuit`), which is not modelled here.
 -/
-structure ArithmetizedCircuit (Circuit Input Witness : Type) (nc nv ninp logv logw logc : ℕ) (F : Type) [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] where
+structure ArithmetizedCircuit (Circuit Input Witness : Type) (nc nv nw ninp npub logv logw logc : ℕ) (F : Type) [Field F] [Fintype F] [DecidableEq F] where
   eval : Circuit → Input → Witness → Bool
-  Quad_mle : Circuit → Vector F logv → Vector F logw → Vector F logw → F
-  W_mle : Witness → Vector F logw → Vector F logc → F
-  /--
-  The input wire values that Ligero commits to, at a given copy point.
-
-  `ZkCommon::input_constraint` (`zk_common.h:L406`) places its coefficients
-  `b_i = eq0.at(i) + alpha * eq1.at(i)` on exactly these columns — that is what ties the
-  extracted witness to the transcript.  Indices `i < npub` are the public wires; the rest
-  are the committed private wires (`a.push_back(Llc{ci, i - pub_inputs, b_i})`).
-  -/
-  W_col : Witness → Vector F logc → Fin ninp → F
-  /--
-  `W_mle` is the multilinear extension of `W_col` in the hand variables, matching
-  `Eqs<Field>::at` (`arrays/eq.h`) and `Dense::bind_all`.
-
-  This is what makes the input constraint say something about `W_mle`, and hence about the
-  final layer identity `CLAIM = EQQ * W[R,C] * W[L,C]`.
-  -/
-  W_mle_is_mle : ∀ (w : Witness) (g : Vector F logw) (copy : Vector F logc),
-    W_mle w g copy = ∑ i : Fin ninp, eq_mle_basis i.val g * W_col w copy i
-  /--
-  **Arithmetization soundness.**  Unlike the previous version this no longer mentions the
-  layer randomness at all: an unsatisfied circuit has a non-zero output *claim vector*
-  `(S(0), S(1) - S(0))`, where `S` is the hypercube sum as a function of `alpha`.
-
-  Everything the sumcheck reduction needs — `consistent_true_polys`, the round-0 sum, and
-  `get_last_eval` — is derived from this in `ArithmetizedCircuit.soundness` below.
-  -/
+  gate_v : Circuit → ℕ → ℕ → ℕ → F
+  pub_col : Input → Vector F logc → Fin ninp → F
+  priv_col : Witness → Vector F logc → Fin ninp → F
   arith : ∀ (c : Circuit) (inp : Input) (w : Witness)
     (q_challenge : Vector F logc) (g0 g1 : Vector F logv),
     eval c inp w = false →
-    (layer_claim (nc := nc) (nv := nv) (Quad_mle c) (W_mle w) 0 q_challenge g0 g1 ≠ 0 ∨
-      layer_claim (nc := nc) (nv := nv) (Quad_mle c) (W_mle w) 1 q_challenge g0 g1
-        - layer_claim (nc := nc) (nv := nv) (Quad_mle c) (W_mle w) 0 q_challenge g0 g1 ≠ 0)
+    ¬ (layer_claim (nc := nc) (nv := nv) (quadMle (logv := logv) (logw := logw) nv nw (gate_v c) 0)
+          (fun (g : Vector F logw) (cp : Vector F logc) => wMle npub (pub_col inp cp) (priv_col w cp) g) 0 q_challenge g0 g1 = 0 ∧
+       layer_claim (nc := nc) (nv := nv) (quadMle (logv := logv) (logw := logw) nv nw (gate_v c) 0)
+          (fun (g : Vector F logw) (cp : Vector F logc) => wMle npub (pub_col inp cp) (priv_col w cp) g) 1 q_challenge g0 g1 = 0 ∧
+       layer_claim (nc := nc) (nv := nv) (quadMle (logv := logv) (logw := logw) nv nw (gate_v c) 1)
+          (fun (g : Vector F logw) (cp : Vector F logc) => wMle npub (pub_col inp cp) (priv_col w cp) g) 0 q_challenge g0 g1 = 0 ∧
+       layer_claim (nc := nc) (nv := nv) (quadMle (logv := logv) (logw := logw) nv nw (gate_v c) 1)
+          (fun (g : Vector F logw) (cp : Vector F logc) => wMle npub (pub_col inp cp) (priv_col w cp) g) 1 q_challenge g0 g1 = 0)
+
+/-- `Quad<Field>` after `prep_v`, as a function of the layer's `beta`. -/
+noncomputable def ArithmetizedCircuit.Quad_mle {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (b : F) : Vector F logv → Vector F logw → Vector F logw → F :=
+  quadMle nv nw (AC.gate_v c) b
+
+/-- The input wire vector at a copy point. -/
+def ArithmetizedCircuit.W_col {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (inp : Input) (w : Witness) (copy : Vector F logc) : Fin ninp → F :=
+  wCol npub (AC.pub_col inp copy) (AC.priv_col w copy)
+
+/-- Its multilinear extension in the hand variables. -/
+noncomputable def ArithmetizedCircuit.W_mle {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (inp : Input) (w : Witness) (g : Vector F logw) (copy : Vector F logc) : F :=
+  wMle npub (AC.pub_col inp copy) (AC.priv_col w copy) g
+
+/-- **`W_mle` is a multilinear extension** — definitional, formerly the field
+`W_mle_is_mle`. -/
+lemma ArithmetizedCircuit.W_mle_is_mle {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (inp : Input) (w : Witness) (g : Vector F logw) (copy : Vector F logc) :
+    AC.W_mle inp w g copy = ∑ i : Fin ninp, eq_mle_basis i.val g * AC.W_col inp w copy i := rfl
+
+/-- **The public wires do not depend on the witness** — definitional, because the wire
+vector *is* `pub ++ priv`.  The extractor returns `priv_col` only; the public half is the
+verifier's own data. -/
+lemma ArithmetizedCircuit.W_col_pub {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (inp : Input) (w w' : Witness) (copy : Vector F logc) (i : Fin ninp) (hi : i.val < npub) :
+    AC.W_col inp w copy i = AC.W_col inp w' copy i := by
+  simp [ArithmetizedCircuit.W_col, wCol, hi]
+
+/-!
+### The degree of *this* circuit's round polynomials
+
+`d` is not an independent knob: it is read off the arithmetization.  `W_mle_is_mle` already
+says `W_mle` is a multilinear extension, so its multilinearity is a theorem; `Quad_mle`'s is
+the one assumption.  Together they give `natDegree ≤ 2` for every hand round, which is
+`IsFiatShamirTranscript.hd` at `d = 2`.
+-/
+
+/-- **`W_mle` is multilinear**, because it is a multilinear extension. -/
+lemma ArithmetizedCircuit.W_mle_multilinear {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (inp : Input) (w : Witness) (copy : Vector F logc) :
+    IsMultilinear (fun l => AC.W_mle inp w l copy) := by
+  have h : (fun l => AC.W_mle inp w l copy)
+      = fun l => ∑ i : Fin ninp, eq_mle_basis i.val l * AC.W_col inp w copy i :=
+    funext (fun l => AC.W_mle_is_mle inp w l copy)
+  rw [h]
+  exact IsMultilinear.sum _ _ (fun i => (eq_mle_basis_multilinear i.val).mul_const _)
+
+/-- **`Quad_mle` is multilinear in the left hand** — derived, because it *is* a multilinear
+extension of the gate table.  This was the assumption `Quad_mle_ml_l`. -/
+lemma ArithmetizedCircuit.Quad_mle_ml_l {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (b : F) (g : Vector F logv) (r : Vector F logw) :
+    IsMultilinear (fun l => AC.Quad_mle c b g l r) := by
+  have h : (fun l => AC.Quad_mle c b g l r)
+      = fun l => ∑ i ∈ Finset.range nv, ∑ j ∈ Finset.range nw, ∑ k ∈ Finset.range nw,
+          eq_mle_basis j l * (prepV (AC.gate_v c i j k) b * eq_mle_basis i g
+            * eq_mle_basis k r) := by
+    funext l
+    simp only [ArithmetizedCircuit.Quad_mle, quadMle]
+    exact Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl (fun j _ =>
+      Finset.sum_congr rfl (fun k _ => by ring)))
+  rw [h]
+  exact IsMultilinear.sum _ _ (fun i => IsMultilinear.sum _ _ (fun j =>
+    IsMultilinear.sum _ _ (fun _k => (eq_mle_basis_multilinear j).mul_const _)))
+
+/-- **`Quad_mle` is multilinear in the right hand.**  This was the assumption
+`Quad_mle_ml_r`. -/
+lemma ArithmetizedCircuit.Quad_mle_ml_r {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (b : F) (g : Vector F logv) (l : Vector F logw) :
+    IsMultilinear (fun r => AC.Quad_mle c b g l r) := by
+  have h : (fun r => AC.Quad_mle c b g l r)
+      = fun r => ∑ i ∈ Finset.range nv, ∑ j ∈ Finset.range nw, ∑ k ∈ Finset.range nw,
+          eq_mle_basis k r * (prepV (AC.gate_v c i j k) b * eq_mle_basis i g
+            * eq_mle_basis j l) := by
+    funext r
+    simp only [ArithmetizedCircuit.Quad_mle, quadMle]
+    exact Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl (fun j _ =>
+      Finset.sum_congr rfl (fun k _ => by ring)))
+  rw [h]
+  exact IsMultilinear.sum _ _ (fun i => IsMultilinear.sum _ _ (fun j =>
+    IsMultilinear.sum _ _ (fun k => (eq_mle_basis_multilinear k).mul_const _)))
+
+/-- **`Quad_mle` is affine in the layer's `beta`**, because `prep_v` is: an assert-zero gate
+contributes `beta · (…)` and every other gate contributes a constant.  This is what makes the
+`beta`-degenerate randomness countable, exactly as `layer_claim_affine` does for `alpha`. -/
+lemma ArithmetizedCircuit.Quad_mle_affine_beta {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (b : F) (g : Vector F logv) (l r : Vector F logw) :
+    AC.Quad_mle c b g l r
+      = AC.Quad_mle c 0 g l r + b * (AC.Quad_mle c 1 g l r - AC.Quad_mle c 0 g l r) := by
+  simp only [ArithmetizedCircuit.Quad_mle, quadMle, Finset.mul_sum, ← Finset.sum_sub_distrib,
+    ← Finset.sum_add_distrib]
+  refine Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl (fun j _ =>
+    Finset.sum_congr rfl (fun k _ => ?_)))
+  rw [prepV_affine (AC.gate_v c i j k) b]; ring
+
+/-- **The layer polynomial of a ZK layer is quadratic in every sumcheck coordinate.**
+`logc = 0` on the ZK path (`zk_common.h:L72`), so there are no cubic copy rounds. -/
+lemma ArithmetizedCircuit.layer_quadratic {nc nv nw ninp npub logv logw : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw 0 F)
+    (c : Circuit) (inp : Input) (w : Witness) (alpha beta : F) (q : Vector F 0)
+    (g0 g1 : Vector F logv) :
+    IsQuadratic (layer_sumcheck_poly_concat (nc := nc) (nv := nv)
+      (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q g0 g1) :=
+  _root_.layer_quadratic (nc := nc) (nv := nv) (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q g0 g1
+    (AC.Quad_mle_ml_l c beta) (AC.Quad_mle_ml_r c beta) (AC.W_mle_multilinear inp w)
+
+/--
+**`d = 2`, derived.**
+
+Every honest round polynomial of a ZK layer has `natDegree ≤ 2` — the degree
+`WPoly = Poly<3, Field>` encodes.  Supplying this to `IsFiatShamirTranscript.hd` is what
+removes `d` from the list of inputs; see `fsOfArithmetized` in `fiat_shamir.lean`.
+-/
+theorem ArithmetizedCircuit.round_poly_natDegree_le_two {nc nv nw ninp npub logv logw : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw 0 F)
+    (c : Circuit) (inp : Input) (w : Witness) (alpha beta : F) (q : Vector F 0)
+    (g0 g1 : Vector F logv) (k : ℕ) (hk : k < 0 + 2 * logw) (ch : Vector F k) :
+    (sumcheck_round_poly (layer_sumcheck_poly_concat (nc := nc) (nv := nv)
+      (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q g0 g1) k hk ch).natDegree ≤ 2 :=
+  sumcheck_round_poly_natDegree_le_two _ k hk ch
+    (AC.layer_quadratic c inp w alpha beta q g0 g1 k hk) three_le_card
 
 /--
 **Degenerate layer randomness.**
 
 The verifier combines the two inherited claims as `claim[0] + alpha * claim[1]`
-(`verifier_layers.h:L147`).  Because the honest claim is affine in `alpha`
-(`layer_claim_affine`), a single unlucky `alpha` can collapse a non-zero output claim vector
-to zero — and then the sumcheck starts from a *true* claim of `0` even though the circuit is
-unsatisfied, and nothing can be concluded.
+(`verifier_layers.h:L147`) and replaces the coefficient of every assert-zero gate by `beta`
+(`prep_v`, `quad.h:L213`).  Both are fresh challenges drawn by `begin_layer`
+(`transcript_sumcheck.h:L54`), and the honest claim `S(alpha, beta)` is affine in each, hence
+a *bilinear form*.  An unlucky pair can collapse a non-zero claim to zero, and then the
+sumcheck starts from a true claim of `0` even though the circuit is unsatisfied.
 
-This used to be an abstract `degenerate` field plus a hypothesis `¬ degenerate`.  It is now
-concrete and `InputBindingBad`-shaped, so `input_binding_bad_card` bounds the bad set by one
-element and `alpha_bad_card` turns it into a `1/|F|` error term.
+This is a counted event, not an assumption: `arith` says `S` is not identically zero, and
+`bilinear_zero_card` bounds its zero set by `2·|F|` out of `|F|²`.
 -/
-def ArithmetizedCircuit.Degenerate {nc nv ninp logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (c : Circuit) (w : Witness) (alpha : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv) : Prop :=
-  InputBindingBad
-    (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) 0 q_challenge g0 g1)
-    (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) 1 q_challenge g0 g1
-      - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) 0 q_challenge g0 g1)
-    0 0 alpha
+def ArithmetizedCircuit.Degenerate {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (inp : Input) (w : Witness) (alpha beta : F) (q_challenge : Vector F logc)
+    (g0 g1 : Vector F logv) : Prop :=
+  layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q_challenge g0 g1
+    = 0
 
-/-- Away from the degenerate `alpha`, an unsatisfied circuit really does give a non-zero
+/-- Away from degenerate randomness, an unsatisfied circuit really does give a non-zero
 starting claim. -/
-lemma ArithmetizedCircuit.claim_ne_zero {nc nv ninp logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
+lemma ArithmetizedCircuit.claim_ne_zero {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
     (c : Circuit) (inp : Input) (w : Witness)
-    (alpha : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
-    (hev : AC.eval c inp w = false)
-    (hgood : ¬ AC.Degenerate c w alpha q_challenge g0 g1) :
-    (0 : F) ≠ layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) alpha q_challenge g0 g1 := by
-  intro hzero
-  refine hgood ⟨AC.arith c inp w q_challenge g0 g1 hev, ?_⟩
-  rw [← layer_claim_affine]
-  linear_combination -hzero
+    (alpha beta : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (hgood : ¬ AC.Degenerate c inp w alpha beta q_challenge g0 g1) :
+    (0 : F) ≠ layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c beta) (AC.W_mle inp w) alpha
+      q_challenge g0 g1 := fun h => hgood h.symm
 
 /--
 **The sumcheck-reduction interface, derived.**
@@ -606,26 +1124,25 @@ about the honest round polynomials.  Three of them (`consistent_true_polys`, the
 sum, `get_last_eval`) are now theorems about `generate_true_polys`; only the arithmetization
 statement `arith` remains an assumption.
 -/
-theorem ArithmetizedCircuit.soundness {nc nv ninp logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
+theorem ArithmetizedCircuit.soundness {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
     (c : Circuit) (inp : Input) (w : Witness)
-    (t : Transcript F) (alpha : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (t : Transcript F) (alpha beta : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (target : F)
-    (hev : AC.eval c inp w = false)
-    (hgood : ¬ AC.Degenerate c w alpha q_challenge g0 g1)
+    (hgood : ¬ AC.Degenerate c inp w alpha beta q_challenge g0 g1)
     (hpos : 0 < logc + 2 * logw)
     (hlen1 : t.polys.length = logc + 2 * logw)
     (hlen2 : t.challenges.length = logc + 2 * logw)
-    (htarget : target = layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) alpha q_challenge g0 g1 (Vector.ofFn (n := logc + 2 * logw) fun i => t.challenges.getD i.val 0)) :
+    (htarget : target = layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q_challenge g0 g1 (Vector.ofFn (n := logc + 2 * logw) fun i => t.challenges.getD i.val 0)) :
     ∃ (P_first : Polynomial F) (P_rest : List (Polynomial F)),
-      generate_true_polys (layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) alpha q_challenge g0 g1) (Vector.ofFn (n := logc + 2 * logw) fun i => t.challenges.getD i.val 0) = P_first :: P_rest ∧
+      generate_true_polys (layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q_challenge g0 g1) (Vector.ofFn (n := logc + 2 * logw) fun i => t.challenges.getD i.val 0) = P_first :: P_rest ∧
       List.length (P_first :: P_rest) = t.polys.length ∧
       t.challenges.length = t.polys.length ∧
       consistent_true_polys (P_first :: P_rest) t.challenges ∧
       0 ≠ P_first.eval 0 + P_first.eval 1 ∧
       get_last_eval (P_first :: P_rest) t.challenges = some target := by
   set n := logc + 2 * logw with hn
-  set f := layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) alpha q_challenge g0 g1 with hf
+  set f := layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q_challenge g0 g1 with hf
   have hchal : (Vector.ofFn (n := n) fun i => t.challenges.getD i.val 0) = chalVec t.challenges n := rfl
   -- the generated list is non-empty
   obtain ⟨m, hm⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
@@ -645,15 +1162,15 @@ theorem ArithmetizedCircuit.soundness {nc nv ninp logv logw logc : ℕ} {F : Typ
   · rw [← hsplit]; exact consistent_generate f t.challenges hlen2
   · have hh : P_first = (generate_true_polys f (chalVec t.challenges n)).head! := by rw [hsplit]; rfl
     rw [hh, head_generate f (chalVec t.challenges n) (by omega)]
-    exact AC.claim_ne_zero c inp w alpha q_challenge g0 g1 hev hgood
+    exact AC.claim_ne_zero c inp w alpha beta q_challenge g0 g1 hgood
   · rw [← hsplit, get_last_eval_generate f t.challenges hlen2 (by omega), htarget, hchal]
 
 -- Now `circuit_true_polys` is just `generate_true_polys` applied to the layer polynomial
-noncomputable def circuit_true_polys {nc nv ninp logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
-  (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-  (c : Circuit) (w : Witness) (t : Transcript F)
-  (alpha : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv) : List (Polynomial F) :=
-  generate_true_polys (layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) alpha q_challenge g0 g1) (Vector.ofFn (n := logc + 2 * logw) fun i => t.challenges.getD i.val 0)
+noncomputable def circuit_true_polys {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+  (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+  (c : Circuit) (inp : Input) (w : Witness) (t : Transcript F)
+  (alpha beta : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv) : List (Polynomial F) :=
+  generate_true_polys (layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q_challenge g0 g1) (Vector.ofFn (n := logc + 2 * logw) fun i => t.challenges.getD i.val 0)
 
 
 /-!
@@ -678,11 +1195,11 @@ noncomputable def challenge_split {logw logc : ℕ} {F : Type} [Field F] (chal :
 /-- The honest evaluations `W[L,C]` and `W[R,C]` of the extracted witness at the
 transcript's own challenge point.  These are the values `Transcript.checkV` compares the
 prover's claims against. -/
-noncomputable def true_evals {nc nv ninp logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
-  (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-  (w : Witness) (chal : List F) : F × F :=
+noncomputable def true_evals {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+  (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+  (inp : Input) (w : Witness) (chal : List F) : F × F :=
   let s := challenge_split (logw := logw) (logc := logc) chal
-  (AC.W_mle w s.2.1 s.1, AC.W_mle w s.2.2 s.1)
+  (AC.W_mle inp w s.2.1 s.1, AC.W_mle inp w s.2.2 s.1)
 
 /-- The coefficients `b_i = eq0.at(i) + alpha * eq1.at(i)` that `ZkCommon::input_constraint`
 places on the committed input columns (`zk_common.h:L415`), at a transcript's own hand
@@ -699,14 +1216,14 @@ matching `got = Eq<Field>::eval(...) * EQUAD->scalar()` at `verifier_layers.h:L1
 
 This is a verifier-side computation, not a prover claim, so callers instantiate the `eqq`
 parameter of `Transcript.checkV` with it rather than assuming anything about it. -/
-noncomputable def layer_eqq {nc nv ninp logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
-  (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-  (c : Circuit) (alpha : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+noncomputable def layer_eqq {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+  (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+  (c : Circuit) (alpha beta : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
   (chal : List F) : F :=
   let s := challenge_split (logw := logw) (logc := logc) chal
   eq_matrix_mle nc logc q_challenge s.1 *
-    ∑ g ∈ (Finset.univ : Finset (Vector F logv)), AC.Quad_mle c g s.2.1 s.2.2 *
-      (eq_matrix_mle nv logv g0 g + alpha * eq_matrix_mle nv logv g1 g)
+    ∑ i ∈ Finset.range nv, AC.Quad_mle c beta (boolean_vector i) s.2.1 s.2.2 *
+      (eq_mle_basis i g0 + alpha * eq_mle_basis i g1)
 
 /--
 The layer polynomial evaluated at a transcript's challenge point factors as
@@ -717,14 +1234,14 @@ now a definitional unfolding: `layer_eqq` *is* the verifier's `EQQ` and `true_ev
 the honest witness evaluations.  All the content moved to `input_row_binds_hands`, which
 proves the prover's *claimed* evaluations equal these honest ones.
 -/
-lemma layer_poly_factors {nc nv ninp logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (c : Circuit) (w : Witness) (alpha : F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
-    (chal : List F) :
-    layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w) alpha q_challenge g0 g1
+lemma layer_poly_factors {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (inp : Input) (w : Witness) (alpha beta : F) (q_challenge : Vector F logc)
+    (g0 g1 : Vector F logv) (chal : List F) :
+    layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c beta) (AC.W_mle inp w) alpha q_challenge g0 g1
         (Vector.ofFn (n := logc + 2 * logw) fun i => chal.getD i.val 0)
-      = layer_eqq AC c alpha q_challenge g0 g1 chal
-          * (true_evals AC w chal).1 * (true_evals AC w chal).2 := by
+      = layer_eqq AC c alpha beta q_challenge g0 g1 chal
+          * (true_evals AC inp w chal).1 * (true_evals AC inp w chal).2 := by
   rfl
 
 
@@ -735,18 +1252,18 @@ Formalizes the property that the sumcheck protocol transcript is correlation int
 the Fiat-Shamir heuristic, bounding the number of challenge sequences leading to a bad event by `eps_sumcheck`.
 
 **Combinatorial Justification:**
-In `sumcheck_soundness.lean`, we prove `combinatorial_fiat_shamir` and `combinatorial_fiat_shamir_soundness`,
-which establish that for any `IsFiatShamirTranscript`, the total number of cheating challenge sequences
+In `sumcheck_soundness.lean`, we prove `combinatorial_fiat_shamir`,
+which establishes that for any `IsFiatShamirTranscript`, the total number of cheating challenge sequences
 across all rounds is bounded by `n * d * |F|^(n-1)`, without any probability or random oracle axioms.
 -/
-structure IsSumcheckCorrelationIntractable {nc nv ninp logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-  (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
+structure IsSumcheckCorrelationIntractable {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+  (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
   (accepts : Ω → Prop)
   (T_p : Ω → EncTranscript M F) (var_dwR var_dwL : Fin M)
-  (c : Circuit) (E_L : Ω → Option (AugmentedWitness M F Witness))
-  (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv) (eps_sumcheck : ℕ) : Prop where
+  (c : Circuit) (inp : Input) (E_L : Ω → Option (AugmentedWitness M F Witness))
+  (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv) (eps_sumcheck : ℕ) : Prop where
   ci_bound : event_card (Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧
-    multi_round_bad_event (circuit_true_polys AC c w ((T_p ω).decrypt pad var_dwR var_dwL (true_evals AC w (T_p ω).challenges).1 (true_evals AC w (T_p ω).challenges).2) (alpha ω) q_challenge g0 g1) ((T_p ω).polys pad) (T_p ω).challenges) Finset.univ) ≤ eps_sumcheck
+    multi_round_bad_event (circuit_true_polys AC c inp w ((T_p ω).decrypt pad var_dwR var_dwL (true_evals AC inp w (T_p ω).challenges).1 (true_evals AC inp w (T_p ω).challenges).2) (alpha ω) (beta ω) q_challenge g0 g1) ((T_p ω).polys pad) (T_p ω).challenges) Finset.univ) ≤ eps_sumcheck
 
 def builder_finalize {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)] (e : Expression M F) (eqq : F) (wc0 wc1 : F) (var_dwL var_dwR var_dwL_dwR : Fin M) : (Fin M → F) × F :=
   let rhs := eqq * wc0 * wc1 - e.1

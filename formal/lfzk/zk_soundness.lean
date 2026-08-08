@@ -64,7 +64,7 @@ variable {Ω : Type} [Fintype Ω]
 
 section
 
-variable {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+variable {nc nv logw logc : ℕ}
 
 /-- Some layer's Ligero rows fail even though the extractor succeeded. -/
 noncomputable def MEvent_Rows (LC : LayeredCircuit Witness nc nv logw logc F)
@@ -118,7 +118,7 @@ noncomputable def MEvent_Fail (accepts : Ω → Prop)
   Finset.filter (fun ω => accepts ω ∧ (E_L ω = none ∨
     ∃ w pad, E_L ω = some (w, pad) ∧ ev c inp w = false)) Finset.univ
 
-omit [Fintype Ω] [Fintype F] [DecidableEq F] [SumcheckInterp F] [Fintype (Vector F logw)] in
+omit [Fintype Ω] [Fintype F] [DecidableEq F] [SumcheckInterp F] in
 lemma union_bound_5 (A B C D E : Finset Ω) :
     event_card (A ∪ B ∪ C ∪ D ∪ E)
       ≤ event_card A + event_card B + event_card C + event_card D + event_card E := by

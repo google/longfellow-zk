@@ -4,7 +4,6 @@ import types
 import fiat_shamir
 import circuit
 import ligero
-import fs_derive
 
 open BigOperators
 open Classical Polynomial Finset
@@ -36,19 +35,19 @@ functions of the transcript's own challenges, so both are named once here.
 -/
 
 /-- The plaintext transcript of run `ω` under extracted witness `w` and pad `pad`. -/
-noncomputable def run_transcript {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
+noncomputable def run_transcript {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
     (T_p : Ω → EncTranscript M F) (var_dwR var_dwL : Fin M)
-    (ω : Ω) (w : Witness) (pad : Pad M F) : Transcript F :=
+    (ω : Ω) (inp : Input) (w : Witness) (pad : Pad M F) : Transcript F :=
   (T_p ω).decrypt pad var_dwR var_dwL
-    (true_evals AC w (T_p ω).challenges).1 (true_evals AC w (T_p ω).challenges).2
+    (true_evals AC inp w (T_p ω).challenges).1 (true_evals AC inp w (T_p ω).challenges).2
 
 /-- The `EQQ` scalar of run `ω`. -/
-noncomputable def run_eqq {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (c : Circuit) (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+noncomputable def run_eqq {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (_inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (T_p : Ω → EncTranscript M F) (ω : Ω) : F :=
-  layer_eqq AC c (alpha ω) q_challenge g0 g1 (T_p ω).challenges
+  layer_eqq AC c (alpha ω) (beta ω) q_challenge g0 g1 (T_p ω).challenges
 
 
 /--
@@ -56,14 +55,14 @@ noncomputable def run_eqq {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field 
 successfully extracts a witness and pad, but the decrypted transcript fails the
 validity check `checkV`.
 -/
-noncomputable def Event_B {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (accepts : Ω → Prop) (c : Circuit) (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+noncomputable def Event_B {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL : Fin M) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
   Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧
-    (run_transcript AC T_p var_dwR var_dwL ω w pad).checkV
-      (run_eqq AC c alpha q_challenge g0 g1 T_p ω) = false) Finset.univ
+    (run_transcript AC T_p var_dwR var_dwL ω inp w pad).checkV
+      (run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω) = false) Finset.univ
 
 
 /--
@@ -74,15 +73,15 @@ evaluation for the extracted witness evaluates to false.
 The "sumcheck rounds verify" conjunct that used to be here is gone: it is now automatic
 (`EncTranscript.rounds_verify`), so including it would only have made the event smaller.
 -/
-noncomputable def Event_C {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+noncomputable def Event_C {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL : Fin M) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
   Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧
-    ¬ AC.Degenerate c w (alpha ω) q_challenge g0 g1 ∧
-    (run_transcript AC T_p var_dwR var_dwL ω w pad).checkV
-      (run_eqq AC c alpha q_challenge g0 g1 T_p ω) = true ∧ AC.eval c inp w = false) Finset.univ
+    ¬ AC.Degenerate c inp w (alpha ω) (beta ω) q_challenge g0 g1 ∧
+    (run_transcript AC T_p var_dwR var_dwL ω inp w pad).checkV
+      (run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω) = true ∧ AC.eval c inp w = false) Finset.univ
 
 
 /--
@@ -116,22 +115,22 @@ point.  With `run_eqq` being the verifier's own `EQQ` and the transcript's `w_l_
 The content that used to be assumed here now lives in `input_row_binds_hands`, which proves
 that the prover's *claimed* evaluations equal these honest ones.
 -/
-lemma final_binding {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (c : Circuit) (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+lemma final_binding {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (T_p : Ω → EncTranscript M F) (var_dwR var_dwL : Fin M)
     (ω : Ω) (w : Witness) (pad : Pad M F) :
-    run_eqq AC c alpha q_challenge g0 g1 T_p ω
-        * (run_transcript AC T_p var_dwR var_dwL ω w pad).w_r_true
-        * (run_transcript AC T_p var_dwR var_dwL ω w pad).w_l_true
-      = layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w)
+    run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω
+        * (run_transcript AC T_p var_dwR var_dwL ω inp w pad).w_r_true
+        * (run_transcript AC T_p var_dwR var_dwL ω inp w pad).w_l_true
+      = layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c (beta ω)) (AC.W_mle inp w)
           (alpha ω) q_challenge g0 g1
           (Vector.ofFn (n := logc + 2 * logw) fun i =>
-            (run_transcript AC T_p var_dwR var_dwL ω w pad).challenges.getD i.val 0) := by
-  have hch : (run_transcript AC T_p var_dwR var_dwL ω w pad).challenges = (T_p ω).challenges := rfl
+            (run_transcript AC T_p var_dwR var_dwL ω inp w pad).challenges.getD i.val 0) := by
+  have hch : (run_transcript AC T_p var_dwR var_dwL ω inp w pad).challenges = (T_p ω).challenges := rfl
   rw [hch, layer_poly_factors, run_eqq]
-  show layer_eqq AC c (alpha ω) q_challenge g0 g1 (T_p ω).challenges
-        * (true_evals AC w (T_p ω).challenges).2 * (true_evals AC w (T_p ω).challenges).1 = _
+  show layer_eqq AC c (alpha ω) (beta ω) q_challenge g0 g1 (T_p ω).challenges
+        * (true_evals AC inp w (T_p ω).challenges).2 * (true_evals AC inp w (T_p ω).challenges).1 = _
   ring
 
 
@@ -145,38 +144,38 @@ Longfellow protocol. It bounds the protocol-specific `Event_C` by instantiating 
 generic `multi_round_bad_event` with Longfellow's specific arithmetized quadratic
 form polynomials (`circuit_true_polys`).
 -/
-lemma lemma_sumcheck_soundness (eps_sumcheck : ℕ) {nc nv ninp logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
+lemma lemma_sumcheck_soundness (eps_sumcheck : ℕ) {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
     (accepts : Ω → Prop) (var_dwR var_dwL : Fin M)
     (c : Circuit) (inp : Input) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness))
-    (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (hpos : 0 < logc + 2 * logw)
     (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts T_p)
-    (ci : IsSumcheckCorrelationIntractable AC accepts T_p var_dwR var_dwL c E_L alpha q_challenge g0 g1 eps_sumcheck) :
-    event_card (Event_C AC accepts c inp alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L) ≤ eps_sumcheck := by
-  have h_subset : Event_C AC accepts c inp alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L ⊆
+    (ci : IsSumcheckCorrelationIntractable AC accepts T_p var_dwR var_dwL c inp E_L alpha beta q_challenge g0 g1 eps_sumcheck) :
+    event_card (Event_C AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L) ≤ eps_sumcheck := by
+  have h_subset : Event_C AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L ⊆
     Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧
-      multi_round_bad_event (circuit_true_polys AC c w (run_transcript AC T_p var_dwR var_dwL ω w pad) (alpha ω) q_challenge g0 g1) ((T_p ω).polys pad) (T_p ω).challenges) Finset.univ := by
+      multi_round_bad_event (circuit_true_polys AC c inp w (run_transcript AC T_p var_dwR var_dwL ω inp w pad) (alpha ω) (beta ω) q_challenge g0 g1) ((T_p ω).polys pad) (T_p ω).challenges) Finset.univ := by
     intro ω h_omega
     dsimp [Event_C] at h_omega ⊢
     simp only [Finset.mem_filter, Finset.mem_univ, true_and] at h_omega ⊢
     rcases h_omega with ⟨h_acc, w, pad, h_EL, hgood, h_check, h_ev⟩
     have h_ver := (T_p ω).rounds_verify pad
     refine ⟨h_acc, w, pad, h_EL, ?_⟩
-    set eqq := run_eqq AC c alpha q_challenge g0 g1 T_p ω with h_eqq_def
-    set t := run_transcript AC T_p var_dwR var_dwL ω w pad with h_t_def
+    set eqq := run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω with h_eqq_def
+    set t := run_transcript AC T_p var_dwR var_dwL ω inp w pad with h_t_def
     have h_shape1 : t.polys.length = logc + 2 * logw := by
       simpa [t, run_transcript, EncTranscript.decrypt] using wf.round_count ω h_acc
     have h_shape2 : t.challenges.length = logc + 2 * logw := by
       simpa [t, run_transcript, EncTranscript.decrypt] using wf.round_count ω h_acc
     have h_target : eqq * t.w_r_true * t.w_l_true =
-        layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c) (AC.W_mle w)
+        layer_sumcheck_poly_concat (nc := nc) (nv := nv) (AC.Quad_mle c (beta ω)) (AC.W_mle inp w)
           (alpha ω) q_challenge g0 g1
           (Vector.ofFn (n := logc + 2 * logw) fun i => t.challenges.getD i.val 0) :=
-      final_binding AC c alpha q_challenge g0 g1 T_p var_dwR var_dwL ω w pad
-    have h_circ := AC.soundness c inp w t (alpha ω) q_challenge g0 g1
-      (eqq * t.w_r_true * t.w_l_true) h_ev hgood hpos h_shape1 h_shape2 h_target
+      final_binding AC c inp alpha beta q_challenge g0 g1 T_p var_dwR var_dwL ω w pad
+    have h_circ := AC.soundness c inp w t (alpha ω) (beta ω) q_challenge g0 g1
+      (eqq * t.w_r_true * t.w_l_true) hgood hpos h_shape1 h_shape2 h_target
     rcases h_circ with ⟨P_first, P_rest, h_eq, h_len1, h_len2, h_cons, h_neq, h_last⟩
     have h_polys_nnil : (T_p ω).polys pad ≠ [] := by
       intro h_nil
@@ -216,22 +215,22 @@ lemma lemma_sumcheck_soundness (eps_sumcheck : ℕ) {nc nv ninp logv logw logc :
       rw [h_eq]
       exact h_true
 
-  have h_mono : event_card (Event_C AC accepts c inp alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L) ≤ event_card (Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧ multi_round_bad_event (circuit_true_polys AC c w (run_transcript AC T_p var_dwR var_dwL ω w pad) (alpha ω) q_challenge g0 g1) ((T_p ω).polys pad) (T_p ω).challenges) Finset.univ) := by
+  have h_mono : event_card (Event_C AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L) ≤ event_card (Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧ multi_round_bad_event (circuit_true_polys AC c inp w (run_transcript AC T_p var_dwR var_dwL ω inp w pad) (alpha ω) (beta ω) q_challenge g0 g1) ((T_p ω).polys pad) (T_p ω).challenges) Finset.univ) := by
     apply Finset.card_le_card
     exact h_subset
   have h_prob := ci.ci_bound
   exact le_trans h_mono h_prob
 
-noncomputable def E_prime {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (c : Circuit) (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+noncomputable def E_prime {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL : Fin M) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) (ω : Ω) : Option Witness :=
   match E_L ω with
   | none => none
   | some (w, pad) =>
-    if (run_transcript AC T_p var_dwR var_dwL ω w pad).checkV
-        (run_eqq AC c alpha q_challenge g0 g1 T_p ω) then some w else none
+    if (run_transcript AC T_p var_dwR var_dwL ω inp w pad).checkV
+        (run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω) then some w else none
 
 
 /--
@@ -242,14 +241,14 @@ witness that does not satisfy the circuit.
 The `accepts ω` conjunct is what makes this the right event to bound.  Runs the
 verifier rejects carry no soundness obligation.
 -/
-noncomputable def Event_Fail {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+noncomputable def Event_Fail {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL : Fin M) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
   Finset.filter (fun ω => accepts ω ∧
-    (E_prime AC c alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L ω = none ∨
-     ∃ w, E_prime AC c alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L ω = some w ∧ AC.eval c inp w = false)) Finset.univ
+    (E_prime AC c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L ω = none ∨
+     ∃ w, E_prime AC c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L ω = some w ∧ AC.eval c inp w = false)) Finset.univ
 
 
 omit [Fintype Ω] in
@@ -277,29 +276,29 @@ The two hand-binding conjuncts of `checkV` are now discharged by `input_row_bind
 rather than by two hand-specific pad constraints — that is, they follow from the single
 input row of `ZkCommon::input_constraint` acting on the committed witness columns.
 -/
-lemma extractor_soundness_bridge {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
-    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F}
+lemma extractor_soundness_bridge {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F}
     {accepts : Ω → Prop} {T_p : Ω → EncTranscript M F}
-    {c : Circuit} {npub : ℕ} {pub_binding : Ω → F}
-    {alpha : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
+    {c : Circuit} {inp : Input} {w_ref : Witness}
+    {alpha beta : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
     {var_dwR var_dwL var_dwL_dwR : Fin M}
     {E_L : Ω → Option (AugmentedWitness M F Witness)} {eps_FSK : ℕ}
-    (lig : IsLigeroKnowledgeSound AC accepts T_p c npub pub_binding alpha q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_L eps_FSK)
     (ω : Ω) (w : Witness) (p : Pad M F) (hacc : accepts ω) (hE : E_L ω = some (w, p))
-    (hab : ¬ InputBindingBad (true_evals AC w (T_p ω).challenges).1
-        (true_evals AC w (T_p ω).challenges).2
+    (hab : ¬ InputBindingBad (true_evals AC inp w (T_p ω).challenges).1
+        (true_evals AC inp w (T_p ω).challenges).2
         ((T_p ω).wc0 + p var_dwL) ((T_p ω).wc1 + p var_dwR) (alpha ω)) :
-    (run_transcript AC T_p var_dwR var_dwL ω w p).checkV
-      (run_eqq AC c alpha q_challenge g0 g1 T_p ω) = true := by
+    (run_transcript AC T_p var_dwR var_dwL ω inp w p).checkV
+      (run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω) = true := by
   obtain ⟨hL, hR⟩ := input_row_binds_hands lig ω w p hacc hE hab
   have hclaim := layer_checks_imply_sumcheck (T_p ω).e p
-      (run_eqq AC c alpha q_challenge g0 g1 T_p ω) (T_p ω).wc0 (T_p ω).wc1
+      (run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω) (T_p ω).wc0 (T_p ω).wc1
       var_dwL var_dwR var_dwL_dwR (lig.layer_constraint ω w p hacc hE)
   dsimp [run_transcript, Transcript.checkV, EncTranscript.decrypt]
   rw [hL, hR]
   have : evaluates_to (T_p ω).e p
-      = run_eqq AC c alpha q_challenge g0 g1 T_p ω * ((T_p ω).wc1 + p var_dwR)
+      = run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω * ((T_p ω).wc1 + p var_dwR)
           * ((T_p ω).wc0 + p var_dwL) := by
     rw [hclaim]; ring
   simp
@@ -318,13 +317,13 @@ This used to be the hypothesis `hgood : ¬ AC.degenerate ...` on the theorem's p
 Now that `alpha` is a function of the run it is an event, and `alpha_bad_card` bounds it by
 a `1/|F|` fraction.
 -/
-noncomputable def Event_Degenerate {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (accepts : Ω → Prop) (c : Circuit) (alpha : Ω → F)
+noncomputable def Event_Degenerate {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha beta : Ω → F)
     (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
   Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧
-    AC.Degenerate c w (alpha ω) q_challenge g0 g1) Finset.univ
+    AC.Degenerate c inp w (alpha ω) (beta ω) q_challenge g0 g1) Finset.univ
 
 /--
 **The input-binding error event.**
@@ -337,26 +336,26 @@ This used to be `event_b_empty`, proved from an `alpha_good` field asserting tha
 unlucky value never occurs.  It is now a *counted* term: `alpha_bad_card` (`ligero.lean`)
 shows that when `alpha` is a fresh challenge at most a `1/|F|` fraction of runs land here.
 -/
-noncomputable def Event_AlphaBad {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (accepts : Ω → Prop) (alpha : Ω → F) (var_dwR var_dwL : Fin M)
+noncomputable def Event_AlphaBad {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (inp : Input) (alpha : Ω → F) (var_dwR var_dwL : Fin M)
     (T_p : Ω → EncTranscript M F) (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
   Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧
-    InputBindingBad (true_evals AC w (T_p ω).challenges).1
-      (true_evals AC w (T_p ω).challenges).2
+    InputBindingBad (true_evals AC inp w (T_p ω).challenges).1
+      (true_evals AC inp w (T_p ω).challenges).2
       ((T_p ω).wc0 + pad var_dwL) ((T_p ω).wc1 + pad var_dwR) (alpha ω)) Finset.univ
 
-lemma event_b_subset {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
-    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F}
+lemma event_b_subset {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F}
     {accepts : Ω → Prop} {T_p : Ω → EncTranscript M F}
-    {c : Circuit} {npub : ℕ} {pub_binding : Ω → F}
-    {alpha : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
+    {c : Circuit} {inp : Input} {w_ref : Witness}
+    {alpha beta : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
     {var_dwR var_dwL var_dwL_dwR : Fin M}
     {E_L : Ω → Option (AugmentedWitness M F Witness)} {eps_FSK : ℕ}
-    (lig : IsLigeroKnowledgeSound AC accepts T_p c npub pub_binding alpha q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_L eps_FSK) :
-    Event_B AC accepts c alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L
-      ⊆ Event_AlphaBad AC accepts alpha var_dwR var_dwL T_p E_L := by
+    Event_B AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L
+      ⊆ Event_AlphaBad AC accepts inp alpha var_dwR var_dwL T_p E_L := by
   intro ω hω
   dsimp [Event_B, Event_AlphaBad] at hω ⊢
   simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hω ⊢
@@ -376,20 +375,20 @@ Case analysis:
 - If `E_L ω = some (w, pad)` and `Transcript.checkV = false`: Belongs to `Event_B`.
 - If `E_L ω = some (w, pad)` and `Transcript.checkV = true` with `eval = false`: `Event_C`.
 -/
-lemma event_fail_subset {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
-    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F}
+lemma event_fail_subset {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F}
     {accepts : Ω → Prop} {T_p : Ω → EncTranscript M F}
-    {c : Circuit} (inp : Input) {npub : ℕ} {pub_binding : Ω → F}
-    {alpha : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
+    {c : Circuit} (inp : Input) {w_ref : Witness}
+    {alpha beta : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
     {var_dwR var_dwL var_dwL_dwR : Fin M}
     {E_L : Ω → Option (AugmentedWitness M F Witness)} {eps_FSK : ℕ}
-    (_lig : IsLigeroKnowledgeSound AC accepts T_p c npub pub_binding alpha q_challenge g0 g1
+    (_lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_L eps_FSK) :
-    Event_Fail AC accepts c inp alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L
+    Event_Fail AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L
       ⊆ Event_A accepts E_L
-        ∪ Event_B AC accepts c alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L
-        ∪ Event_Degenerate AC accepts c alpha q_challenge g0 g1 E_L
-        ∪ Event_C AC accepts c inp alpha q_challenge g0 g1 var_dwR var_dwL T_p E_L := by
+        ∪ Event_B AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L
+        ∪ Event_Degenerate AC accepts c inp alpha beta q_challenge g0 g1 E_L
+        ∪ Event_C AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L := by
   intro ω h
   dsimp [Event_Fail, Event_A, Event_B, Event_Degenerate, Event_C] at h ⊢
   simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_union] at h ⊢
@@ -404,8 +403,8 @@ lemma event_fail_subset {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F]
     | some w_prime =>
       rcases w_prime with ⟨w, pad⟩
       rw [h_lig] at h1
-      cases h_check : (run_transcript AC T_p var_dwR var_dwL ω w pad).checkV
-          (run_eqq AC c alpha q_challenge g0 g1 T_p ω)
+      cases h_check : (run_transcript AC T_p var_dwR var_dwL ω inp w pad).checkV
+          (run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω)
       · left; left; right
         exact ⟨h_acc, w, pad, rfl, h_check⟩
       · simp only [h_check] at h1
@@ -420,14 +419,14 @@ lemma event_fail_subset {nc nv ninp logv logw logc M : ℕ} {F : Type} [Field F]
     | some w_prime =>
       rcases w_prime with ⟨w', pad⟩
       rw [h_lig] at hw1
-      cases h_check : (run_transcript AC T_p var_dwR var_dwL ω w' pad).checkV
-          (run_eqq AC c alpha q_challenge g0 g1 T_p ω)
+      cases h_check : (run_transcript AC T_p var_dwR var_dwL ω inp w' pad).checkV
+          (run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω)
       · simp only [h_check] at hw1
         contradiction
       · simp only [h_check] at hw1
         injection hw1 with heq
         subst heq
-        by_cases hdeg : AC.Degenerate c w' (alpha ω) q_challenge g0 g1
+        by_cases hdeg : AC.Degenerate c inp w' (alpha ω) (beta ω) q_challenge g0 g1
         · left; right
           exact ⟨h_acc, w', pad, rfl, hdeg⟩
         · right
@@ -513,32 +512,32 @@ nothing; an earlier version was vacuous on exactly this point.
 * **Challenge ordering.**  `extract_vars` treats the two hands as contiguous blocks, while
   the implementation interleaves them (`for (round) for (hand)`).
 -/
-theorem core_soundness_theorem {nc nv ninp logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq (Fin M)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
-    (accepts : Ω → Prop) (C : Circuit) (x : Input) (npub : ℕ) (pub_binding : Ω → F)
-    (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+theorem core_soundness_theorem {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq (Fin M)] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (C : Circuit) (x : Input) (w_ref : Witness)
+    (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL var_dwL_dwR : Fin M)
     (T_prime : Ω → EncTranscript M F) (E_Ligero : Ω → Option (AugmentedWitness M F Witness))
     (hpos : 0 < logc + 2 * logw)
-    (lig : IsLigeroKnowledgeSound AC accepts T_prime C npub pub_binding alpha q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_prime C x w_ref alpha beta q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_Ligero eps_FSK)
     (eps_bind eps_deg : ℕ)
-    (h_bind : event_card (Event_AlphaBad AC accepts alpha var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind)
-    (h_deg : event_card (Event_Degenerate AC accepts C alpha q_challenge g0 g1 E_Ligero) ≤ eps_deg)
+    (h_bind : event_card (Event_AlphaBad AC accepts x alpha var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind)
+    (h_deg : event_card (Event_Degenerate AC accepts C x alpha beta q_challenge g0 g1 E_Ligero) ≤ eps_deg)
     (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts T_prime)
-    (ci : IsSumcheckCorrelationIntractable AC accepts T_prime var_dwR var_dwL C E_Ligero alpha q_challenge g0 g1 eps_sumcheck) :
-    event_card (Event_Fail AC accepts C x alpha q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
+    (ci : IsSumcheckCorrelationIntractable AC accepts T_prime var_dwR var_dwL C x E_Ligero alpha beta q_challenge g0 g1 eps_sumcheck) :
+    event_card (Event_Fail AC accepts C x alpha beta q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
       ≤ eps_FSK + eps_bind + eps_deg + eps_sumcheck := by
   have h_sub := Finset.card_le_card (event_fail_subset x lig)
   have h_ub := union_bound_4 (Event_A accepts E_Ligero)
-    (Event_B AC accepts C alpha q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
-    (Event_Degenerate AC accepts C alpha q_challenge g0 g1 E_Ligero)
-    (Event_C AC accepts C x alpha q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
+    (Event_B AC accepts C x alpha beta q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
+    (Event_Degenerate AC accepts C x alpha beta q_challenge g0 g1 E_Ligero)
+    (Event_C AC accepts C x alpha beta q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
   have h_a := lig.extraction_bound
-  have h_b : event_card (Event_B AC accepts C alpha q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind :=
+  have h_b : event_card (Event_B AC accepts C x alpha beta q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind :=
     le_trans (Finset.card_le_card (event_b_subset lig)) h_bind
   have h_c := lemma_sumcheck_soundness eps_sumcheck AC accepts var_dwR var_dwL C x T_prime
-    E_Ligero alpha q_challenge g0 g1 hpos wf ci
+    E_Ligero alpha beta q_challenge g0 g1 hpos wf ci
   have h_d := h_deg
   dsimp [event_card] at *
   linarith
@@ -558,29 +557,29 @@ hypothesis: it is `K * (n * d * |F|^(n-1))`, produced by `sumcheck_ci_of_nonadap
 Out of the `|F|^n` challenge sequences, `n * d * |F|^(n-1)` is a `n * d / |F|` fraction:
 the textbook sumcheck soundness error, here as an exact count.
 -/
-theorem core_soundness_derived_eps {nc nv ninp logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq (Fin M)] [DecidableEq F] [SumcheckInterp F]
+theorem core_soundness_derived_eps {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq (Fin M)] [DecidableEq F] [SumcheckInterp F]
     {n d : ℕ}
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
     (fs : IsFiatShamirTranscript F n d)
-    (accepts : Ω → Prop) (C : Circuit) (x : Input) (npub : ℕ) (pub_binding : Ω → F)
-    (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (accepts : Ω → Prop) (C : Circuit) (x : Input) (w_ref : Witness)
+    (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL var_dwL_dwR : Fin M)
     (T_prime : Ω → EncTranscript M F) (E_Ligero : Ω → Option (AugmentedWitness M F Witness))
     (challenge_map : Ω → (Fin n → F)) (K : ℕ)
     (h_unif : ∀ cs : Fin n → F, (Finset.filter (fun ω => challenge_map ω = cs) Finset.univ).card ≤ K)
-    (na : IsNonAdaptiveRun AC fs accepts T_prime var_dwR var_dwL C E_Ligero alpha q_challenge g0 g1 challenge_map)
+    (na : IsNonAdaptiveRun AC fs accepts T_prime var_dwR var_dwL C x E_Ligero alpha beta q_challenge g0 g1 challenge_map)
     (hpos : 0 < logc + 2 * logw)
-    (lig : IsLigeroKnowledgeSound AC accepts T_prime C npub pub_binding alpha q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_prime C x w_ref alpha beta q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_Ligero eps_FSK)
     (eps_bind eps_deg : ℕ)
-    (h_bind : event_card (Event_AlphaBad AC accepts alpha var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind)
-    (h_deg : event_card (Event_Degenerate AC accepts C alpha q_challenge g0 g1 E_Ligero) ≤ eps_deg)
+    (h_bind : event_card (Event_AlphaBad AC accepts x alpha var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind)
+    (h_deg : event_card (Event_Degenerate AC accepts C x alpha beta q_challenge g0 g1 E_Ligero) ≤ eps_deg)
     (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts T_prime) :
-    event_card (Event_Fail AC accepts C x alpha q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
+    event_card (Event_Fail AC accepts C x alpha beta q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
       ≤ eps_FSK + eps_bind + eps_deg + K * (n * d * (Fintype.card F) ^ (n - 1)) :=
   core_soundness_theorem (eps_FSK := eps_FSK)
     (eps_sumcheck := K * (n * d * (Fintype.card F) ^ (n - 1)))
-    AC accepts C x npub pub_binding alpha q_challenge g0 g1
+    AC accepts C x w_ref alpha beta q_challenge g0 g1
     var_dwR var_dwL var_dwL_dwR T_prime E_Ligero hpos lig eps_bind eps_deg h_bind h_deg wf
-    (sumcheck_ci_of_nonadaptive AC fs accepts T_prime var_dwR var_dwL C E_Ligero
-      alpha q_challenge g0 g1 challenge_map K h_unif na)
+    (sumcheck_ci_of_nonadaptive AC fs accepts T_prime var_dwR var_dwL C x E_Ligero
+      alpha beta q_challenge g0 g1 challenge_map K h_unif na)

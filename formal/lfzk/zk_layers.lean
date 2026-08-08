@@ -108,7 +108,7 @@ exactly the claim the previous layer handed on.
 
 The second conjunct is the `builder_finalize` row plus the quadratic pad relation.
 -/
-def ZkLayerRow {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+def ZkLayerRow {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F)
     (ly : ℕ) (st : LayerState logw logc F) (zl : ZkLayer M F) : Prop :=
   ∃ e : Expression M F,
@@ -126,7 +126,7 @@ accepts this layer and moves to the reduced state.  No assumption is needed beyo
 Ligero rows: the round checks pass by construction (`builder_run_verifies`) and the final
 identity is exactly what the row forces (`layer_checks_imply_sumcheck`).
 -/
-theorem zk_layer_verifies {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+theorem zk_layer_verifies {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F)
     (ly : ℕ) (st : LayerState logw logc F) (zl : ZkLayer M F)
     (h : ZkLayerRow LC pad ly st zl) :
@@ -178,7 +178,7 @@ omit [Fintype F] [DecidableEq F] in
   | cons zl rest ih => simp [zkLayerDatas, ih]
 
 /-- The Ligero rows of every layer of a run, threaded through the state the same way. -/
-noncomputable def ZkRowsHold {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+noncomputable def ZkRowsHold {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F) :
     ℕ → LayerState logw logc F → List (ZkLayer M F) → Prop
   | _, _, [] => True
@@ -194,7 +194,7 @@ Every layer's Ligero rows together make `VerifierLayers::layers` accept the enti
 This is the join that was missing: `layers.lean` could reduce claims from one layer to the
 next, but nothing connected those layers to the ZK constraint system.
 -/
-theorem zk_layers_verify {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+theorem zk_layers_verify {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F) :
     ∀ (zls : List (ZkLayer M F)) (ly : ℕ) (st : LayerState logw logc F),
       ZkRowsHold LC pad ly st zls →
@@ -219,7 +219,7 @@ about the *input* layer, are wrong.
 Composing this with `input_row_binds_hands` (which pins the input-layer claims to the
 committed witness) rules out the second alternative, leaving only luck.
 -/
-theorem zk_multi_layer_soundness {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+theorem zk_multi_layer_soundness {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F) (w : Witness)
     (hpos : 0 < logc + 2 * logw)
     (zls : List (ZkLayer M F)) (st0 : LayerState logw logc F)

@@ -1,27 +1,36 @@
 import lfzk
 import layers
 import zk_layers
+import zk_soundness
 
 open Classical Polynomial Finset
 
 set_option autoImplicit false
 set_option relaxedAutoImplicit false
+set_option maxHeartbeats 1000000
 
 /-!
-# Non-vacuity witness for `core_soundness_theorem`
+# Non-vacuity witnesses
 
-`core_soundness_theorem` is an implication.  It says nothing unless its hypotheses
-are jointly satisfiable *in the regime it is about*, namely with an
-`ArithmetizedCircuit` whose `eval` can return `false`.
+The soundness theorems bound the size of a *bad* event.  Such a bound is worthless if the
+hypotheses are unsatisfiable (the theorem is then `False → anything`) or if they secretly
+force the bad event to be empty (the bound then reads `0 ≤ eps`).  Neither failure is caught
+by type-checking, so each theorem gets an explicit instance here.
 
-This file builds such an instance explicitly and applies the theorem to it:
+Every instance is built in the regime the theorems are *about*: an **unsatisfiable** circuit
+— `eval` identically `false`, so no witness exists — that the verifier nevertheless
+**accepts**.  That is a real soundness break; the theorems say such breaks are rare, and the
+job of these witnesses is to show the hypotheses do not assume them away.
+
+The first instance:
 
 * field `ZMod 5`, sample space `Unit`, pad width `M = 1`;
 * `logc = 1`, `logw = 0`, `logv = 0`, `nc = nv = 1`, so exactly one sumcheck round;
 * `eval` is identically `false` — every witness fails the circuit;
-* the prover's round polynomial is a *lie* that the verifier nevertheless accepts,
-  so `Event_Fail` is genuinely non-empty and the bound `eps_FSK + eps_sumcheck`
-  is actually doing work.
+* the prover's round polynomial is a *lie* the verifier accepts, so `Event_Fail` is all of
+  the sample space and the bound is tight at `1 ≤ 1`;
+* `eps_sumcheck_forced` then shows any valid `eps_sumcheck` here is `≥ 1` — the sumcheck
+  term is load-bearing, not padding.
 
 The layer polynomial of this instance is `f(c) = (1 - q₀)(1 - c)(1 + alpha)`.  Its
 hypercube sum `f(0) + f(1) = (1 - q₀)(1 + alpha)` is non-zero exactly when the layer
@@ -47,31 +56,6 @@ instance : SumcheckInterp F5 where
   pt2 := 2
   pt2_ne_zero := by decide
   pt2_ne_one := by decide
-
-/-! ## `Vector` plumbing
-
-Mathlib has no `Fintype` instance for core `Vector`, but `ArithmetizedCircuit`
-requires one, so we supply it via the obvious equivalence with `Fin n → F`. -/
-
-def vecEquiv (F : Type) (n : ℕ) : Vector F n ≃ (Fin n → F) where
-  toFun v := v.get
-  invFun f := Vector.ofFn f
-  left_inv v := by ext i hi; simp [Vector.get]
-  right_inv f := by funext i; simp
-
-noncomputable instance vecFintype (F : Type) [Fintype F] (n : ℕ) : Fintype (Vector F n) :=
-  Fintype.ofEquiv _ (vecEquiv F n).symm
-
-instance vecUnique0 (F : Type) : Unique (Vector F 0) where
-  default := Vector.ofFn (fun i => i.elim0)
-  uniq v := by ext i hi; omega
-
-lemma sum_vec0 {F : Type} [Fintype F] {M : Type} [AddCommMonoid M]
-    (g : Vector F 0 → M) (v0 : Vector F 0) : ∑ v : Vector F 0, g v = g v0 := by
-  rw [Fintype.sum_unique]
-  congr 1
-  ext i hi
-  omega
 
 /-- The unique element of `Vector F5 0`. -/
 def v0 : Vector F5 0 := Vector.ofFn (fun i => i.elim0)
@@ -117,7 +101,7 @@ noncomputable def myf (alpha : F5) (q : Vector F5 1) (g0 g1 : Vector F5 0) :
 lemma myf_eval (alpha : F5) (q : Vector F5 1) (g0 g1 : Vector F5 0) (c : F5) :
     myf alpha q g0 g1 (vec1 c) = ((1 - q.get 0) * (1 - c) + q.get 0 * c) * (1 + alpha) := by
   simp [myf, layer_sumcheck_poly_concat, extract_vars, layer_sumcheck_poly,
-        myQuad, myW, eq_matrix_10, eq_matrix_21]
+        myQuad, myW, eq_matrix_21]
 
 /-- The layer claim of this instance is `1 + alpha`: `EQ` sums to `1` over the two copies,
 and the `QUAD` factor contributes `1 + alpha`. -/
@@ -158,22 +142,48 @@ lemma generate_eq (alpha : F5) (q : Vector F5 1) (g0 g1 : Vector F5 0)
   simp only [generate_true_polys, myP, List.ofFn_succ, List.ofFn_zero]
   congr 1
 
+/-- The gate table's multilinear extension is the constant `1`, for every `beta`: the single
+gate has coefficient `1`, so `prep_v` never substitutes. -/
+lemma myAC_quad_aux (b : F5) :
+    (quadMle (logv := 0) (logw := 0) 1 1 (fun _ _ _ => (1 : F5)) b) = myQuad () := by
+  funext g l r
+  simp [quadMle, prepV, myQuad]
+
+/-- The wire vector's multilinear extension is the constant `1`. -/
+lemma myAC_w_aux :
+    (fun (g : Vector F5 0) (_cp : Vector F5 1) =>
+      wMle (ninp := 1) (logw := 0) 0 (fun _ => (0 : F5)) (fun _ => (1 : F5)) g) = myW () := by
+  funext g cp
+  simp [wMle, wCol, myW]
+
 /--
 The arithmetized circuit.  `eval` is identically `false`: **every** witness fails,
 which is precisely the regime the old formulation could not express.
 -/
-noncomputable def myAC : ArithmetizedCircuit Unit Unit Unit 2 1 1 0 0 1 F5 where
+noncomputable def myAC : ArithmetizedCircuit Unit Unit Unit 2 1 1 1 0 0 0 1 F5 where
   eval := fun _ _ _ => false
-  Quad_mle := myQuad
-  W_mle := myW
-  W_col := myWcol
-  W_mle_is_mle := by intro w g copy; simp [myW, myWcol]
+  -- one gate, with coefficient `1`: not an assert-zero gate, so `beta` never appears
+  gate_v := fun _ _ _ _ => 1
+  -- `npub = 0`: no public wires here
+  pub_col := fun _ _ _ => 0
+  priv_col := fun _ _ _ => 1
   arith := by
     intro c inp w q g0 g1 _
     cases c; cases inp; cases w
-    left
-    rw [my_layer_claim]
-    norm_num
+    rintro ⟨h0, -, -, -⟩
+    rw [show (quadMle (logv := 0) (logw := 0) 1 1 (fun _ _ _ => (1 : F5)) 0) = myQuad () from
+          myAC_quad_aux 0,
+        show (fun (g : Vector F5 0) (_cp : Vector F5 1) =>
+            wMle (ninp := 1) (logw := 0) 0 (fun _ => (0 : F5)) (fun _ => (1 : F5)) g)
+          = myW () from myAC_w_aux] at h0
+    rw [my_layer_claim] at h0
+    norm_num at h0
+
+@[simp] lemma myAC_quad_eq (b : F5) : myAC.Quad_mle () b = myQuad () :=
+  myAC_quad_aux b
+
+@[simp] lemma myAC_w_eq : myAC.W_mle () () = myW () :=
+  myAC_w_aux
 
 /-! ## The protocol run
 
@@ -218,7 +228,7 @@ lemma myE_pad (ω : Unit) (w : Unit) (p : Pad 1 F5) (h : myE ω = some (w, p)) :
   exact (congrArg (Prod.snd : Unit × Pad 1 F5 → Pad 1 F5) h1).symm
 
 /-- `EQ[Q,C]` vanishes at this transcript's copy challenge, so the layer's `EQQ` is `0`. -/
-lemma my_eqq_zero : layer_eqq myAC () 0 (vec1 0) v0 v0 [1] = 0 := by
+lemma my_eqq_zero : layer_eqq myAC () 0 0 (vec1 0) v0 v0 [1] = 0 := by
   have h : eq_matrix_mle 2 1 (vec1 0)
       (challenge_split (logw := 0) (logc := 1) ([1] : List F5)).1 = 0 := by
     rw [eq_matrix_21]
@@ -228,8 +238,8 @@ lemma my_eqq_zero : layer_eqq myAC () 0 (vec1 0) v0 v0 [1] = 0 := by
 
 /-- Every Ligero constraint holds for the extracted (zero) pad and committed column. -/
 theorem my_ligero :
-    IsLigeroKnowledgeSound (Ω := Unit) (Input := Unit) myAC myAccepts myT () 0 (fun _ => 0)
-      0 (vec1 0) v0 v0 0 0 0 myE 0 where
+    IsLigeroKnowledgeSound (Ω := Unit) (Input := Unit) myAC myAccepts myT () () ()
+      0 0 (vec1 0) v0 v0 0 0 0 myE 0 where
   extraction_bound := by
     have : Event_A (Witness := Unit) myAccepts myE = ∅ := by
       ext ω; simp [Event_A, myE]
@@ -246,16 +256,15 @@ theorem my_ligero :
     have hp := myE_pad ω w p h
     subst hp
     cases w
-    simp [ligero_input_row, privIdx, input_row_coeffs, myAC, myWcol, myT]
-  pub_consistent := by
-    rintro ω w p _ h
-    simp [privIdx]
+    simp [ligero_input_row, pubBinding, privIdx, input_row_coeffs,
+      ArithmetizedCircuit.W_col, wCol, myAC, myT]
+
 theorem my_wf : IsWellFormedTranscript (Ω := Unit) (logw := 0) (logc := 1) myAccepts myT where
   round_count := by intro ω _; simp [myT]
 
 /-- The bad event has exactly one point, so `eps_sumcheck = 1` (and no smaller). -/
 theorem my_ci :
-    IsSumcheckCorrelationIntractable (Input := Unit) myAC myAccepts myT 0 0 () myE 0 (vec1 0) v0 v0 1 where
+    IsSumcheckCorrelationIntractable (Input := Unit) myAC myAccepts myT 0 0 () () myE 0 0 (vec1 0) v0 v0 1 where
   ci_bound := by
     dsimp [event_card]
     refine le_trans (Finset.card_le_univ _) ?_
@@ -270,8 +279,8 @@ rejects every witness.  The theorem is therefore not vacuous.
 /-- The alpha-bad event is empty on this instance: the honest and claimed evaluations agree,
 so the first disjunct of `InputBindingBad` is false. -/
 theorem my_alpha_ok :
-    event_card (Event_AlphaBad myAC myAccepts 0 0 0 myT myE) ≤ 0 := by
-  have h : Event_AlphaBad myAC myAccepts 0 0 0 myT myE = ∅ := by
+    event_card (Event_AlphaBad myAC myAccepts () 0 0 0 myT myE) ≤ 0 := by
+  have h : Event_AlphaBad myAC myAccepts () 0 0 0 myT myE = ∅ := by
     ext ω
     constructor
     · intro hω
@@ -280,70 +289,60 @@ theorem my_alpha_ok :
       have hp := myE_pad ω w p hE
       subst hp
       cases w
-      simp [InputBindingBad, true_evals, myAC, myW, myT] at hbad
+      simp [InputBindingBad, true_evals, myAC_w_eq, myW, myT] at hbad
     · intro hc; exact absurd hc (by simp)
   simp [event_card, h]
 
 /-- The degenerate-randomness event is empty here: the layer claim is `1 + alpha = 1 ≠ 0`. -/
 theorem my_deg_ok :
-    event_card (Event_Degenerate myAC myAccepts () 0 (vec1 0) v0 v0 myE) ≤ 0 := by
-  have h : Event_Degenerate myAC myAccepts () 0 (vec1 0) v0 v0 myE = ∅ := by
+    event_card (Event_Degenerate myAC myAccepts () () 0 0 (vec1 0) v0 v0 myE) ≤ 0 := by
+  have h : Event_Degenerate myAC myAccepts () () 0 0 (vec1 0) v0 v0 myE = ∅ := by
     ext ω
     constructor
     · intro hω
       simp only [Event_Degenerate, Finset.mem_filter, Finset.mem_univ, true_and] at hω
       obtain ⟨-, w, p, -, hdeg⟩ := hω
       cases w
-      have hA : layer_claim (nc := 2) (nv := 1) (myAC.Quad_mle ()) (myAC.W_mle ()) 0
-          (vec1 0) v0 v0 = 1 := my_layer_claim 0 (vec1 0) v0 v0
-      have h2 := hdeg.2
-      rw [hA] at h2
-      exact absurd h2 (by simp)
+      rw [ArithmetizedCircuit.Degenerate] at hdeg
+      simp only [myAC_quad_eq, myAC_w_eq] at hdeg
+      rw [my_layer_claim] at hdeg
+      norm_num at hdeg
     · intro hc; exact absurd hc (by simp)
   simp [event_card, h]
 
 theorem soundness_applies :
-    event_card (Event_Fail myAC myAccepts () () 0 (vec1 0) v0 v0 0 0 myT myE) ≤ 0 + 0 + 0 + 1 :=
-  core_soundness_theorem (eps_FSK := 0) (eps_sumcheck := 1) myAC myAccepts () () 0 (fun _ => 0)
-    0 (vec1 0) v0 v0 0 0 0 myT myE (by omega) my_ligero 0 0 my_alpha_ok my_deg_ok my_wf my_ci
+    event_card (Event_Fail myAC myAccepts () () 0 0 (vec1 0) v0 v0 0 0 myT myE) ≤ 0 + 0 + 0 + 1 :=
+  core_soundness_theorem (eps_FSK := 0) (eps_sumcheck := 1) myAC myAccepts () () ()
+    0 0 (vec1 0) v0 v0 0 0 0 myT myE (by omega) my_ligero 0 0 my_alpha_ok my_deg_ok
+    my_wf my_ci
 
 /-- And the bound is not trivially satisfied by an empty failure event: this
 prover really does break soundness on this instance. -/
 theorem failure_event_nonempty :
-    Event_Fail myAC myAccepts () () 0 (vec1 0) v0 v0 0 0 myT myE = Finset.univ := by
+    Event_Fail myAC myAccepts () () 0 0 (vec1 0) v0 v0 0 0 myT myE = Finset.univ := by
   ext ω
   simp only [Event_Fail, Finset.mem_filter, Finset.mem_univ, true_and, iff_true]
   refine ⟨trivial, Or.inr ⟨(), ?_, rfl⟩⟩
   have hcheck := extractor_soundness_bridge my_ligero ω () (fun _ => 0) trivial rfl
     (by
       cases ω
-      simp [InputBindingBad, true_evals, myAC, myW, myT])
+      simp [InputBindingBad, true_evals, myAC_w_eq, myW, myT])
   simp [E_prime, myE, hcheck]
 
 /-!
-## A multi-layer run
+## The layered circuit for the multi-layer runs
 
-`layers.lean` is only worth anything if `LayeredCircuit` has inhabitants for which the
-claims can actually be *wrong*.  Here is one, over the same field: `logc = 1`, `logw = 0`
-(one sumcheck round per layer), all wire values and `QUAD` zero.
+`layers.lean` and `zk_layers.lean` are only worth anything if `LayeredCircuit` has
+inhabitants for which the claims can actually be *wrong*.  Here is one, over the same field:
+`logc = 1`, `logw = 0` (one sumcheck round per layer), all wire values and `QUAD` zero.
 
-Degenerate as an arithmetization, but it is enough to show the layer machinery applies:
-the state entering layer 0 carries a claim of `1` where the honest value is `0`, and
-`layers_reduction` fires on a two-layer run.
+Degenerate as an arithmetization, but enough to show the layer machinery applies.
 -/
 
 /-- With `QUAD ≡ 0` the layer polynomial is identically zero. -/
 lemma zero_layer_poly (alpha : F5) (st : LayerState 0 1 F5) (v : Vector F5 (1 + 2 * 0)) :
     layer_poly_of (nc := 1) (nv := 1) (fun _ _ _ => (0 : F5)) (fun _ _ => (0 : F5)) alpha st v = 0 := by
   simp [layer_poly_of, layer_sumcheck_poly_concat, layer_sumcheck_poly]
-
-/-- ... so the honest round polynomials are the single zero polynomial. -/
-lemma zero_true_polys (alpha : F5) (st : LayerState 0 1 F5) (chal : List F5) :
-    layer_true_polys_of (nc := 1) (nv := 1) (fun _ _ _ => (0 : F5)) (fun _ _ => (0 : F5)) alpha st chal
-      = [(0 : Polynomial F5)] := by
-  simp only [layer_true_polys_of, generate_true_polys, List.ofFn_succ, List.ofFn_zero,
-             sumcheck_round_poly, sumcheck_eval_round, zero_layer_poly]
-  simp
 
 /-- Everything zero: `V ≡ 0`, `QUAD ≡ 0`. -/
 noncomputable def myLC : LayeredCircuit Unit 1 1 0 1 F5 where
@@ -352,60 +351,6 @@ noncomputable def myLC : LayeredCircuit Unit 1 1 0 1 F5 where
   layer_rel := by
     intro ly w alpha st
     simp [zero_layer_poly]
-
-/-- The prover's round polynomial for a layer: claims `1`, which the round check accepts
-because `1 + 0 = 1` is the incoming combined claim, and which the challenge `r = 1` lets
-through because `p(1) = 0 = V(1)`. -/
-def layerPoly : RoundPoly F5 := ⟨1, 0, 0⟩
-
-noncomputable def myLD : LayerData 0 1 F5 :=
-  { polys := [layerPoly], challenges := [1], wc0 := 1, wc1 := 0, alpha := 0 }
-
-/-- The state entering layer 0: a claim of `1` where the honest wire value is `0`.
-It is also the state the run returns to, so the same data works for every layer. -/
-noncomputable def myST : LayerState 0 1 F5 :=
-  { claim0 := 1, claim1 := 0, q := vec1 1, g0 := v0, g1 := v0 }
-
-lemma vec0_eq (a b : Vector F5 0) : a = b := by ext i hi; omega
-
-lemma myLD_next : next_state myLD = myST := by
-  rw [next_state, myST]
-  congr 1
-
-lemma my_verify_layer (ly : ℕ) : verify_layer myLC ly myST myLD = some myST := by
-  rw [verify_layer_some_iff]
-  refine ⟨myLD_next.symm, ?_⟩
-  simp [myLD, myST, verify_multi_round, check_round_c, layerPoly,
-        LayeredCircuit.eqq, myLC]
-
-/-- A two-layer run the verifier accepts. -/
-lemma my_verify_layers : verify_layers myLC 0 myST [myLD, myLD] = some myST := by
-  simp [verify_layers, my_verify_layer]
-
-/-- The claims are wrong on the way in — the honest wire value is `0`, not `1`. -/
-lemma my_claims_wrong (ly : ℕ) : ¬ ClaimsCorrect myLC ly () myST := by
-  rintro ⟨h0, -⟩
-  simp [myST, myLC] at h0
-
-/-- `layers_reduction` applies: the run is accepted, the shape is right, no unlucky
-`alpha`, and the starting claims are wrong. -/
-theorem layers_reduction_applies :
-    AnyLayerRoundBad myLC () 0 myST [myLD, myLD] ∨
-      ¬ ClaimsCorrect myLC (0 + [myLD, myLD].length) () myST := by
-  refine layers_reduction myLC () (by omega) [myLD, myLD] 0 myST myST
-    my_verify_layers ?_ ?_ (my_claims_wrong 0)
-  · intro ld hld
-    rcases List.mem_cons.mp hld with rfl | hld
-    · exact ⟨by simp [myLD], by simp [myLD]⟩
-    · rcases List.mem_cons.mp hld with rfl | hld
-      · exact ⟨by simp [myLD], by simp [myLD]⟩
-      · cases hld
-  · refine ⟨?_, ?_, trivial⟩
-    · rintro ⟨-, hEq⟩
-      simp [myLC, myST, myLD] at hEq
-    · rw [myLD_next]
-      rintro ⟨-, hEq⟩
-      simp [myLC, myST, myLD] at hEq
 
 /-!
 ## A ZK proof driving the layer loop
@@ -468,34 +413,153 @@ lemma zk_datas_two :
             (zkST.claim0 + zkL.alpha * zkST.claim1)] := by
   rw [zkLayerDatas, zk_next_state, zkLayerDatas, zk_next_state, zkLayerDatas]
 
+/-- The two-layer run has the shape the verifier reads: one round polynomial and one
+challenge per sumcheck variable. -/
+lemma zk_shape_ok : LayersShapeOK (zkLayerDatas (fun _ => (0 : F5)) zkST [zkL, zkL]) := by
+  rw [zk_datas_two]
+  intro ld hld
+  have hform : ld = zkL.toLayerData (logw := 0) (logc := 1) (fun _ => 0)
+      (zkST.claim0 + zkL.alpha * zkST.claim1) := by
+    rcases List.mem_cons.mp hld with h | h
+    · exact h
+    · rcases List.mem_cons.mp h with h2 | h2
+      · exact h2
+      · cases h2
+  subst hform
+  exact ⟨by simp [ZkLayer.toLayerData, zkL, run_polys, zkRound],
+         by simp [ZkLayer.toLayerData, zkL, run_challenges, zkRound]⟩
+
+/-- No layer's combination coefficient is unlucky. -/
+lemma zk_good_randomness :
+    GoodRandomness myLC () 0 zkST (zkLayerDatas (fun _ => (0 : F5)) zkST [zkL, zkL]) := by
+  rw [zk_datas_two]
+  refine ⟨?_, ?_, trivial⟩
+  · rintro ⟨-, hEq⟩
+    simp [myLC, zkST, ZkLayer.toLayerData, zkL] at hEq
+  · rw [zk_next_state]
+    rintro ⟨-, hEq⟩
+    simp [myLC, zkST, ZkLayer.toLayerData, zkL] at hEq
+
+/-- The claims the run starts from are wrong: the honest wire value is `0`, not `1`. -/
+lemma zk_claims_wrong (w : Unit) : ¬ ClaimsCorrect myLC 0 w zkST := by
+  rintro ⟨h0, -⟩
+  simp [zkST, myLC] at h0
+
 /-- And the multi-layer soundness reduction applies to it: the run's claims are wrong, so
 the prover was lucky somewhere or the input-layer claims are wrong. -/
 theorem zk_multi_layer_soundness_applies :
     AnyLayerRoundBad myLC () 0 zkST (zkLayerDatas (fun _ => (0 : F5)) zkST [zkL, zkL])
       ∨ ¬ ClaimsCorrect myLC [zkL, zkL].length ()
-          (zkFinalState (fun _ => (0 : F5)) zkST [zkL, zkL]) := by
-  refine zk_multi_layer_soundness myLC (fun _ => 0) () (by omega) [zkL, zkL] zkST
-    zk_rows_hold ?_ ?_ ?_
-  · rw [zk_datas_two]
-    intro ld hld
-    have hform : ld = zkL.toLayerData (logw := 0) (logc := 1) (fun _ => 0)
-        (zkST.claim0 + zkL.alpha * zkST.claim1) := by
-      rcases List.mem_cons.mp hld with h | h
-      · exact h
-      · rcases List.mem_cons.mp h with h2 | h2
-        · exact h2
-        · cases h2
-    subst hform
-    exact ⟨by simp [ZkLayer.toLayerData, zkL, run_polys, zkRound],
-           by simp [ZkLayer.toLayerData, zkL, run_challenges, zkRound]⟩
-  · rw [zk_datas_two]
-    refine ⟨?_, ?_, trivial⟩
-    · rintro ⟨-, hEq⟩
-      simp [myLC, zkST, ZkLayer.toLayerData, zkL] at hEq
-    · rw [zk_next_state]
-      rintro ⟨-, hEq⟩
-      simp [myLC, zkST, ZkLayer.toLayerData, zkL] at hEq
-  · rintro ⟨h0, -⟩
-    simp [zkST, myLC] at h0
+          (zkFinalState (fun _ => (0 : F5)) zkST [zkL, zkL]) :=
+  zk_multi_layer_soundness myLC (fun _ => 0) () (by omega) [zkL, zkL] zkST
+    zk_rows_hold zk_shape_ok zk_good_randomness (zk_claims_wrong ())
+
+/--
+**The sumcheck term is necessary, not padding.**
+
+The other three error terms are provably `0` on this instance (`my_ligero.extraction_bound`,
+`my_alpha_ok`, `my_deg_ok`), and the failure event has a point.  So *any* `eps_sumcheck` for
+which the correlation-intractability bound holds must be at least `1`: this cheating prover
+really does get away with it, and no sharper analysis of the other three terms could hide
+that.
+-/
+theorem eps_sumcheck_forced (e : ℕ)
+    (ci : IsSumcheckCorrelationIntractable (Input := Unit) myAC myAccepts myT 0 0 () () myE
+            0 0 (vec1 0) v0 v0 e) :
+    1 ≤ e := by
+  have h := core_soundness_theorem (eps_FSK := 0) (eps_sumcheck := e) myAC myAccepts () () ()
+    0 0 (vec1 0) v0 v0 0 0 0 myT myE (by omega) my_ligero 0 0 my_alpha_ok my_deg_ok my_wf ci
+  rw [failure_event_nonempty] at h
+  simpa [event_card] using h
+
+/-!
+## A `logv ≥ 1` layer polynomial
+
+Every other instance in this file has `logv = 0`, where `Vector F 0` is a singleton.  That
+makes the *gate corner* sum and a sum over all of `F^logv` coincide — and hides the
+difference between them.  They are not the same for `logv ≥ 1`: summing over `F^logv` would
+make the layer polynomial *identically zero* over any prime field with `|F| > 3`, because
+`∑_{x ∈ F} x = ∑_{x ∈ F} x² = 0` there, so every `eq`-orthogonality sum collapses.  That
+would silently force `eval ≡ true` and make the whole development vacuous.
+
+`layer_sumcheck_poly` therefore sums over the `nv` gate corners, matching `bind_g`
+(`quad.h:L153`).  This instance is the guard: at `logv = 1` the layer polynomial is *not*
+zero.
+-/
+
+/-- Two gates at `logv = 1`, one hand wire, all coefficients `1`. -/
+noncomputable def gQ : Vector F5 1 → Vector F5 1 → Vector F5 1 → F5 :=
+  quadMle 2 2 (fun _ _ _ => (1 : F5)) 1
+
+/-- **Regression guard.**  With the corner sum this is non-zero; with a sum over all of
+`F^logv` it would be `0`, and `arith` would be unsatisfiable for every `logv ≥ 1` circuit. -/
+theorem logv_one_poly_ne_zero :
+    layer_sumcheck_poly (nc := 2) (nv := 2) (logc := 1) gQ (fun _ _ => (1 : F5)) 1
+      (Vector.ofFn (fun _ => 0)) (Vector.ofFn (fun _ => 0)) (Vector.ofFn (fun _ => 0))
+      (Vector.ofFn (fun _ => 0)) (Vector.ofFn (fun _ => 0)) (Vector.ofFn (fun _ => 0))
+      ≠ 0 := by decide
+
+/-!
+## The merged multi-layer statement
+
+`multi_layer_core_soundness` (`zk_soundness.lean`) is the join: the Ligero extractor, the
+per-layer randomness, the per-layer sumcheck rounds and the input binding, all carried
+through a multi-layer run.  This instantiates it on the two-layer ZK run above, with a
+circuit that rejects every witness.
+
+Two of the four error terms come out at `0` here — the extractor never fails, and no layer's
+coefficient is unlucky — so the bound is `2·eps_round + eps_bind`.
+-/
+
+/-- The extractor never fails, so `Event_A` is empty. -/
+lemma zk_extract_ok : event_card (Event_A (Witness := Unit) myAccepts myE) ≤ 0 := by
+  have h : Event_A (Witness := Unit) myAccepts myE = ∅ := by ext ω; simp [Event_A, myE]
+  simp [event_card, h]
+
+/-- No layer's coefficient is unlucky, at any index. -/
+lemma zk_rand_ok (i : ℕ) :
+    event_card (MEvent_RandAt myLC myAccepts zkST (fun _ => [zkL, zkL]) myE i) ≤ 0 := by
+  have h : MEvent_RandAt myLC myAccepts zkST (fun _ => [zkL, zkL]) myE i = ∅ := by
+    ext ω
+    constructor
+    · intro hω
+      simp only [MEvent_RandAt, Finset.mem_filter, Finset.mem_univ, true_and] at hω
+      obtain ⟨-, w, pad, hE, hbad⟩ := hω
+      have hp := myE_pad ω w pad hE
+      subst hp
+      cases w
+      exact absurd hbad (goodRandomness_not_badAt myLC () _ 0 zkST zk_good_randomness i)
+    · intro hc; exact absurd hc (by simp)
+  simp [event_card, h]
+
+/-- **The merged bound applies.**  Every hypothesis of `multi_layer_core_soundness` is
+discharged for a two-layer run whose extracted witness fails the circuit. -/
+theorem multi_layer_soundness_applies :
+    event_card (MEvent_Fail (Ω := Unit) (M := 1) (F := F5) myAccepts
+        (fun _ _ _ => false) () () myE)
+      ≤ 0 + 2 * 0 + 2 * 1 + 1 :=
+  multi_layer_core_soundness myLC myAccepts zkST (fun _ => [zkL, zkL]) myE
+    (fun _ _ _ => false) () () 2 0 0 1 1 (by omega) (fun _ => by simp)
+    (fun ω w pad _ hE => by
+      have hp := myE_pad ω w pad hE
+      subst hp
+      exact zk_shape_ok)
+    (fun w _ => zk_claims_wrong w) zk_extract_ok
+    (fun ω w pad _ hE => by
+      have hp := myE_pad ω w pad hE
+      subst hp
+      cases w
+      exact zk_rows_hold)
+    (fun i _ => zk_rand_ok i)
+    (fun _ _ => le_trans (Finset.card_le_univ _) (by simp))
+    (le_trans (Finset.card_le_univ _) (by simp))
+
+/-- And the failure event is everything: this run really does break soundness. -/
+theorem multi_layer_failure_nonempty :
+    MEvent_Fail (Ω := Unit) (M := 1) (F := F5) myAccepts (fun _ _ _ => false) () () myE
+      = Finset.univ := by
+  ext ω
+  simp only [MEvent_Fail, Finset.mem_filter, Finset.mem_univ, true_and, iff_true]
+  exact ⟨trivial, Or.inr ⟨(), fun _ => 0, rfl, by simp⟩⟩
 
 end LfzkExample

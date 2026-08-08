@@ -67,14 +67,14 @@ structure LayerData (logw logc : ℕ) (F : Type) where
 
 /-- The layer polynomial the sumcheck of one layer is about, with the two `g` points
 already folded together by `alpha` (matching `Quad::bind_g`). -/
-noncomputable def layer_poly_of {nc nv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logw)]
+noncomputable def layer_poly_of {nc nv logw logc : ℕ} {F : Type} [Field F] [Fintype F]
     (Quad : Vector F logw → Vector F logw → Vector F logw → F)
     (Vnext : Vector F logw → Vector F logc → F)
     (alpha : F) (st : LayerState logw logc F) : Vector F (logc + 2 * logw) → F :=
   layer_sumcheck_poly_concat (nc := nc) (nv := nv) Quad Vnext alpha st.q st.g0 st.g1
 
 /-- The honest round polynomials of one layer. -/
-noncomputable def layer_true_polys_of {nc nv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logw)] [DecidableEq F]
+noncomputable def layer_true_polys_of {nc nv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
     (Quad : Vector F logw → Vector F logw → Vector F logw → F)
     (Vnext : Vector F logw → Vector F logc → F)
     (alpha : F) (st : LayerState logw logc F) (chal : List F) : List (Polynomial F) :=
@@ -83,7 +83,7 @@ noncomputable def layer_true_polys_of {nc nv logw logc : ℕ} {F : Type} [Field 
 
 /-- There is exactly one honest round polynomial per sumcheck variable.  Unlike the other
 facts about the honest polynomials this one is a theorem, not an assumption. -/
-lemma layer_true_polys_length {nc nv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logw)] [DecidableEq F]
+lemma layer_true_polys_length {nc nv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
     (Quad : Vector F logw → Vector F logw → Vector F logw → F)
     (Vnext : Vector F logw → Vector F logc → F)
     (alpha : F) (st : LayerState logw logc F) (chal : List F) :
@@ -112,7 +112,7 @@ is the layer relation
 `V ly [g,q] = ∑_{c,l,r} EQ[q,c] QUAD_ly[g|l,r] V (ly+1)[l,c] V (ly+1)[r,c]`.
 -/
 structure LayeredCircuit (Witness : Type) (nc nv logw logc : ℕ) (F : Type)
-    [Field F] [Fintype F] [Fintype (Vector F logw)] [DecidableEq F] where
+    [Field F] [Fintype F] [DecidableEq F] where
   V : ℕ → Witness → Vector F logw → Vector F logc → F
   Quad : ℕ → Vector F logw → Vector F logw → Vector F logw → F
   /--
@@ -135,7 +135,7 @@ structure LayeredCircuit (Witness : Type) (nc nv logw logc : ℕ) (F : Type)
 
 namespace LayeredCircuit
 
-variable {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+variable {nc nv logw logc : ℕ}
 
 omit [SumcheckInterp F] in
 /-- Derived: the honest round polynomials of a layer are chained consistently. -/
@@ -181,10 +181,11 @@ noncomputable def truePolys (LC : LayeredCircuit Witness nc nv logw logc F)
 noncomputable def eqq (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (st : LayerState logw logc F) (ld : LayerData logw logc F) : F :=
   eq_matrix_mle nc logc st.q (challenge_split (logw := logw) (logc := logc) ld.challenges).1 *
-    ∑ g ∈ (Finset.univ : Finset (Vector F logw)),
-      LC.Quad ly g (challenge_split (logw := logw) (logc := logc) ld.challenges).2.1
+    ∑ i ∈ Finset.range nv,
+      LC.Quad ly (boolean_vector i)
+                   (challenge_split (logw := logw) (logc := logc) ld.challenges).2.1
                    (challenge_split (logw := logw) (logc := logc) ld.challenges).2.2 *
-        (eq_matrix_mle nv logw st.g0 g + ld.alpha * eq_matrix_mle nv logw st.g1 g)
+        (eq_mle_basis i st.g0 + ld.alpha * eq_mle_basis i st.g1)
 
 end LayeredCircuit
 
@@ -205,7 +206,7 @@ noncomputable def next_state {logw logc : ℕ} {F : Type} [Field F]
 
 /-- One iteration of the layer loop: combine the claims, run the sumcheck, check
 `got == claim`, and reduce to the next state. -/
-noncomputable def verify_layer {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+noncomputable def verify_layer {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (st : LayerState logw logc F) (ld : LayerData logw logc F) :
     Option (LayerState logw logc F) :=
@@ -215,7 +216,7 @@ noncomputable def verify_layer {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
       if final = LC.eqq ly st ld * ld.wc0 * ld.wc1 then some (next_state ld) else none
 
 /-- The whole `for (ly)` loop of `VerifierLayers::layers`. -/
-noncomputable def verify_layers {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+noncomputable def verify_layers {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) :
     ℕ → LayerState logw logc F → List (LayerData logw logc F) → Option (LayerState logw logc F)
   | _, st, [] => some st
@@ -226,13 +227,13 @@ noncomputable def verify_layers {nc nv logw logc : ℕ} [Fintype (Vector F logw)
 
 /-- The two claims the verifier carries into layer `ly` really are the honest wire values
 of layer `ly` at the two points. -/
-def ClaimsCorrect {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+def ClaimsCorrect {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (w : Witness) (st : LayerState logw logc F) : Prop :=
   st.claim0 = LC.V ly w st.g0 st.q ∧ st.claim1 = LC.V ly w st.g1 st.q
 
 /-- A lucky sumcheck round inside layer `ly`. -/
-def LayerRoundBad {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+def LayerRoundBad {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (w : Witness) (st : LayerState logw logc F) (ld : LayerData logw logc F) : Prop :=
   multi_round_bad_event (LC.truePolys ly w st ld) ld.polys ld.challenges
@@ -244,7 +245,7 @@ The unlucky `alpha` that lets a wrong pair of claims survive the combination
 This is the same shape as the input-binding collision, so `input_binding_bad_card` applies:
 for a fixed pair of honest and claimed values, at most one `alpha` in the field is bad.
 -/
-def LayerAlphaBad {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+def LayerAlphaBad {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (w : Witness) (st : LayerState logw logc F) (ld : LayerData logw logc F) : Prop :=
   InputBindingBad (LC.V ly w st.g0 st.q) (LC.V ly w st.g1 st.q) st.claim0 st.claim1 ld.alpha
@@ -252,7 +253,7 @@ def LayerAlphaBad {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
 omit [SumcheckInterp F] in
 /-- At most one `alpha` per layer is bad — the layer-combination analogue of
 `input_binding_bad_card`. -/
-lemma layer_alpha_bad_card {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+lemma layer_alpha_bad_card {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (w : Witness) (st : LayerState logw logc F) (c0 c1 : F) :
     (Finset.univ.filter (fun a : F =>
@@ -272,7 +273,7 @@ This is `alpha_bad_card` (`ligero.lean`) applied to `LayerAlphaBad`, which is
 `claim[0] + alpha * claim[1]` (`verifier_layers.h:L147`) and the input binding
 `wc[0] + alpha * wc[1]` (`zk_common.h:L133`) are the same trick.
 -/
-theorem layer_alpha_bad_card_prod {D : Type} [Fintype D] {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+theorem layer_alpha_bad_card_prod {D : Type} [Fintype D] {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (ly : ℕ) (w : Witness)
     (st : D → LayerState logw logc F) (c0 c1 : D → F) :
     (Finset.filter (fun p : D × F =>
@@ -289,7 +290,7 @@ this recurses in step with `verify_layers`.
 
 Note there is no `EQQ ≠ 0` condition: `layer_step` derives its contradiction without
 cancelling `EQQ`, so a vanishing `EQ[Q,C] * QUAD` costs nothing here. -/
-noncomputable def GoodRandomness {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+noncomputable def GoodRandomness {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness) :
     ℕ → LayerState logw logc F → List (LayerData logw logc F) → Prop
   | _, _, [] => True
@@ -297,7 +298,7 @@ noncomputable def GoodRandomness {nc nv logw logc : ℕ} [Fintype (Vector F logw
       ¬ LayerAlphaBad LC ly w st ld ∧ GoodRandomness LC w (ly + 1) (next_state ld) rest
 
 /-- A lucky sumcheck round somewhere along the run. -/
-noncomputable def AnyLayerRoundBad {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+noncomputable def AnyLayerRoundBad {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness) :
     ℕ → LayerState logw logc F → List (LayerData logw logc F) → Prop
   | _, _, [] => False
@@ -311,7 +312,7 @@ noncomputable def AnyLayerRoundBad {nc nv logw logc : ℕ} [Fintype (Vector F lo
 
 /-- `verify_layer` accepts exactly when the sumcheck closes on `EQQ * wc[0] * wc[1]`, and
 when it does, the new state is the reduction `next_state ld`. -/
-lemma verify_layer_some_iff {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+lemma verify_layer_some_iff {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (st st' : LayerState logw logc F) (ld : LayerData logw logc F) :
     verify_layer LC ly st ld = some st' ↔
@@ -331,7 +332,7 @@ omit [SumcheckInterp F] in
 `EQQ * V(ly+1)[L,C] * V(ly+1)[R,C]`.  This is where the state update
 `.g = {hb[0], hb[1]}, .q = cb` (`verifier_layers.h:L195-L196`) meets the sumcheck's final
 evaluation point. -/
-lemma layer_poly_at_challenges {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+lemma layer_poly_at_challenges {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (w : Witness) (st : LayerState logw logc F) (ld : LayerData logw logc F) :
     layer_poly_of (nc := nc) (nv := nv) (LC.Quad ly) (LC.V (ly + 1) w) ld.alpha st
@@ -352,7 +353,7 @@ This is the induction step of GKR soundness, and it is the piece that
 "the final claim is wrong", and it is the `got == claim` check plus the state update at
 `verifier_layers.h:L182-L197` that converts that into a wrong claim one layer down.
 -/
-theorem layer_step {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+theorem layer_step {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F)
     (ly : ℕ) (w : Witness) (st st' : LayerState logw logc F) (ld : LayerData logw logc F)
     (h_polys : ld.polys.length = logc + 2 * logw)
@@ -414,7 +415,7 @@ then either it was lucky in some round of some layer, or the claims it ends with
 Contrapositively: once the input claims are pinned to the committed witness (which is what
 `input_row_binds_hands` does), a wrong starting claim forces a lucky round somewhere.
 -/
-theorem layers_reduction {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+theorem layers_reduction {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness) (h_pos : 0 < logc + 2 * logw) :
     ∀ (lds : List (LayerData logw logc F)) (ly : ℕ) (st stF : LayerState logw logc F),
       verify_layers LC ly st lds = some stF →
@@ -465,7 +466,7 @@ per-layer bound into a bound for the whole run: `nl` layers cost `nl` times as m
 
 /-- "The prover was lucky in layer `i` of this run", picking out the `i`-th disjunct of
 `AnyLayerRoundBad`. -/
-noncomputable def LayerRoundBadAt {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+noncomputable def LayerRoundBadAt {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness) :
     ℕ → LayerState logw logc F → List (LayerData logw logc F) → ℕ → Prop
   | _, _, [], _ => False
@@ -473,7 +474,7 @@ noncomputable def LayerRoundBadAt {nc nv logw logc : ℕ} [Fintype (Vector F log
   | ly, _, ld :: rest, (i + 1) => LayerRoundBadAt LC w (ly + 1) (next_state ld) rest i
 
 /-- The multi-layer bad event is exactly "some layer was bad". -/
-lemma anyLayerRoundBad_exists {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+lemma anyLayerRoundBad_exists {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness) :
     ∀ (lds : List (LayerData logw logc F)) (ly : ℕ) (st : LayerState logw logc F),
       AnyLayerRoundBad LC w ly st lds →
@@ -524,7 +525,7 @@ per-layer error.  Combined with `sumcheck_ci_of_nonadaptive` this is
 `nl · K · n · d · |F|^(n-1)`.
 -/
 theorem any_layer_round_bad_card {Ω : Type} [Fintype Ω] {nc nv logw logc : ℕ}
-    [Fintype (Vector F logw)]
+   
     (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness)
     (lds : List (LayerData logw logc F)) (ly : ℕ) (st : Ω → LayerState logw logc F)
     (nl eps : ℕ) (hnl : lds.length ≤ nl)
@@ -540,7 +541,7 @@ theorem any_layer_round_bad_card {Ω : Type} [Fintype Ω] {nc nv logw logc : ℕ
 
 /-- "The layer coefficient was unlucky at layer `i` of this run", picking out the `i`-th
 conjunct of `GoodRandomness`. -/
-noncomputable def LayerAlphaBadAt {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+noncomputable def LayerAlphaBadAt {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness) :
     ℕ → LayerState logw logc F → List (LayerData logw logc F) → ℕ → Prop
   | _, _, [], _ => False
@@ -548,8 +549,24 @@ noncomputable def LayerAlphaBadAt {nc nv logw logc : ℕ} [Fintype (Vector F log
   | ly, _, ld :: rest, (i + 1) => LayerAlphaBadAt LC w (ly + 1) (next_state ld) rest i
 
 omit [SumcheckInterp F] in
+/-- The converse of `notGoodRandomness_exists`: good randomness means no layer is unlucky. -/
+lemma goodRandomness_not_badAt {nc nv logw logc : ℕ}
+    (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness) :
+    ∀ (lds : List (LayerData logw logc F)) (ly : ℕ) (st : LayerState logw logc F),
+      GoodRandomness LC w ly st lds → ∀ i, ¬ LayerAlphaBadAt LC w ly st lds i := by
+  intro lds
+  induction lds with
+  | nil => intro ly st _ i; simp [LayerAlphaBadAt]
+  | cons ld rest ih =>
+      intro ly st hgood i
+      rw [GoodRandomness] at hgood
+      cases i with
+      | zero => rw [LayerAlphaBadAt]; exact hgood.1
+      | succ k => rw [LayerAlphaBadAt]; exact ih (ly + 1) (next_state ld) hgood.2 k
+
+omit [SumcheckInterp F] in
 /-- Randomness failing somewhere along the run means it failed at some specific layer. -/
-lemma notGoodRandomness_exists {nc nv logw logc : ℕ} [Fintype (Vector F logw)]
+lemma notGoodRandomness_exists {nc nv logw logc : ℕ}
     (LC : LayeredCircuit Witness nc nv logw logc F) (w : Witness) :
     ∀ (lds : List (LayerData logw logc F)) (ly : ℕ) (st : LayerState logw logc F),
       ¬ GoodRandomness LC w ly st lds →
