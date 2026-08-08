@@ -1,6 +1,7 @@
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit"]
+# defaultTargets = ["ECDSA", "pk_circuit", "lfzk"]
+defaultTargets = ["lfzk"]
 
 [leanOptions]
 autoImplicit = false
@@ -25,4 +26,4 @@ roots = ["PkCircuit", "PkCircuitPoly"]
 [[lean_lib]]
 name = "lfzk"
 srcDir = "lfzk"
-roots = ["types", "fiat_shamir", "circuit", "ligero", "lfzk", "sumcheck_soundness"]
+roots = ["types", "fiat_shamir", "circuit", "ligero", "lfzk", "sumcheck_soundness", "layers", "fs_derive", "builder", "example"]

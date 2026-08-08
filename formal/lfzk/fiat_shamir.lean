@@ -29,11 +29,11 @@ In our combinatorial framework, non-adaptivity is expressed structurally:
 
 By enforcing this structure, we replace probability spaces and random oracle axioms with the combinatorial Fiat-Shamir theorem (`combinatorial_fiat_shamir`), proving that the number of challenge sequences leading to a cheating verifier acceptance is bounded by `n * d * |F|^(n-1)`.
 -/
-structure IsFiatShamirTranscript (F : Type) [Field F] (n d : ℕ) where
+structure IsFiatShamirTranscript (F : Type) [Field F] [SumcheckInterp F] (n d : ℕ) where
   P_func : TruePolyStrategy F n
   p_func : ProverStrategy F n
   hd : ∀ (i : Fin n) (pref : Prefix F i.val), (P_func i pref).natDegree ≤ d
-  h1 : 1 ≤ d
+  h2 : 2 ≤ d
 
 
 /--
@@ -42,10 +42,10 @@ rounds, the total number of cheating challenge sequences across all rounds
 is bounded by `n * d * |F|^(n-1)`.
 This directly applies `combinatorial_fiat_shamir` from `sumcheck_soundness.lean`.
 -/
-theorem combinatorial_fiat_shamir_soundness {F : Type} [Field F] [Fintype F] [DecidableEq F]
+theorem combinatorial_fiat_shamir_soundness {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
     {n d : ℕ} (fs : IsFiatShamirTranscript F n d) :
   (Finset.filter (fun cs : Fin n → F => any_bad_event n fs.P_func fs.p_func cs) Finset.univ).card ≤ n * d * (Fintype.card F)^(n - 1) := by
-  exact combinatorial_fiat_shamir n d fs.P_func fs.p_func fs.hd fs.h1
+  exact combinatorial_fiat_shamir n d fs.P_func fs.p_func fs.hd fs.h2
 
 
 /--
@@ -59,7 +59,7 @@ A challenge sequence `cs` satisfies `R_sumcheck` if and only if
 at least one round's polynomial difference has `cs i` as a root.
 
 -/
-def R_sumcheck (F : Type) [Field F] (n : ℕ) (P_func : TruePolyStrategy F n) (p_func : ProverStrategy F n) (cs : Fin n → F) : Prop :=
+def R_sumcheck (F : Type) [Field F] [SumcheckInterp F] (n : ℕ) (P_func : TruePolyStrategy F n) (p_func : ProverStrategy F n) (cs : Fin n → F) : Prop :=
   any_bad_event n P_func p_func cs
 
 
@@ -84,12 +84,12 @@ than a uniformly random choice of challenge sequence would satisfy `R_sumcheck`:
 4. `hash_ci_bound`: Pinpoints the correlation intractability property: the number of executions
    in $\Omega$ satisfying `R_sumcheck` is bounded by `eps_sumcheck`.
 -/
-structure IsCorrelationIntractable (F : Type) [Field F] [Fintype F] [DecidableEq F]
+structure IsCorrelationIntractable (F : Type) [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
   (n d : ℕ) (fs : IsFiatShamirTranscript F n d) (challenge_map : Ω → (Fin n → F)) (eps_sumcheck : ℕ) where
   hash_ci_bound : event_card (Finset.filter (fun ω => R_sumcheck F n fs.P_func fs.p_func (challenge_map ω)) Finset.univ) ≤ eps_sumcheck
 
 
-theorem uniform_hash_is_correlation_intractable {F : Type} [Field F] [Fintype F] [DecidableEq F]
+theorem uniform_hash_is_correlation_intractable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
     {n d : ℕ} (fs : IsFiatShamirTranscript F n d) (challenge_map : Ω → (Fin n → F)) (K : ℕ)
     (h_unif : ∀ (cs : Fin n → F), (Finset.filter (fun ω => challenge_map ω = cs) Finset.univ).card ≤ K) :
     IsCorrelationIntractable F n d fs challenge_map (K * (n * d * (Fintype.card F)^(n - 1))) := by

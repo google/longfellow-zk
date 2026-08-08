@@ -77,54 +77,83 @@ def Transcript.checkV {F : Type} [Field F] [DecidableEq F] (t : Transcript F) (e
   (t.w_l_eval == t.w_l_true)
 
 
-/--
-**Structure: EncTranscript**
-
-Models the **encrypted (padded / masked) zero-knowledge transcript** produced by the Longfellow ZK prover,
-where `M` is the number of secret blinding variables in the pad (`Pad M F`).
-
-In zero-knowledge sumcheck, the prover masks its polynomial evaluations and witness claims using random
-blinding variables so that the verifier learns nothing about the secret witness. The function `decrypt`
-combines an `EncTranscript` with a secret pad `p : Pad M F` to recover the underlying plaintext `Transcript`.
-
-### Fields:
-- `polys`: The sequence of padded/masked round polynomials sent by the prover during sumcheck.
-- `challenges`: The verifier's challenge vector ($r_1, \dots, r_R$).
-- `e`: The symbolic linear combination expression (`Expression M F`) tracking the masked evaluation state in `ConstraintBuilder` (`zk_common.h`).
-- `wc0`, `wc1`: The public masked witness evaluations at $L$ and $R$: $\widehat{W}(L) = W(L) + \text{pad}_L$ (`wc[0]`) and $\widehat{W}(R) = W(R) + \text{pad}_R$ (`wc[1]`). Corresponds to `W_hat[L,C]` and `W_hat[R,C]` in `verifier_layers.h`.
-- `pub_r`, `pub_l`: The public evaluations / commitment constants for the right and left hands.
-- `w_r_bind`, `w_l_bind`: The linear coefficient bindings mapping the pad variables to the right and left witness evaluations (`w_r_bind`, `w_l_bind : Fin M → F`).
--/
-structure EncTranscript (M : ℕ) (F : Type) [Field F] where
-  polys : List (RoundPoly F)
-  challenges : List F
-  e : Expression M F
-  wc0 : F
-  wc1 : F
-  pub_r : F
-  pub_l : F
-  w_r_bind : Fin M → F
-  w_l_bind : Fin M → F
-
 def evaluates_to {M : ℕ} {F : Type} [Field F] (e : Expression M F) (pad : Fin M → F) : F :=
   e.1 + ∑ i : Fin M, e.2 i * pad i
 
 /--
-`decrypt` models the homomorphic reconstruction of the sumcheck transcript from its encrypted (Ligero-committed) form.
-The prover commits to polynomials and witness bounds via Ligero, which mathematically acts as an encrypted transcript `EncTranscript`.
-By providing the random linear combination `p : Pad M F` extracted from Ligero, the verifier computes the plain sumcheck evaluations:
-- `claim_last`: The evaluation of the final sumcheck expression (`e(pad)`).
-- `w_r_eval` / `w_l_eval`: The decrypted queries to the witness columns at the challenge points.
-- `w_r_true` / `w_l_true`: The linear consistency checks that bind the witness queries back to the original public/committed bounds.
--/
-def EncTranscript.decrypt {M : ℕ} {F : Type} [Field F] (t_prime : EncTranscript M F) (p : Pad M F) (var_dwR var_dwL : Fin M) : Transcript F :=
-  {
-    polys := t_prime.polys,
-    challenges := t_prime.challenges,
-    claim_last := evaluates_to t_prime.e p,
-    w_r_eval   := t_prime.wc1 + p var_dwR,
-    w_l_eval   := t_prime.wc0 + p var_dwL,
-    w_r_true   := (∑ i, t_prime.w_r_bind i * p i) + t_prime.pub_r,
-    w_l_true   := (∑ i, t_prime.w_l_bind i * p i) + t_prime.pub_l
-  }
+The event that the single `alpha`-combined input row fails to pin down the two hands
+separately: the honest and claimed evaluations differ, yet their `alpha`-combinations agree.
 
+This is the price of the code using one random-combination constraint
+(`got = wc[0] + alpha * wc[1]`, `zk_common.h:L133`) instead of two.
+-/
+def InputBindingBad {F : Type} [Field F] (WL WR eL eR alpha : F) : Prop :=
+  (WL ≠ eL ∨ WR ≠ eR) ∧ WL + alpha * WR = eL + alpha * eR
+
+/--
+At most one `alpha` in the whole field is bad, so the input binding costs `1/|F|`.
+
+`alpha` is a fresh Fiat–Shamir challenge (`Elt alpha = tsv.elt(F)` at `zk_common.h:L131`),
+so this is the Schwartz–Zippel error term of the input binding.
+-/
+lemma input_binding_bad_card {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (WL WR eL eR : F) :
+    (Finset.univ.filter (fun alpha => InputBindingBad WL WR eL eR alpha)).card ≤ 1 := by
+  apply Finset.card_le_one.mpr
+  intro a ha b hb
+  simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha hb
+  obtain ⟨hne, hae⟩ := ha
+  obtain ⟨-, hbe⟩ := hb
+  have hWR : eR - WR ≠ 0 := by
+    intro h0
+    have hWReq : WR = eR := by linear_combination -h0
+    have hWLeq : WL = eL := by
+      rw [hWReq] at hae; linear_combination hae
+    rcases hne with h | h
+    · exact h hWLeq
+    · exact h hWReq
+  have ha' : (WL - eL) = a * (eR - WR) := by linear_combination hae
+  have hb' : (WL - eL) = b * (eR - WR) := by linear_combination hbe
+  have : (a - b) * (eR - WR) = 0 := by linear_combination hb' - ha'
+  rcases mul_eq_zero.mp this with h | h
+  · exact sub_eq_zero.mp h
+  · exact absurd h hWR
+
+/-- Outside the bad set, the single combined row does pin down both hands. -/
+lemma alpha_separates {F : Type} [Field F] (WL WR eL eR alpha : F)
+    (hgood : ¬ InputBindingBad WL WR eL eR alpha)
+    (h : WL + alpha * WR = eL + alpha * eR) : WL = eL ∧ WR = eR := by
+  by_contra hc
+  exact hgood ⟨by tauto, h⟩
+
+
+/--
+**The cost of the random-combination trick, counted.**
+
+Split the sample space as `D × F`, where `D` is everything decided *before* the challenge is
+drawn and the second coordinate is the challenge itself — the same shape
+`card_filter_prefix_r` uses for sumcheck round challenges.  Then out of the `|D| * |F|` runs
+at most `|D|` have a bad challenge: a `1/|F|` fraction.
+
+This is what turns `IsLigeroKnowledgeSound.alpha_good` from an assumption into an error
+term.  The same statement covers `LayerAlphaBad` (`layers.lean`), which is
+`InputBindingBad`-shaped by construction.
+-/
+theorem alpha_bad_card {D : Type} [Fintype D] {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (WL WR eL eR : D → F) :
+    (Finset.filter (fun p : D × F =>
+        InputBindingBad (WL p.1) (WR p.1) (eL p.1) (eR p.1) p.2) Finset.univ).card
+      ≤ Fintype.card D := by
+  rw [card_prod_filter (fun d a => InputBindingBad (WL d) (WR d) (eL d) (eR d) a)]
+  calc ∑ d : D, (Finset.filter (fun a : F =>
+        InputBindingBad (WL d) (WR d) (eL d) (eR d) a) Finset.univ).card
+      ≤ ∑ _d : D, 1 := Finset.sum_le_sum (fun d _ => input_binding_bad_card _ _ _ _)
+    _ = Fintype.card D := by simp
+
+
+/-!
+`EncTranscript` and `EncTranscript.decrypt` now live in `builder.lean`: the encrypted
+transcript is a list of `ConstraintBuilder` rounds, and its `polys` / `challenges` / `e` are
+*derived* from them rather than being independent fields whose relationship had to be
+assumed.
+-/

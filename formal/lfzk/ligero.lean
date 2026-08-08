@@ -18,17 +18,17 @@ variable {nc nv : ℕ}
 variable (eps_FSK eps_sumcheck : ℕ)
 
 /--
-`ligero_layer_checks` defines the mathematical predicate representing the 
+`ligero_layer_checks` defines the mathematical predicate representing the
 linear and quadratic constraints verified by the Ligero verifier for a sumcheck layer.
 
 Specifically, it checks that:
-1. **Linear Constraint**: The dot product `∑ i, lhs[i] * pad[i] = rhs` holds for the 
+1. **Linear Constraint**: The dot product `∑ i, lhs[i] * pad[i] = rhs` holds for the
    `builder_finalize` linear row.
    - **Code Reference**: `ConstraintBuilder::finalize` in `privacy/proofs/zk/lib/zk/zk_common.h:L359-L377`.
 2. **Quadratic Constraint**: The quadratic pad multiplication check `pad[var_dwL_dwR] = pad[var_dwL] * pad[var_dwR]` holds.
    - **Code Reference**: Quadratic constraint generation in `privacy/proofs/zk/lib/zk/ligero.cc`.
 -/
-def ligero_layer_checks {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)] 
+def ligero_layer_checks {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)]
   (e_in : Expression M F) (pad : Fin M → F)
   (eqq : F) (wc0 wc1 : F) (var_dwL var_dwR var_dwL_dwR : Fin M) : Prop :=
   let lr := builder_finalize e_in eqq wc0 wc1 var_dwL var_dwR var_dwL_dwR
@@ -38,29 +38,9 @@ def ligero_layer_checks {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)]
 
 
 /--
-`ligero_input_checks` defines the mathematical predicate representing the 
-linear constraints verified by the Ligero verifier for input witness evaluation bindings.
-
-It checks that `∑ i, lhs[i] * pad[i] = rhs` holds for the `input_constraint_row`.
-- **Code Reference**: `ZkCommon::InputConstraints` in `privacy/proofs/zk/lib/zk/zk_common.h`.
--/
-def ligero_input_checks {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)] 
-  (pad : Fin M → F) (got : F) (pub_binding : F) (beta alpha : F) 
-  (witness_binding : Fin M → F) (var_dwL var_dwR : Fin M) : Prop :=
-  let lr := input_constraint_row got pub_binding beta alpha witness_binding var_dwL var_dwR
-  let lhs := lr.1
-  let rhs := lr.2
-  ∑ i, lhs i * pad i = rhs
-
-
-def ligero_checks {M : ℕ} {F : Type} [Field F] [DecidableEq F] (eqq : F) (var_dwR var_dwL : Fin M) (t_prime : EncTranscript M F) (_w : Witness) (p : Pad M F) : Bool :=
-  (t_prime.decrypt p var_dwR var_dwL).checkV eqq
-
-
-/--
 Theorem 1: If the Ligero layer constraints hold, then the unpadded sumcheck relation holds.
 -/
-theorem layer_checks_imply_sumcheck {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)] 
+theorem layer_checks_imply_sumcheck {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)]
     (e_in : Expression M F) (pad : Fin M → F)
     (eqq : F) (wc0 wc1 : F) (var_dwL var_dwR var_dwL_dwR : Fin M) :
     ligero_layer_checks e_in pad eqq wc0 wc1 var_dwL var_dwR var_dwL_dwR →
@@ -71,59 +51,191 @@ theorem layer_checks_imply_sumcheck {M : ℕ} {F : Type} [Field F] [DecidableEq 
   exact builder_finalize_soundness e_in pad eqq wc0 wc1 var_dwL var_dwR var_dwL_dwR h_lin h_quad
 
 
-theorem input_checks_imply_binding {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)] 
-    (pad : Fin M → F) (got : F) (pub_binding : F) (beta alpha : F) 
-    (witness_binding : Fin M → F) (var_dwL var_dwR : Fin M) :
-    ligero_input_checks pad got pub_binding beta alpha witness_binding var_dwL var_dwR →
-    (∑ i, witness_binding i * pad i) + pub_binding = got + beta * pad var_dwL + alpha * pad var_dwR := by
+/-!
+## The input binding row
+
+This is where the extracted witness enters the constraint system.
+
+The Ligero-committed vector is the private input wires followed by the proof pad.
+`ZkCommon::input_constraint` (`zk_common.h:L406`) emits **one** row:
+
+    ∑_{i ≥ npub} b_i · W_col_i  −  dW[L]  −  alpha · dW[R]  =  got − pub_binding
+
+with `b_i = eq0.at(i) + alpha * eq1.at(i)` on the committed wires
+(`a.push_back(Llc{ci, i - pub_inputs, b_i})`), `F.mone()` and `F.negf(alpha)` on the two
+claim pads, and `got = wc[0] + alpha * wc[1]` taken from the last layer (`zk_common.h:L133`).
+
+Previously this file modelled the binding with `ligero_input_checks`, which summed only over
+*pad* variables and was instantiated twice, at `(beta, alpha) = (0,1)` and `(1,0)`.  That
+was both stronger than the code (two exact constraints instead of one random combination)
+and vacuous as a witness binding (the witness never appeared).  Both are fixed here.
+-/
+
+/-- The indices of the committed **private** input wires. -/
+def privIdx (ninp npub : ℕ) : Finset (Fin ninp) :=
+  Finset.univ.filter (fun i : Fin ninp => npub ≤ i.val)
+
+/-- The input binding row of `ZkCommon::input_constraint`. -/
+def ligero_input_row {ninp M : ℕ} {F : Type} [Field F]
+    (npub : ℕ) (wcol : Fin ninp → F) (pad : Fin M → F) (b : Fin ninp → F)
+    (pub_binding got alpha : F) (var_dwL var_dwR : Fin M) : Prop :=
+  (∑ i ∈ privIdx ninp npub, b i * wcol i) - pad var_dwL - alpha * pad var_dwR
+    = got - pub_binding
+
+/--
+The input row forces the full (public + private) weighted sum of the committed input
+columns to equal the unpadded, `alpha`-combined witness claim.
+
+The hypothesis `h_pub` is public-input consistency: the verifier's `pub_binding`, computed
+from the *actual* public input at `zk_common.h:L417`, agrees with what the extracted
+columns contribute on the public positions.
+-/
+theorem input_row_soundness {ninp M : ℕ} {F : Type} [Field F]
+    (npub : ℕ) (wcol : Fin ninp → F) (pad : Fin M → F) (b : Fin ninp → F)
+    (pub_binding got alpha : F) (var_dwL var_dwR : Fin M)
+    (h_pub : pub_binding = ∑ i ∈ Finset.univ \ privIdx ninp npub, b i * wcol i) :
+    ligero_input_row npub wcol pad b pub_binding got alpha var_dwL var_dwR →
+    (∑ i, b i * wcol i) = got + pad var_dwL + alpha * pad var_dwR := by
   intro h
-  exact input_constraint_soundness pad got pub_binding beta alpha witness_binding var_dwL var_dwR h
-
-
-
-noncomputable def Event_A {M : ℕ} {F : Type} [Field F] (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
-  Finset.filter (fun ω => E_L ω = none) Finset.univ
-
-
-
+  dsimp [ligero_input_row] at h
+  have hsplit : (∑ i ∈ privIdx ninp npub, b i * wcol i)
+      + (∑ i ∈ Finset.univ \ privIdx ninp npub, b i * wcol i) = ∑ i, b i * wcol i :=
+    Finset.sum_add_sum_compl (privIdx ninp npub) _
+  rw [h_pub] at h
+  linear_combination h - hsplit
 
 /--
-**Axiom 1: Ligero Knowledge Soundness**
-This axiom guarantees that the probability of a malicious prover breaking the
-Ligero commitment scheme is bounded by `eps_FSK`. Specifically, it asserts
-that the probability of `Event_A` occurring (where the verifier accepts
-the Ligero proof, but the Ligero extractor `E_Ligero` fails to output a
-valid witness) is at most the statistical soundness error of the Ligero
-protocol. We treat Ligero as an ideal cryptographic primitive in this
-reduction.
+With the code's coefficients `b_i = eq(L, i) + alpha * eq(R, i)`, the weighted sum of the
+committed columns *is* the `alpha`-combination of the two honest multilinear evaluations.
+
+This is the step that converts a statement about committed wires into a statement about
+`W_mle`, i.e. about the quantity the final layer identity is written in.
 -/
-axiom axiom_ligero_soundness {M : ℕ} {F : Type} [Field F] (E_L : Ω → Option (AugmentedWitness M F Witness)) : event_card (Event_A E_L) ≤ eps_FSK
+lemma input_row_coeffs_give_mle {nc nv ninp logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
+    (w : Witness) (copy : Vector F logc) (l r : Vector F logw) (alpha : F) :
+    (∑ i : Fin ninp, (eq_mle_basis i.val l + alpha * eq_mle_basis i.val r) * AC.W_col w copy i)
+      = AC.W_mle w l copy + alpha * AC.W_mle w r copy := by
+  rw [AC.W_mle_is_mle, AC.W_mle_is_mle, Finset.mul_sum, ← Finset.sum_add_distrib]
+  exact Finset.sum_congr rfl (fun i _ => by ring)
+
+/--
+`Event_A` is the Ligero *extraction failure* event: the ZK verifier **accepted**
+(`accepts ω`) yet the Ligero extractor produced nothing.
+
+Conditioning on `accepts` is essential.  Without it the event also contains every
+run in which the prover simply sent garbage and was rejected — bounding *that* set
+is not knowledge soundness, and no real extractor satisfies it.
+-/
+noncomputable def Event_A {M : ℕ} {F : Type} [Field F] (accepts : Ω → Prop) (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
+  Finset.filter (fun ω => accepts ω ∧ E_L ω = none) Finset.univ
 
 
 /--
-**Axiom 2: Extractor Constraint Validity**
-This axiom encodes the mathematical definition of Knowledge Soundness for our black-box Ligero prover.
+**Assumption bundle: Ligero Knowledge Soundness**
+
+This structure models knowledge soundness.
 It guarantees that if the Ligero extractor successfully outputs a witness and a pad (`w, p`),
-that extracted pad is strictly guaranteed to satisfy the specific linear (`ligero_layer_checks`)
-and quadratic (`ligero_input_checks`) constraints that were fed into the Ligero verifier.
-Since we do not formally model the inner Reed-Solomon workings of Ligero in Lean, this axiom serves
-as the cryptographic boundary between the Ligero black-box and our sumcheck integration.
+the extracted witness columns and pad are guaranteed to satisfy the constraints that were
+fed into the Ligero verifier: the `builder_finalize` row and quadratic pad relation
+(`ligero_layer_checks`) and the input binding row (`ligero_input_row`).
+
+This is packaged as a *hypothesis* of the theorems that need it,
+with `eps_FSK` fixed, every clause conditioned on the verifier having accepted,
+and every clause instantiated at the **actual** transcript `T_p ω` and the
+**actual** pad indices rather than universally quantified.  `example.lean`
+exhibits an inhabitant, so the bundle is consistent.
+
+Fields:
+* `extraction_bound` — knowledge soundness of Ligero (`ZkVerifier::verify`,
+  `zk_verifier.h`), treated as an ideal primitive.
+* `layer_constraint` — the extracted pad satisfies the linear row emitted by
+  `ConstraintBuilder::finalize` (`zk_common.h:L373`) together with the quadratic
+  pad relation registered by `setup_lqc` (`zk_common.h:L149`).
+* `input_row` — the extracted **witness columns and pad** satisfy the single input
+  binding row of `ZkCommon::input_constraint` (`zk_common.h:L406`).
+* `pub_consistent` — the verifier's `pub_binding` agrees with the extracted columns on the
+  public positions, i.e. the extractor did not rewrite the public wires.
+
+`alpha_good` used to be a sixth field, asserting that the fresh challenge `alpha` is never
+the one value that would let the single combined row hide a mismatch.  Asserting that it
+*never* happens is too strong; it is now a counted error term, `eps_bind` in
+`core_soundness_theorem`, justified by `alpha_bad_card` (at most a `1/|F|` fraction).
+
+The bundle used to carry a sixth field, `accepted_sumcheck`, asserting that on an accepted
+run the sumcheck rounds close on the decrypted expression `e(pad)`.  That was the whole
+link between the Ligero constraint system and the sumcheck.  It is now the theorem
+`EncTranscript.rounds_verify` (`builder.lean`), proved from the model of
+`ConstraintBuilder::first`/`next`: the ZK verifier *substitutes* `p(1) = claim - p(0)`
+rather than checking it, so every round check passes by construction.
 -/
-axiom axiom_ligero_extractor_valid_pad {M : ℕ} {F : Type} [Field F] [DecidableEq (Fin M)]
-    (E_L : Ω → Option (AugmentedWitness M F Witness)) (ω : Ω) (w : Witness) (p : Pad M F) :
-    E_L ω = some (w, p) →
-    (∀ e eqq wc0 wc1 vL vR vLR, ligero_layer_checks e p eqq wc0 wc1 vL vR vLR) ∧
-    (∀ g pb beta alpha wb vL vR, ligero_input_checks p g pb beta alpha wb vL vR)
+structure IsLigeroKnowledgeSound {nc nv ninp logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F)
+    (accepts : Ω → Prop)
+    (T_p : Ω → EncTranscript M F)
+    (c : Circuit) (npub : ℕ) (pub_binding : Ω → F)
+    (alpha : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (var_dwR var_dwL var_dwL_dwR : Fin M)
+    (E_L : Ω → Option (AugmentedWitness M F Witness))
+    (eps_FSK : ℕ) : Prop where
+  extraction_bound :
+    event_card (Event_A accepts E_L) ≤ eps_FSK
+  layer_constraint : ∀ (ω : Ω) (w : Witness) (p : Pad M F),
+    accepts ω → E_L ω = some (w, p) →
+    ligero_layer_checks (T_p ω).e p
+      (layer_eqq AC c (alpha ω) q_challenge g0 g1 (T_p ω).challenges)
+      (T_p ω).wc0 (T_p ω).wc1 var_dwL var_dwR var_dwL_dwR
+  input_row : ∀ (ω : Ω) (w : Witness) (p : Pad M F),
+    accepts ω → E_L ω = some (w, p) →
+    ligero_input_row npub
+      (AC.W_col w (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).1) p
+      (input_row_coeffs (logw := logw) (logc := logc) (ninp := ninp) (alpha ω) (T_p ω).challenges)
+      (pub_binding ω) ((T_p ω).wc0 + alpha ω * (T_p ω).wc1) (alpha ω) var_dwL var_dwR
+  pub_consistent : ∀ (ω : Ω) (w : Witness) (p : Pad M F),
+    accepts ω → E_L ω = some (w, p) →
+    pub_binding ω = ∑ i ∈ Finset.univ \ privIdx ninp npub,
+      input_row_coeffs (logw := logw) (logc := logc) (ninp := ninp) (alpha ω) (T_p ω).challenges i
+        * AC.W_col w (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).1 i
 
 
 /--
-**Axiom 2.5: Extractor Sumcheck Validity**
-This axiom guarantees that if the Ligero extractor succeeds, the public transcript was valid and accepted by the verifier,
-meaning the sumcheck polynomial evaluations match the final claim.
--/
-axiom axiom_extractor_implies_sumcheck {M : ℕ} {F : Type} [Field F] [DecidableEq F]
-    (T_p : Ω → EncTranscript M F)
-    (E_L : Ω → Option (AugmentedWitness M F Witness)) (ω : Ω) (w : Witness) (p : Pad M F) :
-    E_L ω = some (w, p) →
-    verify_multi_round 0 (T_p ω).polys (T_p ω).challenges == some (evaluates_to (T_p ω).e p)
+**The witness binding, derived.**
 
+From the input row (plus public-input consistency and a non-degenerate `alpha`), the
+prover's *claimed* hand evaluations `W_hat + dW` equal the *honest* multilinear evaluations
+of the extracted witness at the transcript's own hand challenge points.
+
+This is the fact that used to be assumed as `IsBoundTranscript.final_binding`.
+-/
+theorem input_row_binds_hands {nc nv ninp logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [Fintype (Vector F logv)] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp logv logw logc F}
+    {accepts : Ω → Prop} {T_p : Ω → EncTranscript M F}
+    {c : Circuit} {npub : ℕ} {pub_binding : Ω → F}
+    {alpha : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
+    {var_dwR var_dwL var_dwL_dwR : Fin M}
+    {E_L : Ω → Option (AugmentedWitness M F Witness)} {eps_FSK : ℕ}
+    (lig : IsLigeroKnowledgeSound AC accepts T_p c npub pub_binding alpha q_challenge g0 g1
+             var_dwR var_dwL var_dwL_dwR E_L eps_FSK)
+    (ω : Ω) (w : Witness) (p : Pad M F) (hacc : accepts ω) (hE : E_L ω = some (w, p))
+    (hab : ¬ InputBindingBad (true_evals AC w (T_p ω).challenges).1
+        (true_evals AC w (T_p ω).challenges).2
+        ((T_p ω).wc0 + p var_dwL) ((T_p ω).wc1 + p var_dwR) (alpha ω)) :
+    (true_evals AC w (T_p ω).challenges).1 = (T_p ω).wc0 + p var_dwL ∧
+    (true_evals AC w (T_p ω).challenges).2 = (T_p ω).wc1 + p var_dwR := by
+  -- the row forces the full weighted column sum
+  have h_sum := input_row_soundness npub
+      (AC.W_col w (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).1) p
+      (input_row_coeffs (logw := logw) (logc := logc) (ninp := ninp) (alpha ω) (T_p ω).challenges)
+      (pub_binding ω) ((T_p ω).wc0 + alpha ω * (T_p ω).wc1) (alpha ω) var_dwL var_dwR
+      (lig.pub_consistent ω w p hacc hE) (lig.input_row ω w p hacc hE)
+  -- and the weighted column sum is the alpha-combination of the honest MLE evaluations
+  have h_mle := input_row_coeffs_give_mle AC w
+      (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).1
+      (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).2.1
+      (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).2.2 (alpha ω)
+  simp only [input_row_coeffs] at h_sum
+  rw [h_mle] at h_sum
+  -- separate the two hands
+  refine alpha_separates _ _ _ _ (alpha ω) hab ?_
+  show AC.W_mle w _ _ + alpha ω * AC.W_mle w _ _ = _
+  linear_combination h_sum

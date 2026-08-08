@@ -33,9 +33,34 @@ If the input claim $C_{k-1}$ is false (i.e. $C_{k-1} \neq \sum_{x \in \{0,1\}} P
 variable {F : Type} [Field F] [DecidableEq F]
 
 /--
-`RoundPoly` represents a degree-2 univariate polynomial sent by the prover in a sumcheck round,
-evaluated at points 0, 1, and 2.
-- **Code Reference**: `proofs::LayerProof::cp` in `privacy/proofs/zk/lib/sumcheck/circuit.h`
+The interpolation points at which a sumcheck round polynomial is transmitted.
+
+`WPoly = Poly<3, Field>` (`sumcheck/circuit.h:L75`) carries three evaluations, and
+`Poly::eval_lagrange` (`algebra/poly.h`) interpolates through
+`Field::poly_evaluation_point(0), (1), (2)`.  The first two are `0` and `1` — the sum
+check `F.addf(tp[0], tp[1]) != *claim` is taken over them, so they are pinned.  The third
+is field-specific: `2` for prime fields, but for `GF(2)[X]/(Q(X))` it is the generator `X`,
+since `2 = 0` there.  `zk_common.h:L203-L205` calls it "a generic name for the third
+evaluation point of the sumcheck round polynomial (could be X for binary fields)".
+
+We therefore leave it abstract, requiring only that it is distinct from `0` and `1` so
+that the three points are pairwise distinct and the interpolant is unique.
+-/
+class SumcheckInterp (F : Type) [Field F] where
+  /-- The third evaluation point, `Field::poly_evaluation_point(2)`. -/
+  pt2 : F
+  pt2_ne_zero : pt2 ≠ 0
+  pt2_ne_one : pt2 ≠ 1
+
+export SumcheckInterp (pt2)
+
+variable [SumcheckInterp F]
+
+/--
+`RoundPoly` represents a degree-≤2 univariate polynomial sent by the prover in a sumcheck
+round, transmitted as its evaluations at `0`, `1`, and `pt2`.
+- **Code Reference**: `proofs::LayerProof::hp` (`WPoly = Poly<3, Field>`) in
+  `privacy/proofs/zk/lib/sumcheck/circuit.h`
 -/
 structure RoundPoly (F : Type) where
   eval0 : F
@@ -43,11 +68,77 @@ structure RoundPoly (F : Type) where
   eval2 : F
 
 /--
-Evaluates a `RoundPoly` at challenge point `r` using Lagrange interpolation.
-- **Code Reference**: `LayerProof::eval_lagrange` in `verifier_layers.h:L95`
+The unique polynomial of degree `≤ 2` through `(0, eval0)`, `(1, eval1)`, `(pt2, eval2)`,
+in Lagrange form.  This is the polynomial the prover is committing to when it sends a
+`WPoly`; `Poly::newton_of_lagrange` followed by `Poly::eval_newton` computes exactly its
+evaluations.
+-/
+noncomputable def RoundPoly.toPoly (poly : RoundPoly F) : Polynomial F :=
+  Polynomial.C (poly.eval0 * (pt2 : F)⁻¹) * ((X - Polynomial.C 1) * (X - Polynomial.C (pt2 : F))) +
+  Polynomial.C (poly.eval1 * (1 - (pt2 : F))⁻¹) * ((X - Polynomial.C 0) * (X - Polynomial.C (pt2 : F))) +
+  Polynomial.C (poly.eval2 * ((pt2 : F) * ((pt2 : F) - 1))⁻¹) * ((X - Polynomial.C 0) * (X - Polynomial.C 1))
+
+/--
+Evaluates a `RoundPoly` at challenge point `r` using Lagrange interpolation through
+`0`, `1` and `pt2`.
+
+Previously this ignored `eval2` and interpolated linearly through `eval0`/`eval1`, which
+modelled a *degree-1* verifier and so did not match the implementation.
+- **Code Reference**: `tp.eval_lagrange(ch->hb[hand][round], F)` at `verifier_layers.h:L127`,
+  implemented by `Poly<3, Field>::eval_lagrange` in `algebra/poly.h`.
 -/
 def RoundPoly.eval_lagrange (poly : RoundPoly F) (r : F) : F :=
-  poly.eval0 + r * (poly.eval1 - poly.eval0)
+  poly.eval0 * ((r - 1) * (r - (pt2 : F))) * (pt2 : F)⁻¹ +
+  poly.eval1 * (r * (r - (pt2 : F))) * (1 - (pt2 : F))⁻¹ +
+  poly.eval2 * (r * (r - 1)) * ((pt2 : F) * ((pt2 : F) - 1))⁻¹
+
+omit [DecidableEq F] in
+lemma RoundPoly.eval_toPoly (poly : RoundPoly F) (r : F) :
+    poly.toPoly.eval r = poly.eval_lagrange r := by
+  simp [RoundPoly.toPoly, RoundPoly.eval_lagrange]
+  ring
+
+omit [DecidableEq F] in
+@[simp] lemma RoundPoly.eval_lagrange_zero (poly : RoundPoly F) :
+    poly.eval_lagrange 0 = poly.eval0 := by
+  have h0 : (pt2 : F) ≠ 0 := SumcheckInterp.pt2_ne_zero
+  rw [RoundPoly.eval_lagrange]
+  field_simp
+  ring
+
+omit [DecidableEq F] in
+@[simp] lemma RoundPoly.eval_lagrange_one (poly : RoundPoly F) :
+    poly.eval_lagrange 1 = poly.eval1 := by
+  have h1 : (1 : F) - (pt2 : F) ≠ 0 := sub_ne_zero.mpr (Ne.symm SumcheckInterp.pt2_ne_one)
+  rw [RoundPoly.eval_lagrange]
+  field_simp
+  ring
+
+omit [DecidableEq F] in
+/-- `eval_lagrange` recovers the third transmitted evaluation.  Together with
+`eval_lagrange_zero` and `eval_lagrange_one` this pins down `eval_lagrange` as *the*
+interpolant through the three points, and in particular shows `eval2` is actually read —
+it was ignored entirely by the previous degree-1 definition. -/
+@[simp] lemma RoundPoly.eval_lagrange_pt2 (poly : RoundPoly F) :
+    poly.eval_lagrange (pt2 : F) = poly.eval2 := by
+  have h0 : (pt2 : F) ≠ 0 := SumcheckInterp.pt2_ne_zero
+  have h1 : (pt2 : F) - 1 ≠ 0 := sub_ne_zero.mpr SumcheckInterp.pt2_ne_one
+  rw [RoundPoly.eval_lagrange]
+  field_simp
+  ring
+
+omit [DecidableEq F] in
+/-- The prover's round polynomial has degree at most 2, matching `WPoly = Poly<3, Field>`. -/
+lemma RoundPoly.toPoly_natDegree (poly : RoundPoly F) : poly.toPoly.natDegree ≤ 2 := by
+  have hterm : ∀ (a b c : F),
+      (Polynomial.C a * ((X - Polynomial.C b) * (X - Polynomial.C c))).natDegree ≤ 2 := by
+    intro a b c
+    refine le_trans (Polynomial.natDegree_C_mul_le _ _) ?_
+    refine le_trans (Polynomial.natDegree_mul_le) ?_
+    simp
+  rw [RoundPoly.toPoly]
+  refine le_trans (Polynomial.natDegree_add_le _ _) (max_le ?_ (hterm _ _ _))
+  exact le_trans (Polynomial.natDegree_add_le _ _) (max_le (hterm _ _ _) (hterm _ _ _))
 
 /--
 `check_round_c` formalizes `VerifierLayers::layer_c` (line 84 in `verifier_layers.h`).
@@ -89,6 +180,7 @@ can agree at most at `d` points. Thus, the number of challenge points `r`
 satisfying `poly.eval_lagrange r = P_true r` is at most `d`.
 -/
 
+omit [SumcheckInterp F] in
 /--
 Proves that if an input claim is false (`claim_in ≠ P_true 0 + P_true 1`) and the prover's
 `RoundPoly` passes the sum-consistency check (`poly.eval0 + poly.eval1 = claim_in`), then
@@ -105,7 +197,7 @@ theorem false_claim_implies_poly_mismatch (P_true : Polynomial F) (poly : RoundP
   rw [h_sum] at h_check
   exact h_false h_check.symm
 
-theorem sumcheck_step_reduction {F : Type} [Field F] [DecidableEq F]
+theorem sumcheck_step_reduction {F : Type} [Field F] [DecidableEq F] [SumcheckInterp F]
     (P_true : Polynomial F) (poly : RoundPoly F) (claim_in claim_out r : F)
     (h_check : check_round_c claim_in poly r = some claim_out)
     (h_false : claim_in ≠ P_true.eval 0 + P_true.eval 1) :
@@ -126,14 +218,14 @@ theorem sumcheck_step_reduction {F : Type} [Field F] [DecidableEq F]
   · next h_neq =>
     contradiction
 
-def BadRoundEvent {F : Type} [Field F] (P_true : Polynomial F) (poly : RoundPoly F) (r : F) : Prop :=
+def BadRoundEvent {F : Type} [Field F] [SumcheckInterp F] (P_true : Polynomial F) (poly : RoundPoly F) (r : F) : Prop :=
   (poly.eval0 ≠ P_true.eval 0 ∨ poly.eval1 ≠ P_true.eval 1) ∧ poly.eval_lagrange r = P_true.eval r
 
-def multi_round_bad_event {F : Type} [Field F] : List (Polynomial F) → List (RoundPoly F) → List F → Prop
+def multi_round_bad_event {F : Type} [Field F] [SumcheckInterp F] : List (Polynomial F) → List (RoundPoly F) → List F → Prop
   | (P::Ps), (p::ps), (r::rs) => BadRoundEvent P p r ∨ multi_round_bad_event Ps ps rs
   | _, _, _ => False
 
-def verify_multi_round {F : Type} [Field F] [DecidableEq F] (claim_start : F) (polys : List (RoundPoly F)) (challenges : List F) : Option F :=
+def verify_multi_round {F : Type} [Field F] [DecidableEq F] [SumcheckInterp F] (claim_start : F) (polys : List (RoundPoly F)) (challenges : List F) : Option F :=
   match polys, challenges with
   | [], [] => some claim_start
   | p :: ps, r :: rs =>
@@ -157,7 +249,7 @@ It proves that if a verifier accepts a sequence of round polynomials and challen
 1. The final extracted claim `claim_out` does not match the final evaluation of the true polynomials.
 2. The prover was "lucky" and a bad event occurred in at least one of the rounds (`multi_round_bad_event`).
 -/
-theorem sumcheck_multi_reduction {F : Type} [Field F] [DecidableEq F]
+theorem sumcheck_multi_reduction {F : Type} [Field F] [DecidableEq F] [SumcheckInterp F]
     (P_trues : List (Polynomial F)) (polys : List (RoundPoly F)) (challenges : List F)
     (claim_in claim_out : F) :
     verify_multi_round claim_in polys challenges = some claim_out →
@@ -240,51 +332,53 @@ theorem sumcheck_multi_reduction {F : Type} [Field F] [DecidableEq F]
 
 
 omit [DecidableEq F] in
+/-- A round polynomial that disagrees with `P_true_poly` at `0` or at `1` is a different
+polynomial, so their difference is non-zero. -/
+lemma RoundPoly.toPoly_sub_ne_zero (P_true_poly : Polynomial F) (poly : RoundPoly F)
+    (h_diff : poly.eval0 ≠ P_true_poly.eval 0 ∨ poly.eval1 ≠ P_true_poly.eval 1) :
+    poly.toPoly - P_true_poly ≠ 0 := by
+  intro hQ_eq_0
+  have h_eq : poly.toPoly = P_true_poly := sub_eq_zero.mp hQ_eq_0
+  have h0 : poly.eval0 = P_true_poly.eval 0 := by
+    rw [← h_eq, RoundPoly.eval_toPoly, RoundPoly.eval_lagrange_zero]
+  have h1 : poly.eval1 = P_true_poly.eval 1 := by
+    rw [← h_eq, RoundPoly.eval_toPoly, RoundPoly.eval_lagrange_one]
+  rcases h_diff with h | h
+  · exact h h0
+  · exact h h1
+
+omit [DecidableEq F] in
 /--
 **KEY LEMMA: Schwartz-Zippel Bound on Cheating Provers** (`univariate_roots_bound`)
 
 This is the central mathematical insight powering the sumcheck soundness proof.
 If a cheating prover sends a polynomial `poly` that lies about the true round evaluations
 (meaning `poly.eval0 ≠ P_true_poly.eval 0 ∨ poly.eval1 ≠ P_true_poly.eval 1`), the prover
-must hope the verifier's randomly sampled challenge `r` satisfies `poly.eval_lagrange r = P_true_poly.eval r`.
+must hope the verifier's randomly sampled challenge `r` satisfies
+`poly.eval_lagrange r = P_true_poly.eval r`.
 
-Because `poly` is bounded by degree 1 (it is a line), `poly.eval_lagrange` is a degree-1 polynomial `L`.
-The prover wins this round if `L(r) - P_true_poly(r) = 0`. By the Fundamental Theorem of Algebra,
-a non-zero polynomial of degree bounded by `d` has at most `d` roots. Thus, there are at most `d`
-"lucky" challenges `r` over the field `F` that allow the prover to cheat.
+`poly.toPoly` is the degree-≤2 interpolant through `(0, eval0)`, `(1, eval1)`, `(pt2, eval2)`
+— matching `WPoly = Poly<3, Field>` in the implementation — and `eval_lagrange` is its
+evaluation.  The prover wins this round exactly when `r` is a root of
+`poly.toPoly - P_true_poly`.  A non-zero polynomial of degree at most `max 2 d` has at
+most `max 2 d` roots, so at most that many challenges are "lucky".
+
+The `2` in `max 2 d` is the degree of the transmitted round polynomial.  It was `1` while
+`eval_lagrange` ignored `eval2` and interpolated linearly; that understated the cheating
+prover's power relative to the code.
 -/
 lemma univariate_roots_bound (P_true_poly : Polynomial F) (poly : RoundPoly F) (d : ℕ) (hd : P_true_poly.natDegree ≤ d) :
     poly.eval0 ≠ P_true_poly.eval 0 ∨ poly.eval1 ≠ P_true_poly.eval 1 →
-    (Polynomial.roots (Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X - P_true_poly)).card ≤ max 1 d := by
+    (Polynomial.roots (poly.toPoly - P_true_poly)).card ≤ max 2 d := by
   intro h_diff
-  set L : Polynomial F := Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X with hL
-  set Q : Polynomial F := L - P_true_poly with hQ
-  have hL_eval0 : L.eval 0 = poly.eval0 := by simp [hL]
-  have hL_eval1 : L.eval 1 = poly.eval1 := by simp [hL]
-  have hQ_neq_0 : Q ≠ 0 := by
-    intro hQ_eq_0
-    have h_eq : Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X = P_true_poly := sub_eq_zero.mp hQ_eq_0
-    have h0 : poly.eval0 = P_true_poly.eval 0 := by
-      have h_eval := congr_arg (fun P : Polynomial F => P.eval 0) h_eq
-      simp at h_eval
-      exact h_eval
-    have h1_eval : poly.eval1 = P_true_poly.eval 1 := by
-      have h_eval := congr_arg (fun P : Polynomial F => P.eval 1) h_eq
-      simp at h_eval
-      exact h_eval
-    rcases h_diff with h_diff_0 | h_diff_1
-    · exact h_diff_0 h0
-    · exact h_diff_1 h1_eval
-  have h_L_deg : L.natDegree ≤ 1 := by
-    rw [hL, add_comm]
-    exact Polynomial.natDegree_linear_le
-  have h_Q_deg : Q.natDegree ≤ max 1 d := by
+  set Q : Polynomial F := poly.toPoly - P_true_poly with hQ
+  have h_Q_deg : Q.natDegree ≤ max 2 d := by
     rw [hQ]
-    calc (L - P_true_poly).natDegree
-      _ ≤ max L.natDegree P_true_poly.natDegree := Polynomial.natDegree_sub_le _ _
-      _ ≤ max 1 d := max_le_max h_L_deg hd
+    calc (poly.toPoly - P_true_poly).natDegree
+      _ ≤ max poly.toPoly.natDegree P_true_poly.natDegree := Polynomial.natDegree_sub_le _ _
+      _ ≤ max 2 d := max_le_max poly.toPoly_natDegree hd
   calc (Q.roots).card ≤ Q.natDegree := Polynomial.card_roots' Q
-    _ ≤ max 1 d := h_Q_deg
+    _ ≤ max 2 d := h_Q_deg
 
 open scoped Classical
 
@@ -296,48 +390,43 @@ abbrev TruePolyStrategy (F : Type) [Field F] (n : ℕ) := ∀ i : Fin n, Prefix 
 def extract_prefix {n : ℕ} {F : Type} (cs : Fin n → F) (i : Fin n) : Prefix F i.val :=
   fun j => cs ⟨j.val, by omega⟩
 
-def bad_event_at {F : Type} [Field F] (n : ℕ) (P_func : TruePolyStrategy F n) (p_func : ProverStrategy F n) (cs : Fin n → F) (i : Fin n) : Prop :=
+def bad_event_at {F : Type} [Field F] [SumcheckInterp F] (n : ℕ) (P_func : TruePolyStrategy F n) (p_func : ProverStrategy F n) (cs : Fin n → F) (i : Fin n) : Prop :=
   BadRoundEvent (P_func i (extract_prefix cs i)) (p_func i (extract_prefix cs i)) (cs i)
 
-def any_bad_event {F : Type} [Field F] (n : ℕ) (P_func : TruePolyStrategy F n) (p_func : ProverStrategy F n) (cs : Fin n → F) : Prop :=
+def any_bad_event {F : Type} [Field F] [SumcheckInterp F] (n : ℕ) (P_func : TruePolyStrategy F n) (p_func : ProverStrategy F n) (cs : Fin n → F) : Prop :=
   ∃ i : Fin n, bad_event_at n P_func p_func cs i
 
-lemma bad_round_roots {F : Type} [Field F] [Fintype F] [DecidableEq F] (P_true_poly : Polynomial F) (poly : RoundPoly F) (d : ℕ) (hd : P_true_poly.natDegree ≤ d) (h1 : 1 ≤ d) :
+/--
+At most `d` of the `|F|` challenges let a cheating prover survive a round, provided the
+true round polynomial has degree at most `d` and `2 ≤ d`.
+
+The hypothesis is `2 ≤ d`, not `1 ≤ d`: the prover's own transmitted polynomial is a
+`WPoly = Poly<3, Field>`, i.e. of degree up to 2, so the difference it needs to have a
+root at `r` already has degree up to 2 regardless of the true polynomial.
+-/
+lemma bad_round_roots {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F] (P_true_poly : Polynomial F) (poly : RoundPoly F) (d : ℕ) (hd : P_true_poly.natDegree ≤ d) (h2 : 2 ≤ d) :
     (Finset.filter (fun r => BadRoundEvent P_true_poly poly r) Finset.univ).card ≤ d := by
   by_cases h_diff : poly.eval0 ≠ P_true_poly.eval 0 ∨ poly.eval1 ≠ P_true_poly.eval 1
   · have h_sz := univariate_roots_bound P_true_poly poly d hd h_diff
-    have h_max : max 1 d = d := max_eq_right h1
+    have h_max : max 2 d = d := max_eq_right h2
     rw [h_max] at h_sz
-    have h_subset : Finset.filter (fun r => BadRoundEvent P_true_poly poly r) Finset.univ ⊆ (Polynomial.roots (Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X - P_true_poly)).toFinset := by
+    have h_Q_neq_0 : poly.toPoly - P_true_poly ≠ 0 :=
+      RoundPoly.toPoly_sub_ne_zero P_true_poly poly h_diff
+    have h_subset : Finset.filter (fun r => BadRoundEvent P_true_poly poly r) Finset.univ ⊆
+        (Polynomial.roots (poly.toPoly - P_true_poly)).toFinset := by
       intro r hr
       simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hr
       rw [Multiset.mem_toFinset]
-      have h_Q_neq_0 : Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X - P_true_poly ≠ 0 := by
-        intro hQ_eq_0
-        have h_eq : Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X = P_true_poly := sub_eq_zero.mp hQ_eq_0
-        have h0 : poly.eval0 = P_true_poly.eval 0 := by
-          have h_eval := congr_arg (fun P : Polynomial F => P.eval 0) h_eq
-          simp at h_eval
-          exact h_eval
-        have h1_eval : poly.eval1 = P_true_poly.eval 1 := by
-          have h_eval := congr_arg (fun P : Polynomial F => P.eval 1) h_eq
-          simp at h_eval
-          exact h_eval
-        rcases h_diff with h_diff_0 | h_diff_1
-        · exact h_diff_0 h0
-        · exact h_diff_1 h1_eval
-      have h_root : (Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X - P_true_poly).IsRoot r := by
+      have h_root : (poly.toPoly - P_true_poly).IsRoot r := by
         dsimp [Polynomial.IsRoot]
-        simp [Polynomial.eval_sub, Polynomial.eval_add, Polynomial.eval_C, Polynomial.eval_mul, Polynomial.eval_X]
-        dsimp [BadRoundEvent, RoundPoly.eval_lagrange] at hr
-        have hr_eval := hr.right
-        calc poly.eval0 + (poly.eval1 - poly.eval0) * r - P_true_poly.eval r
-          _ = poly.eval0 + r * (poly.eval1 - poly.eval0) - P_true_poly.eval r := by ring
-          _ = P_true_poly.eval r - P_true_poly.eval r := by rw [hr_eval]
-          _ = 0 := sub_self _
+        rw [Polynomial.eval_sub, RoundPoly.eval_toPoly]
+        dsimp [BadRoundEvent] at hr
+        rw [hr.right, sub_self]
       exact (Polynomial.mem_roots h_Q_neq_0).mpr h_root
     have h_card_subset := Finset.card_le_card h_subset
-    have h_card_toFinset : (Polynomial.roots (Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X - P_true_poly)).toFinset.card ≤ (Polynomial.roots (Polynomial.C poly.eval0 + Polynomial.C (poly.eval1 - poly.eval0) * Polynomial.X - P_true_poly)).card := Multiset.toFinset_card_le _
+    have h_card_toFinset :
+        (Polynomial.roots (poly.toPoly - P_true_poly)).toFinset.card
+          ≤ (Polynomial.roots (poly.toPoly - P_true_poly)).card := Multiset.toFinset_card_le _
     exact le_trans h_card_subset (le_trans h_card_toFinset h_sz)
   · have h_empty : Finset.filter (fun r => BadRoundEvent P_true_poly poly r) Finset.univ = ∅ := by
       ext r
@@ -349,7 +438,7 @@ lemma bad_round_roots {F : Type} [Field F] [Fintype F] [DecidableEq F] (P_true_p
     simp
 
 
-variable {F : Type} [Field F] [Fintype F] [DecidableEq F]
+variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
 open scoped Classical
 
 def right_index {n : ℕ} {i : Fin n} (j : Fin (n - 1 - i.val)) : Fin n :=
@@ -488,7 +577,7 @@ lemma card_prod_filter {α β : Type*} [Fintype α] [Fintype β] (P : α → β 
     exact hne ((congr_arg Prod.fst h1).trans (congr_arg Prod.fst h2).symm)
 
 lemma combinatorial_fs_level (n d : ℕ) (P_func : TruePolyStrategy F n) (p_func : ProverStrategy F n)
-    (hd : ∀ (i : Fin n) (pref : Prefix F i.val), (P_func i pref).natDegree ≤ d) (h1 : 1 ≤ d) (i : Fin n) :
+    (hd : ∀ (i : Fin n) (pref : Prefix F i.val), (P_func i pref).natDegree ≤ d) (h2 : 2 ≤ d) (i : Fin n) :
     (Finset.filter (fun cs : Fin n → F => bad_event_at n P_func p_func cs i) Finset.univ).card ≤ d * (Fintype.card F)^(n - 1) := by
   have h_rewrite : (Finset.filter (fun cs : Fin n → F => bad_event_at n P_func p_func cs i) Finset.univ).card =
     (Finset.filter (fun (pr : Prefix F i.val × F) => BadRoundEvent (P_func i pr.1) (p_func i pr.1) pr.2) Finset.univ).card * (Fintype.card F)^(n - 1 - i.val) := by
@@ -505,7 +594,7 @@ lemma combinatorial_fs_level (n d : ℕ) (P_func : TruePolyStrategy F n) (p_func
       _ ≤ ∑ pref : Prefix F i.val, d := by
         apply Finset.sum_le_sum
         intro pref _
-        exact bad_round_roots (P_func i pref) (p_func i pref) d (hd i pref) h1
+        exact bad_round_roots (P_func i pref) (p_func i pref) d (hd i pref) h2
       _ = (Fintype.card (Prefix F i.val)) * d := by
         simp [Finset.sum_const]
   have h_pref_card : Fintype.card (Prefix F i.val) = (Fintype.card F)^i.val := by
@@ -535,7 +624,7 @@ It proves that for any computationally unbounded prover strategy `p_func` that i
 This replaces generic random oracle axioms with a precise combinatorial counting argument over the Fiat-Shamir execution tree.
 -/
 lemma combinatorial_fiat_shamir (n d : ℕ) (P_func : TruePolyStrategy F n) (p_func : ProverStrategy F n)
-    (hd : ∀ (i : Fin n) (pref : Prefix F i.val), (P_func i pref).natDegree ≤ d) (h1 : 1 ≤ d) :
+    (hd : ∀ (i : Fin n) (pref : Prefix F i.val), (P_func i pref).natDegree ≤ d) (h2 : 2 ≤ d) :
     (Finset.filter (fun cs : Fin n → F => any_bad_event n P_func p_func cs) Finset.univ).card ≤ n * d * (Fintype.card F)^(n - 1) := by
   have h_union : Finset.filter (fun cs : Fin n → F => any_bad_event n P_func p_func cs) Finset.univ =
     Finset.biUnion Finset.univ (fun (i : Fin n) => Finset.filter (fun cs => bad_event_at n P_func p_func cs i) Finset.univ) := by
@@ -549,7 +638,7 @@ lemma combinatorial_fiat_shamir (n d : ℕ) (P_func : TruePolyStrategy F n) (p_f
     _ ≤ ∑ i : Fin n, d * (Fintype.card F)^(n - 1) := by
       apply Finset.sum_le_sum
       intro i _
-      exact combinatorial_fs_level n d P_func p_func hd h1 i
+      exact combinatorial_fs_level n d P_func p_func hd h2 i
     _ = n * (d * (Fintype.card F)^(n - 1)) := by
       simp [Finset.sum_const]
     _ = n * d * (Fintype.card F)^(n - 1) := by ring
