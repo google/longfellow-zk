@@ -24,6 +24,16 @@ srcDir = "circuits/tests/ec"
 roots = ["PkCircuit", "PkCircuitPoly"]
 
 [[lean_lib]]
+name = "quadcert"
+srcDir = "circuits"
+globs = ["quadcert.+"]
+
+[[lean_lib]]
 name = "lfzk"
 srcDir = "lfzk"
-roots = ["types", "fiat_shamir", "circuit", "ligero", "lfzk", "sumcheck_soundness", "layers", "fs_derive", "builder", "instantiate", "zk_layers", "zk_soundness", "example"]
+roots = ["types", "fiat_shamir", "circuit", "ligero", "ligero_rs", "ligero_sys", "ligero_bridge", "mlin", "lfzk", "sumcheck_soundness", "layers", "builder", "instantiate", "zk_layers", "zk_soundness", "zk_hiding", "zk_sim", "example"]
+
+[[lean_lib]]
+name = "merkle"
+srcDir = "merkle"
+roots = ["Heap", "Merkle", "Collision", "Wire", "RandomOracle", "Binding", "Hiding", "Instantiate"]

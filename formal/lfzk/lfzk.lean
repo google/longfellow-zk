@@ -14,15 +14,15 @@ set_option relaxedAutoImplicit true
 variable {F : Type} [Field F] [Fintype F]
 variable {Circuit Input Witness : Type}
 variable {Ω : Type} [Fintype Ω]
-variable (C : Circuit) (x : Input)
-variable (eval : Circuit → Input → Witness → Bool)
-variable {nc nv : ℕ}
 variable (eps_FSK eps_sumcheck : ℕ)
 
 /-!
-This file contains the main Longfellow ZK soundness theorem corresponding
-to Theorem 6, Protocol 2.5 in the "Anonymous credentials from ECDSA" paper.
-The main argument follows the paper proof.
+# The core soundness theorem
+
+Theorem 6 / Protocol 2.5 of "Anonymous credentials from ECDSA", for one sumcheck layer.
+`core_soundness_theorem` at the bottom is the statement; everything above it is the event
+decomposition it rests on.  `zk_soundness.lean` carries the same events through a
+multi-layer run.
 -/
 
 
@@ -35,16 +35,16 @@ functions of the transcript's own challenges, so both are named once here.
 -/
 
 /-- The plaintext transcript of run `ω` under extracted witness `w` and pad `pad`. -/
-noncomputable def run_transcript {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+noncomputable def run_transcript {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (T_p : Ω → EncTranscript M F) (var_dwR var_dwL : Fin M)
     (ω : Ω) (inp : Input) (w : Witness) (pad : Pad M F) : Transcript F :=
   (T_p ω).decrypt pad var_dwR var_dwL
     (true_evals AC inp w (T_p ω).challenges).1 (true_evals AC inp w (T_p ω).challenges).2
 
 /-- The `EQQ` scalar of run `ω`. -/
-noncomputable def run_eqq {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+noncomputable def run_eqq {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (c : Circuit) (_inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (T_p : Ω → EncTranscript M F) (ω : Ω) : F :=
   layer_eqq AC c (alpha ω) (beta ω) q_challenge g0 g1 (T_p ω).challenges
@@ -55,8 +55,8 @@ noncomputable def run_eqq {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type}
 successfully extracts a witness and pad, but the decrypted transcript fails the
 validity check `checkV`.
 -/
-noncomputable def Event_B {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+noncomputable def Event_B {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL : Fin M) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
@@ -66,15 +66,18 @@ noncomputable def Event_B {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type}
 
 
 /--
-`Event_C` describes the event where the verifier accepted, the extractor `E_L` extracts a witness
-and pad, the decrypted transcript passes the validity check `checkV`, but the circuit
-evaluation for the extracted witness evaluates to false.
+`Event_C` is the sumcheck failure: the verifier accepted, the extractor produced a witness
+and pad, the decrypted transcript passes `checkV`, the layer randomness is *not* degenerate,
+and yet the extracted witness fails the circuit.  With the randomness good and the final
+identity pinned, the only way out is a lucky sumcheck round — which is what
+`lemma_sumcheck_soundness` shows.
 
-The "sumcheck rounds verify" conjunct that used to be here is gone: it is now automatic
-(`EncTranscript.rounds_verify`), so including it would only have made the event smaller.
+There is no "the sumcheck rounds verify" conjunct: that is automatic
+(`EncTranscript.rounds_verify`), because the ZK path *substitutes* `p(1) = claim − p(0)`
+rather than checking it.
 -/
-noncomputable def Event_C {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+noncomputable def Event_C {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL : Fin M) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
@@ -85,17 +88,16 @@ noncomputable def Event_C {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type}
 
 
 /--
-**Assumption bundle: the shape of an accepted transcript**
+**What `accepts` means: the shape of an accepted transcript.**
 
-`ArithmetizedCircuit.soundness` is stated conditionally (see `circuit.lean`), so a caller
-must supply the round counts the verifier enforces: it reads exactly `logc + 2 * logw`
-round polynomials and challenges per layer (`verifier_layers.h:L102` and `L119`).
+`accepts` is an abstract predicate standing for "the ZK verifier accepted", so any property
+of the verifier the proof uses has to be stated about it.  There is one: an accepted run's
+transcript has exactly `logc + 2 * logw` rounds.
 
-This bundle used to carry a third field, `final_binding`, asserting that the verifier's
-final identity `CLAIM = EQQ * W[R,C] * W[L,C]` pins the last claim to the honest layer
-polynomial.  That was the place where the extracted witness was smuggled into the argument.
-It is now a *theorem* (`final_binding` below), derived from the Ligero input row via
-`input_row_binds_hands`.
+This is a *description of the verifier*, not a hypothesis about the adversary.  The loop
+bound is `clr->logw`, read from `Circuit<Field>` (`verifier_layers.h:L102` and `L119`) — a
+public circuit parameter, so a prover cannot vary it, and a proof carrying a different
+number of rounds does not parse.
 -/
 structure IsWellFormedTranscript {logw logc : ℕ} {M : ℕ} {F : Type} [Field F]
     (accepts : Ω → Prop) (T_p : Ω → EncTranscript M F) : Prop where
@@ -112,11 +114,12 @@ point.  With `run_eqq` being the verifier's own `EQQ` and the transcript's `w_l_
 `w_r_true` being the honest evaluations, this is pure commutativity on top of
 `layer_poly_factors`.
 
-The content that used to be assumed here now lives in `input_row_binds_hands`, which proves
-that the prover's *claimed* evaluations equal these honest ones.
+This is only about the *honest* evaluations.  That the prover's **claimed** evaluations
+equal them is the separate and harder `input_row_binds_hands` (`ligero.lean`), which is what
+makes the extracted witness enter the argument at all.
 -/
-lemma final_binding {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+lemma final_binding {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (T_p : Ω → EncTranscript M F) (var_dwR var_dwL : Fin M)
     (ω : Ω) (w : Witness) (pad : Pad M F) :
@@ -135,17 +138,19 @@ lemma final_binding {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Fiel
 
 
 /--
-**Lemma: Sumcheck Protocol Soundness**
-Proves that `P(Event_C) ≤ eps_sumcheck` by reducing `Event_C` to `multi_round_bad_event`
-using `sumcheck_multi_reduction`.
+**Sumcheck soundness for one layer.**
 
-This lemma serves as the bridge between abstract sumcheck bounds and the specific
-Longfellow protocol. It bounds the protocol-specific `Event_C` by instantiating the
-generic `multi_round_bad_event` with Longfellow's specific arithmetized quadratic
-form polynomials (`circuit_true_polys`).
+`event_card (Event_C …) ≤ eps_sumcheck`, by showing `Event_C` sits inside
+`multi_round_bad_event` — the event that some round's transmitted polynomial differs from
+the honest one yet agrees at the challenge.
+
+This is the bridge between the abstract sumcheck counting bound and the protocol: the
+generic `multi_round_bad_event` is instantiated at Longfellow's own honest round polynomials
+(`circuit_true_polys`), and the reduction is `sumcheck_multi_reduction`.  Counts, not
+probabilities.
 -/
-lemma lemma_sumcheck_soundness (eps_sumcheck : ℕ) {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+lemma lemma_sumcheck_soundness (eps_sumcheck : ℕ) {nc nv ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (accepts : Ω → Prop) (var_dwR var_dwL : Fin M)
     (c : Circuit) (inp : Input) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness))
@@ -221,8 +226,8 @@ lemma lemma_sumcheck_soundness (eps_sumcheck : ℕ) {nc nv nw ninp npub logv log
   have h_prob := ci.ci_bound
   exact le_trans h_mono h_prob
 
-noncomputable def E_prime {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+noncomputable def E_prime {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL : Fin M) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) (ω : Ω) : Option Witness :=
@@ -241,8 +246,8 @@ witness that does not satisfy the circuit.
 The `accepts ω` conjunct is what makes this the right event to bound.  Runs the
 verifier rejects carry no soundness obligation.
 -/
-noncomputable def Event_Fail {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+noncomputable def Event_Fail {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL : Fin M) (T_p : Ω → EncTranscript M F)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
@@ -276,19 +281,19 @@ The two hand-binding conjuncts of `checkV` are now discharged by `input_row_bind
 rather than by two hand-specific pad constraints — that is, they follow from the single
 input row of `ZkCommon::input_constraint` acting on the committed witness columns.
 -/
-lemma extractor_soundness_bridge {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
-    {AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F}
+lemma extractor_soundness_bridge {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F}
     {accepts : Ω → Prop} {T_p : Ω → EncTranscript M F}
     {c : Circuit} {inp : Input} {w_ref : Witness}
-    {alpha beta : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
+    {alpha beta alpha_in : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
     {var_dwR var_dwL var_dwL_dwR : Fin M}
     {E_L : Ω → Option (AugmentedWitness M F Witness)} {eps_FSK : ℕ}
-    (lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta alpha_in q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_L eps_FSK)
     (ω : Ω) (w : Witness) (p : Pad M F) (hacc : accepts ω) (hE : E_L ω = some (w, p))
     (hab : ¬ InputBindingBad (true_evals AC inp w (T_p ω).challenges).1
         (true_evals AC inp w (T_p ω).challenges).2
-        ((T_p ω).wc0 + p var_dwL) ((T_p ω).wc1 + p var_dwR) (alpha ω)) :
+        ((T_p ω).wc0 + p var_dwL) ((T_p ω).wc1 + p var_dwR) (alpha_in ω)) :
     (run_transcript AC T_p var_dwR var_dwL ω inp w p).checkV
       (run_eqq AC c inp alpha beta q_challenge g0 g1 T_p ω) = true := by
   obtain ⟨hL, hR⟩ := input_row_binds_hands lig ω w p hacc hE hab
@@ -308,54 +313,61 @@ lemma extractor_soundness_bridge {nc nv nw ninp npub logv logw logc M : ℕ} {F 
 /--
 **The degenerate-randomness event.**
 
-The run's combination coefficient `alpha` collapses a non-zero output claim vector to zero
-(`ArithmetizedCircuit.Degenerate`).  On such a run the sumcheck starts from a claim that is
-*true*, so nothing can be concluded — this is the price of the `claim[0] + alpha * claim[1]`
-combination at `verifier_layers.h:L147`.
+`begin_layer` draws two challenges (`transcript_sumcheck.h:L54`): `alpha`, which combines the
+two inherited claims (`verifier_layers.h:L147`), and `beta`, which replaces the coefficient
+of every assert-zero gate (`prep_v`, `quad.h:L213`).  On an unlucky pair the honest claim
+`S(alpha, beta)` is *zero* even though the circuit is unsatisfied, so the sumcheck starts
+from a true claim and nothing can be concluded.
 
-This used to be the hypothesis `hgood : ¬ AC.degenerate ...` on the theorem's parameters.
-Now that `alpha` is a function of the run it is an event, and `alpha_bad_card` bounds it by
-a `1/|F|` fraction.
+This is a counted event, not a side condition.  `S` is a bilinear form in `(alpha, beta)`
+(`layer_claim_affine` and `layer_claim_affine_quad`), so `bilinear_zero_card`
+(`instantiate.lean`) bounds its zero set by `2·|F|` out of `|F|²` — a `2/|F|` fraction.
 -/
-noncomputable def Event_Degenerate {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+noncomputable def Event_Degenerate {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (accepts : Ω → Prop) (c : Circuit) (inp : Input) (alpha beta : Ω → F)
     (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
   Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧
-    AC.Degenerate c inp w (alpha ω) (beta ω) q_challenge g0 g1) Finset.univ
+    AC.Degenerate c inp w (alpha ω) (beta ω) q_challenge g0 g1
+      ∧ AC.eval c inp w = false) Finset.univ
 
 /--
 **The input-binding error event.**
 
 `Event_B` — the verifier accepted and the extractor succeeded, yet `checkV` fails — is
-contained in the event that the layer's random combination coefficient `alpha` is the one
-unlucky value that lets a mismatch through.
+contained in the event that the input-binding coefficient `alpha_in` is the one unlucky value
+that lets a mismatch through the single combined input row.
 
-This used to be `event_b_empty`, proved from an `alpha_good` field asserting that the
-unlucky value never occurs.  It is now a *counted* term: `alpha_bad_card` (`ligero.lean`)
-shows that when `alpha` is a fresh challenge at most a `1/|F|` fraction of runs land here.
+The challenge here is `alpha_in`, drawn *after every layer has closed*
+(`symbolic_sumcheck_verifier.rs:L247`), not the layer's own `alpha`.  That ordering is what
+makes the count work: by the time `alpha_in` is sampled, the transcript's `wc0`/`wc1` and the
+committed witness are already fixed, so the pair of quantities the row has to separate is a
+constant and `input_binding_bad_card` gives at most one bad draw.
+
+A counted term, not an assumption: `event_alpha_bad_card` (`instantiate.lean`) turns that into
+a `1/|F|` fraction of the sample space.
 -/
-noncomputable def Event_AlphaBad {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
-    (accepts : Ω → Prop) (inp : Input) (alpha : Ω → F) (var_dwR var_dwL : Fin M)
+noncomputable def Event_AlphaBad {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (inp : Input) (alpha_in : Ω → F) (var_dwR var_dwL : Fin M)
     (T_p : Ω → EncTranscript M F) (E_L : Ω → Option (AugmentedWitness M F Witness)) : Finset Ω :=
   Finset.filter (fun ω => accepts ω ∧ ∃ w pad, E_L ω = some (w, pad) ∧
     InputBindingBad (true_evals AC inp w (T_p ω).challenges).1
       (true_evals AC inp w (T_p ω).challenges).2
-      ((T_p ω).wc0 + pad var_dwL) ((T_p ω).wc1 + pad var_dwR) (alpha ω)) Finset.univ
+      ((T_p ω).wc0 + pad var_dwL) ((T_p ω).wc1 + pad var_dwR) (alpha_in ω)) Finset.univ
 
-lemma event_b_subset {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
-    {AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F}
+lemma event_b_subset {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F}
     {accepts : Ω → Prop} {T_p : Ω → EncTranscript M F}
     {c : Circuit} {inp : Input} {w_ref : Witness}
-    {alpha beta : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
+    {alpha beta alpha_in : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
     {var_dwR var_dwL var_dwL_dwR : Fin M}
     {E_L : Ω → Option (AugmentedWitness M F Witness)} {eps_FSK : ℕ}
-    (lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta alpha_in q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_L eps_FSK) :
     Event_B AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L
-      ⊆ Event_AlphaBad AC accepts inp alpha var_dwR var_dwL T_p E_L := by
+      ⊆ Event_AlphaBad AC accepts inp alpha_in var_dwR var_dwL T_p E_L := by
   intro ω hω
   dsimp [Event_B, Event_AlphaBad] at hω ⊢
   simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hω ⊢
@@ -367,22 +379,23 @@ lemma event_b_subset {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Fie
   contradiction
 
 /--
-`event_fail_subset` proves that the overall extractor failure event `Event_Fail` is a subset of
-the union of the three atomic failure events: `Event_A ∪ Event_B ∪ Event_C`.
+`Event_Fail` is contained in the union of the four atomic failure events,
+`Event_A ∪ Event_B ∪ Event_Degenerate ∪ Event_C`, by case analysis on what the extractor
+returned and what the decrypted transcript does:
 
-Case analysis:
-- If `E_L ω = none`: Belongs to `Event_A` (Ligero extraction failure).
-- If `E_L ω = some (w, pad)` and `Transcript.checkV = false`: Belongs to `Event_B`.
-- If `E_L ω = some (w, pad)` and `Transcript.checkV = true` with `eval = false`: `Event_C`.
+- `E_L ω = none` — Ligero extraction failed: `Event_A`.
+- `E_L ω = some (w, pad)` and `checkV = false`: `Event_B`.
+- `checkV = true` and the layer randomness is degenerate: `Event_Degenerate`.
+- `checkV = true`, randomness good, and the witness fails the circuit: `Event_C`.
 -/
-lemma event_fail_subset {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
-    {AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F}
+lemma event_fail_subset {nc nv ninp npub logv logw logc M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F}
     {accepts : Ω → Prop} {T_p : Ω → EncTranscript M F}
     {c : Circuit} (inp : Input) {w_ref : Witness}
-    {alpha beta : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
+    {alpha beta alpha_in : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
     {var_dwR var_dwL var_dwL_dwR : Fin M}
     {E_L : Ω → Option (AugmentedWitness M F Witness)} {eps_FSK : ℕ}
-    (_lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta q_challenge g0 g1
+    (_lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta alpha_in q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_L eps_FSK) :
     Event_Fail AC accepts c inp alpha beta q_challenge g0 g1 var_dwR var_dwL T_p E_L
       ⊆ Event_A accepts E_L
@@ -428,7 +441,7 @@ lemma event_fail_subset {nc nv nw ninp npub logv logw logc M : ℕ} {F : Type} [
         subst heq
         by_cases hdeg : AC.Degenerate c inp w' (alpha ω) (beta ω) q_challenge g0 g1
         · left; right
-          exact ⟨h_acc, w', pad, rfl, hdeg⟩
+          exact ⟨h_acc, w', pad, rfl, hdeg, hw2⟩
         · right
           exact ⟨h_acc, w', pad, rfl, hdeg, h_check, hw2⟩
 
@@ -443,13 +456,16 @@ This is the main theorem of the formalization.  Read precisely, it says:
 > is at most `eps_FSK + eps_bind + eps_deg + eps_sumcheck`.
 
 It is a *reduction*, not a self-contained knowledge-soundness proof: the four error terms
-are supplied by the caller.  `core_soundness_derived_eps` fills in the last of them.
+are supplied by the caller.  `core_soundness_derived_eps` fills in the sumcheck one, and
+`core_soundness_probability_ideal_fs` (`instantiate.lean`) discharges all but `eps_FSK`
+against a concrete sample space.
 
 Rather than reasoning about real-valued probabilities, this formalization counts "bad"
 outcomes in a finite sample space `Ω`; all bounds are set cardinalities (`event_card`),
 not probability measures.  The counts are **absolute** and never normalised by
 `Fintype.card Ω`, so the sum is only meaningful relative to `|Ω|`.  (The counting bounds in
 `sumcheck_soundness.lean` *are* normalised: `n * d * |F|^(n-1)` out of `|F|^n`.)
+`core_soundness_probability_ideal_fs` (`instantiate.lean`) is the normalised form.
 
 ### High-Level Proof Structure
 
@@ -469,60 +485,85 @@ not probability measures.  The counts are **absolute** and never normalised by
    - `|Event_B| ≤ eps_bind`: **reduced** (`event_b_subset`).  `extractor_soundness_bridge`
      shows that a pad satisfying the `builder_finalize` row plus the quadratic pad relation,
      and witness columns satisfying the input row of `ZkCommon::input_constraint`, force
-     `Transcript.checkV = true` — *unless* the run hits the single `alpha` that lets the
+     `Transcript.checkV = true` — *unless* the run hits the single `alpha_in` that lets the
      combined row hide a mismatch.  So `Event_B` sits inside `Event_AlphaBad`, which
-     `alpha_bad_card` bounds by a `1/|F|` fraction.
-   - `|Event_Degenerate| ≤ eps_deg`: the `alpha` of `claim[0] + alpha * claim[1]`
-     (`verifier_layers.h:L147`) collapsing a non-zero output claim vector.  `layer_claim_affine`
-     shows the honest claim is affine in `alpha`, so again at most one value is bad.
+     `event_alpha_bad_card` bounds by a `1/|F|` fraction.
+   - `|Event_Degenerate| ≤ eps_deg`: the two challenges `begin_layer` draws collapsing a
+     non-zero claim.  The honest claim is a bilinear form `S(alpha, beta)`
+     (`layer_claim_affine`, `layer_claim_affine_quad`), so `bilinear_zero_card` bounds its
+     zero set by `2·|F|` out of `|F|²`.
+
+### The three challenges
+
+A one-layer run draws three field elements, and the theorem keeps them apart:
+
+| | drawn | used by |
+|---|---|---|
+| `alpha` | `begin_layer`, before the layer's messages | combines the two inherited claims |
+| `beta` | `begin_layer`, alongside `alpha` | replaces the assert-zero coefficient (`prep_v`) |
+| `alpha_in` | `elt_field`, after every layer has closed | the single combined input-binding row |
+
+`alpha`/`beta` are the pair `Event_Degenerate` counts; `alpha_in` is the one `Event_AlphaBad`
+counts.  Reusing the layer's `alpha` for the input row would make the model
+strictly stronger than the protocol.  `instantiate.lean` samples them in that order, with the
+transcript a function of `(alpha, beta)` and the extractor's output a function of neither —
+matching `ZkProver::commit` running before the transcript exists.
    - `|Event_C| ≤ eps_sumcheck`: `lemma_sumcheck_soundness` reduces `Event_C` to
      `multi_round_bad_event` via `sumcheck_multi_reduction` (proved), and then takes the
      count from `IsSumcheckCorrelationIntractable.ci_bound` — which
-     `sumcheck_ci_of_nonadaptive` derives as `K * (n * d * |F|^(n-1))`.
+     `sumcheck_ci_of_nonadaptive` derives as `K * (n * d * |F|^(n-1))`, with `d = 2` itself
+     derived (`ArithmetizedCircuit.round_poly_natDegree_le_two`).
 
 4. **Final Bound**: `|Event_Fail| ≤ eps_FSK + eps_bind + eps_deg + eps_sumcheck`.
 
 ### What is assumed
 
-`IsLigeroKnowledgeSound` (Ligero as an ideal primitive, plus what its extractor returns and
-public-input consistency), `ArithmetizedCircuit.arith` (an unsatisfied circuit has a
-non-zero output claim vector — note this no longer mentions the layer randomness),
-`ArithmetizedCircuit.W_mle_is_mle` (definitional), `IsWellFormedTranscript.round_count`, and
-the four error bounds.  There is **no** non-degeneracy hypothesis: both randomness
-conditions are events, not side conditions.
+Three things, and nothing else:
+
+* `IsLigeroKnowledgeSound` — Ligero as an ideal primitive (`extraction_bound`) plus what its
+  extractor returns (`layer_constraint`, `input_row`).  This is the one irreducibly
+  cryptographic assumption.
+* `ArithmetizedCircuit.arith` — for an unsatisfied circuit the honest claim `S(alpha, beta)`
+  is not identically zero on `F × F`.  This is the correctness of the circuit compiler.
+* The three error bounds `h_bind`, `h_deg`, `ci`, which `instantiate.lean` discharges over a
+  concrete sample space.
+
+Everything else about the arithmetization is *data*: `Quad_mle` and `W_mle` are constructed
+as multilinear extensions of a gate table and of `pub ++ priv`, so their multilinearity,
+their affineness in `beta`, and public-input consistency are theorems.  `round_count` is a
+description of the verifier rather than an assumption.  There is **no** non-degeneracy
+hypothesis: both randomness conditions are counted events.
 
 ### Non-vacuity
 
-`example.lean` constructs a concrete instance over `ZMod 5` — one round, `eval` identically
-`false` — discharging every hypothesis, and shows there that `Event_Fail` is in fact
-non-empty and the bound is doing work.  Without such a witness this theorem would say
-nothing; an earlier version was vacuous on exactly this point.
+`example.lean` builds a concrete instance over `ZMod 5` — one round, `eval` identically
+`false`, verifier accepting — discharging every hypothesis.  There `Event_Fail` is the whole
+sample space and the bound is tight, and `eps_sumcheck_forced` shows the sumcheck term
+cannot be `0`.  Without such a witness this theorem would say nothing.
 
 ### What this theorem does *not* establish
 
-* **A single layer.**  `verifier_layers.h::layers` runs `nl` layers.  `layers.lean` proves
-  the layer-to-layer reduction and the induction over all of them, but this theorem still
-  joins the Ligero pad machinery to *one* layer's sumcheck.
-* **Instantiated error terms.**  `eps_FSK`, `eps_bind` and `eps_deg` are parameters; nothing
-  here exhibits an `Ω` for which `alpha_bad_card` discharges the last two.
-* **Zero-knowledge.**  Only soundness is addressed; the pad is a vector the extractor
-  produces, not a distribution.
+* **A single layer.**  `verifier_layers.h::layers` runs `nl` layers; this theorem joins the
+  Ligero pad machinery to *one* of them.  `multi_layer_core_soundness` (`zk_soundness.lean`)
+  is the multi-layer statement, and `example.lean` witnesses it too.
+* **Zero-knowledge.**  Only soundness; the pad is a vector the extractor produces, not a
+  distribution.
 * **Copy rounds.**  `RoundPoly` matches `WPoly = Poly<3, Field>` (degree 2), which is what
   the ZK path uses.  The non-ZK `VerifierLayers::layer_c` uses `CPoly = Poly<4, Field>`.
 * **Challenge ordering.**  `extract_vars` treats the two hands as contiguous blocks, while
   the implementation interleaves them (`for (round) for (hand)`).
 -/
-theorem core_soundness_theorem {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq (Fin M)] [DecidableEq F] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+theorem core_soundness_theorem {nc nv ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq (Fin M)] [DecidableEq F] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (accepts : Ω → Prop) (C : Circuit) (x : Input) (w_ref : Witness)
-    (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (alpha beta alpha_in : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL var_dwL_dwR : Fin M)
     (T_prime : Ω → EncTranscript M F) (E_Ligero : Ω → Option (AugmentedWitness M F Witness))
     (hpos : 0 < logc + 2 * logw)
-    (lig : IsLigeroKnowledgeSound AC accepts T_prime C x w_ref alpha beta q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_prime C x w_ref alpha beta alpha_in q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_Ligero eps_FSK)
     (eps_bind eps_deg : ℕ)
-    (h_bind : event_card (Event_AlphaBad AC accepts x alpha var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind)
+    (h_bind : event_card (Event_AlphaBad AC accepts x alpha_in var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind)
     (h_deg : event_card (Event_Degenerate AC accepts C x alpha beta q_challenge g0 g1 E_Ligero) ≤ eps_deg)
     (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts T_prime)
     (ci : IsSumcheckCorrelationIntractable AC accepts T_prime var_dwR var_dwL C x E_Ligero alpha beta q_challenge g0 g1 eps_sumcheck) :
@@ -547,39 +588,48 @@ theorem core_soundness_theorem {nc nv nw ninp npub logv logw logc : ℕ} {M : �
 **Core soundness with `eps_sumcheck` derived.**
 
 Same statement as `core_soundness_theorem`, except the sumcheck error term is no longer a
-hypothesis: it is `K * (n * d * |F|^(n-1))`, produced by `sumcheck_ci_of_nonadaptive` from
+hypothesis: it is `K * (|S| * n * d * |F|^(n-1))`, produced by `sumcheck_ci_of_nonadaptive`
+from
 
 * `combinatorial_fiat_shamir` — a root count, no random oracle and no probability space;
 * `IsNonAdaptiveRun` — the structural Fiat–Shamir property that round `i`'s polynomial is
   fixed before challenge `i` is drawn from it;
-* `K` — how many runs the hash can send to a single challenge sequence.
+* `K` — how many runs the hash can send to a single (pre-state, challenge sequence) pair;
+* `|S|` — the number of pre-challenge states, which cancels against `|Ω|` exactly as `K` does.
 
 Out of the `|F|^n` challenge sequences, `n * d * |F|^(n-1)` is a `n * d / |F|` fraction:
-the textbook sumcheck soundness error, here as an exact count.
+the textbook sumcheck soundness error, here as an exact count.  `d` need not be supplied
+either — `fsOfArithmetized` builds the bundle at the derived `d = 2` — and `K` cancels
+against `|Ω|` once the challenge sequence is a coordinate of the sample space
+(`instantiate.lean`).
 -/
-theorem core_soundness_derived_eps {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq (Fin M)] [DecidableEq F] [SumcheckInterp F]
-    {n d : ℕ}
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
-    (fs : IsFiatShamirTranscript F n d)
+theorem core_soundness_derived_eps {nc nv ninp npub logv logw logc : ℕ} {M : ℕ} {S F : Type}
+    [Fintype S] [DecidableEq S] [Field F] [Fintype F] [DecidableEq (Fin M)] [DecidableEq F]
+    [SumcheckInterp F] {n d : ℕ}
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (fam : IsFiatShamirFamily S F n d)
     (accepts : Ω → Prop) (C : Circuit) (x : Input) (w_ref : Witness)
-    (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (alpha beta alpha_in : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL var_dwL_dwR : Fin M)
     (T_prime : Ω → EncTranscript M F) (E_Ligero : Ω → Option (AugmentedWitness M F Witness))
-    (challenge_map : Ω → (Fin n → F)) (K : ℕ)
-    (h_unif : ∀ cs : Fin n → F, (Finset.filter (fun ω => challenge_map ω = cs) Finset.univ).card ≤ K)
-    (na : IsNonAdaptiveRun AC fs accepts T_prime var_dwR var_dwL C x E_Ligero alpha beta q_challenge g0 g1 challenge_map)
+    (state : Ω → S) (challenge_map : Ω → (Fin n → F)) (K : ℕ)
+    (h_unif : ∀ (s : S) (cs : Fin n → F),
+      (Finset.filter (fun ω => state ω = s ∧ challenge_map ω = cs) Finset.univ).card ≤ K)
+    (na : IsNonAdaptiveRun AC fam accepts T_prime var_dwR var_dwL C x E_Ligero alpha beta
+      q_challenge g0 g1 state challenge_map)
     (hpos : 0 < logc + 2 * logw)
-    (lig : IsLigeroKnowledgeSound AC accepts T_prime C x w_ref alpha beta q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_prime C x w_ref alpha beta alpha_in q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_Ligero eps_FSK)
     (eps_bind eps_deg : ℕ)
-    (h_bind : event_card (Event_AlphaBad AC accepts x alpha var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind)
+    (h_bind : event_card (Event_AlphaBad AC accepts x alpha_in var_dwR var_dwL T_prime E_Ligero) ≤ eps_bind)
     (h_deg : event_card (Event_Degenerate AC accepts C x alpha beta q_challenge g0 g1 E_Ligero) ≤ eps_deg)
     (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts T_prime) :
     event_card (Event_Fail AC accepts C x alpha beta q_challenge g0 g1 var_dwR var_dwL T_prime E_Ligero)
-      ≤ eps_FSK + eps_bind + eps_deg + K * (n * d * (Fintype.card F) ^ (n - 1)) :=
+      ≤ eps_FSK + eps_bind + eps_deg
+          + K * (Fintype.card S * (n * d * (Fintype.card F) ^ (n - 1))) :=
   core_soundness_theorem (eps_FSK := eps_FSK)
-    (eps_sumcheck := K * (n * d * (Fintype.card F) ^ (n - 1)))
-    AC accepts C x w_ref alpha beta q_challenge g0 g1
+    (eps_sumcheck := K * (Fintype.card S * (n * d * (Fintype.card F) ^ (n - 1))))
+    AC accepts C x w_ref alpha beta alpha_in q_challenge g0 g1
     var_dwR var_dwL var_dwL_dwR T_prime E_Ligero hpos lig eps_bind eps_deg h_bind h_deg wf
-    (sumcheck_ci_of_nonadaptive AC fs accepts T_prime var_dwR var_dwL C x E_Ligero
-      alpha beta q_challenge g0 g1 challenge_map K h_unif na)
+    (sumcheck_ci_of_nonadaptive AC fam accepts T_prime var_dwR var_dwL C x E_Ligero
+      alpha beta q_challenge g0 g1 state challenge_map K h_unif na)

@@ -119,8 +119,8 @@ wires nor can alter them.
 
 /-- The verifier's `pub_binding`, as the code computes it: the public part of the weighted
 input sum, from data the verifier already has (`zk_common.h:L414-L418`). -/
-noncomputable def pubBinding {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+noncomputable def pubBinding {nc nv ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (inp : Input) (w_ref : Witness) (alpha : F) (chal : List F) : F :=
   ∑ i ∈ Finset.univ \ privIdx ninp npub,
     input_row_coeffs (logw := logw) (logc := logc) (ninp := ninp) alpha chal i
@@ -133,8 +133,8 @@ The verifier's `pub_binding` agrees with *whatever* witness the extractor return
 the public half of the wire vector does not mention the witness.  This is what
 `input_row_soundness` needs as `h_pub`, and it is now a theorem with no hypotheses.
 -/
-lemma pub_consistent_of_indep {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
-    {AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F}
+lemma pub_consistent_of_indep {nc nv ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F}
     (inp : Input) (w_ref w : Witness) (alpha : F) (chal : List F) :
     pubBinding AC inp w_ref alpha chal
       = ∑ i ∈ Finset.univ \ privIdx ninp npub,
@@ -154,8 +154,8 @@ committed columns *is* the `alpha`-combination of the two honest multilinear eva
 This is the step that converts a statement about committed wires into a statement about
 `W_mle`, i.e. about the quantity the final layer identity is written in.
 -/
-lemma input_row_coeffs_give_mle {nc nv nw ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+lemma input_row_coeffs_give_mle {nc nv ninp npub logv logw logc : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (inp : Input) (w : Witness) (copy : Vector F logc) (l r : Vector F logw) (alpha : F) :
     (∑ i : Fin ninp, (eq_mle_basis i.val l + alpha * eq_mle_basis i.val r) * AC.W_col inp w copy i)
       = AC.W_mle inp w l copy + alpha * AC.W_mle inp w r copy := by
@@ -198,12 +198,28 @@ Fields:
 * `input_row` — the extracted **witness columns and pad** satisfy the single input
   binding row of `ZkCommon::input_constraint` (`zk_common.h:L406`).
 
+### Three challenges, not two
+
+`alpha` and `beta` are the *layer* challenges, drawn together by `begin_layer` before any of
+the layer's messages (`transcript.rs:L106`, `zk_common.h:L80`).  `alpha_in` is a **separate,
+fresh** challenge drawn after every layer has closed —
+`let alpha = transcript.elt_field(f)` in `symbolic_sumcheck_verifier_core`
+(`symbolic_sumcheck_verifier.rs:L247`, `zk_common.h:L129`) — and it is the one the input row
+uses, in all four places: the coefficients `b_i = eq0_i + alpha_in * eq1_i`, the `pub_binding`
+constant folded from the verifier's own public input, the combined claim
+`got = wc0 + alpha_in * wc1`, and the coefficient of the second claim pad.
+
+Keeping `alpha` and `alpha_in` distinct is what keeps the model faithful: one shared draw
+would let the layer relation and the input binding fail together, which is not something a
+prover can arrange.
+
 The public wires are never committed, so the extractor cannot touch them.  `pub_binding` is
 *defined* as `pubBinding`, and the agreement with the extracted columns is the unconditional
 theorem `pub_consistent_of_indep`.
 
-The layer challenges are not assumed lucky: `eps_bind` and `eps_deg` in
-`core_soundness_theorem` are counted error terms, worth `1/|F|` and `2/|F|`.
+None of the three challenges is assumed lucky: `eps_bind` (the `alpha_in` collision) and
+`eps_deg` (the layer pair collapsing the claim) are counted error terms in
+`core_soundness_theorem`, worth `1/|F|` and `2/|F|`.
 
 The bundle used to carry a sixth field, `accepted_sumcheck`, asserting that on an accepted
 run the sumcheck rounds close on the decrypted expression `e(pad)`.  That was the whole
@@ -212,12 +228,12 @@ link between the Ligero constraint system and the sumcheck.  It is now the theor
 `ConstraintBuilder::first`/`next`: the ZK verifier *substitutes* `p(1) = claim - p(0)`
 rather than checking it, so every round check passes by construction.
 -/
-structure IsLigeroKnowledgeSound {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
+structure IsLigeroKnowledgeSound {nc nv ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
     (accepts : Ω → Prop)
     (T_p : Ω → EncTranscript M F)
     (c : Circuit) (inp : Input) (w_ref : Witness)
-    (alpha beta : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (alpha beta alpha_in : Ω → F) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL var_dwL_dwR : Fin M)
     (E_L : Ω → Option (AugmentedWitness M F Witness))
     (eps_FSK : ℕ) : Prop where
@@ -232,50 +248,55 @@ structure IsLigeroKnowledgeSound {nc nv nw ninp npub logv logw logc : ℕ} {M : 
     accepts ω → E_L ω = some (w, p) →
     ligero_input_row npub
       (AC.W_col inp w (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).1) p
-      (input_row_coeffs (logw := logw) (logc := logc) (ninp := ninp) (alpha ω) (T_p ω).challenges)
-      (pubBinding AC inp w_ref (alpha ω) (T_p ω).challenges)
-      ((T_p ω).wc0 + alpha ω * (T_p ω).wc1) (alpha ω) var_dwL var_dwR
+      (input_row_coeffs (logw := logw) (logc := logc) (ninp := ninp) (alpha_in ω) (T_p ω).challenges)
+      (pubBinding AC inp w_ref (alpha_in ω) (T_p ω).challenges)
+      ((T_p ω).wc0 + alpha_in ω * (T_p ω).wc1) (alpha_in ω) var_dwL var_dwR
 
 
 /--
 **The witness binding, derived.**
 
-From the input row (plus public-input consistency and a non-degenerate `alpha`), the
+From the input row (plus public-input consistency and a non-degenerate `alpha_in`), the
 prover's *claimed* hand evaluations `W_hat + dW` equal the *honest* multilinear evaluations
 of the extracted witness at the transcript's own hand challenge points.
 
+The separating challenge is `alpha_in`, the fresh one drawn after all layers, not the layer's
+own `alpha`.  This is what makes the `1/|F|` bound on `Event_AlphaBad` legitimate: at the
+moment `alpha_in` is drawn, the transcript and the committed witness are already fixed, so the
+two quantities it has to separate are constants and at most one draw is bad.
+
 This is the fact that used to be assumed as `IsBoundTranscript.final_binding`.
 -/
-theorem input_row_binds_hands {nc nv nw ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
-    {AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F}
+theorem input_row_binds_hands {nc nv ninp npub logv logw logc : ℕ} {M : ℕ} {F : Type} [Field F] [Fintype F] [DecidableEq F] [DecidableEq (Fin M)] [SumcheckInterp F]
+    {AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F}
     {accepts : Ω → Prop} {T_p : Ω → EncTranscript M F}
     {c : Circuit} {inp : Input} {w_ref : Witness}
-    {alpha beta : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
+    {alpha beta alpha_in : Ω → F} {q_challenge : Vector F logc} {g0 g1 : Vector F logv}
     {var_dwR var_dwL var_dwL_dwR : Fin M}
     {E_L : Ω → Option (AugmentedWitness M F Witness)} {eps_FSK : ℕ}
-    (lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta q_challenge g0 g1
+    (lig : IsLigeroKnowledgeSound AC accepts T_p c inp w_ref alpha beta alpha_in q_challenge g0 g1
              var_dwR var_dwL var_dwL_dwR E_L eps_FSK)
     (ω : Ω) (w : Witness) (p : Pad M F) (hacc : accepts ω) (hE : E_L ω = some (w, p))
     (hab : ¬ InputBindingBad (true_evals AC inp w (T_p ω).challenges).1
         (true_evals AC inp w (T_p ω).challenges).2
-        ((T_p ω).wc0 + p var_dwL) ((T_p ω).wc1 + p var_dwR) (alpha ω)) :
+        ((T_p ω).wc0 + p var_dwL) ((T_p ω).wc1 + p var_dwR) (alpha_in ω)) :
     (true_evals AC inp w (T_p ω).challenges).1 = (T_p ω).wc0 + p var_dwL ∧
     (true_evals AC inp w (T_p ω).challenges).2 = (T_p ω).wc1 + p var_dwR := by
   -- the row forces the full weighted column sum
   have h_sum := input_row_soundness npub
       (AC.W_col inp w (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).1) p
-      (input_row_coeffs (logw := logw) (logc := logc) (ninp := ninp) (alpha ω) (T_p ω).challenges)
-      (pubBinding AC inp w_ref (alpha ω) (T_p ω).challenges)
-      ((T_p ω).wc0 + alpha ω * (T_p ω).wc1) (alpha ω) var_dwL var_dwR
+      (input_row_coeffs (logw := logw) (logc := logc) (ninp := ninp) (alpha_in ω) (T_p ω).challenges)
+      (pubBinding AC inp w_ref (alpha_in ω) (T_p ω).challenges)
+      ((T_p ω).wc0 + alpha_in ω * (T_p ω).wc1) (alpha_in ω) var_dwL var_dwR
       (pub_consistent_of_indep inp w_ref w _ _) (lig.input_row ω w p hacc hE)
-  -- and the weighted column sum is the alpha-combination of the honest MLE evaluations
+  -- and the weighted column sum is the alpha_in-combination of the honest MLE evaluations
   have h_mle := input_row_coeffs_give_mle AC inp w
       (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).1
       (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).2.1
-      (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).2.2 (alpha ω)
+      (challenge_split (logw := logw) (logc := logc) (T_p ω).challenges).2.2 (alpha_in ω)
   simp only [input_row_coeffs] at h_sum
   rw [h_mle] at h_sum
   -- separate the two hands
-  refine alpha_separates _ _ _ _ (alpha ω) hab ?_
-  show AC.W_mle inp w _ _ + alpha ω * AC.W_mle inp w _ _ = _
+  refine alpha_separates _ _ _ _ (alpha_in ω) hab ?_
+  show AC.W_mle inp w _ _ + alpha_in ω * AC.W_mle inp w _ _ = _
   linear_combination h_sum

@@ -22,6 +22,15 @@ The verifier executes two checks per round:
 2. **Challenge Evaluation**: Samples challenge $r_k \leftarrow \mathbb{F}$ and updates claim $C_k = p_k(r_k)$.
    - **Code Reference**: `verifier_layers.h:L95` (`*claim = tp.eval_lagrange(ch->cb[round], F)`)
 
+### Completeness
+
+`sumcheck_multi_completeness` is the other direction, and the hiding side needs it: an honest
+prover starting from the true claim is *accepted*, and the claim the verifier ends on is the
+last true polynomial at its own challenge.  It needs no degree bound and no field-size
+condition — only that the transmitted triples agree with the true polynomials where the
+verifier looks.  `RoundPoly.eval_lagrange_eq_of_agree` is the companion fact that agreement at
+`0`, `1`, `pt2` forces agreement everywhere.
+
 ### Mathematical Soundness Guarantee:
 If the input claim $C_{k-1}$ is false (i.e. $C_{k-1} \neq \sum_{x \in \{0,1\}} P_k(x)$), then:
 - Either the prover fails Check 1 ($p_k(0) + p_k(1) \neq C_{k-1}$), leading to immediate rejection.
@@ -330,6 +339,139 @@ theorem sumcheck_multi_reduction {F : Type} [Field F] [DecidableEq F] [SumcheckI
                     right
                     exact h_right
 
+
+/-!
+## The other direction: completeness
+
+`sumcheck_multi_reduction` is the soundness half — if the verifier accepts a *false* claim then
+some round was lucky.  Nothing so far says the verifier accepts an *honest* run at all, and the
+hiding side needs exactly that: `HonestFinalClaim` (`zk_sim.lean`) asks what claim the rounds
+close on when the prover is honest.
+
+`HonestRounds` says the transmitted triples agree with the true polynomials where the verifier
+looks: at `0`, at `1`, and at the round's own challenge.  Under it the round checks pass by
+`check_round_c`'s test and the chain telescopes down to `get_last_eval`.
+-/
+
+/-- The transmitted round polynomials agree with the true ones at the three points the
+verifier reads: `0`, `1`, and the challenge.  This is the negation of `BadRoundEvent`'s first
+conjunct, round by round, plus agreement at the challenge. -/
+def HonestRounds {F : Type} [Field F] [SumcheckInterp F] :
+    List (Polynomial F) → List (RoundPoly F) → List F → Prop
+  | (P :: Ps), (p :: ps), (r :: rs) =>
+      (p.eval0 = P.eval 0 ∧ p.eval1 = P.eval 1 ∧ p.eval_lagrange r = P.eval r)
+        ∧ HonestRounds Ps ps rs
+  | [], [], [] => True
+  | _, _, _ => False
+
+/--
+**Sumcheck completeness, multi-round.**
+
+An honest prover starting from the true claim is accepted, and the claim the verifier ends on
+is the last true polynomial at its own challenge — `get_last_eval`.
+
+The two hypotheses are exactly the honest prover's own properties: `hcons` is
+`consistent_generate` (each true polynomial's hypercube sum is the previous one's value at the
+challenge) and `hstart` says the run starts from the true claim.  Note that no degree bound and
+no field-size condition appear: completeness is unconditional.
+-/
+theorem sumcheck_multi_completeness {F : Type} [Field F] [DecidableEq F] [SumcheckInterp F] :
+    ∀ (P_trues : List (Polynomial F)) (polys : List (RoundPoly F)) (challenges : List F)
+      (claim_in : F),
+      HonestRounds P_trues polys challenges →
+      consistent_true_polys P_trues challenges →
+      polys ≠ [] →
+      claim_in = P_trues.head!.eval 0 + P_trues.head!.eval 1 →
+      verify_multi_round claim_in polys challenges = get_last_eval P_trues challenges := by
+  intro P_trues
+  induction P_trues with
+  | nil => intro polys challenges claim_in hh _ _ _; cases polys <;> cases challenges <;> simp_all [HonestRounds]
+  | cons P Pt ih =>
+    intro polys challenges claim_in hh hcons _ hstart
+    cases polys with
+    | nil => exact absurd hh (by simp [HonestRounds])
+    | cons p pt =>
+      cases challenges with
+      | nil => exact absurd hh (by simp [HonestRounds])
+      | cons r rt =>
+        obtain ⟨⟨h0, h1, hr⟩, hrest⟩ := hh
+        -- the round check passes: the transmitted `p(0) + p(1)` is the incoming claim
+        have hcheck : check_round_c claim_in p r = some (p.eval_lagrange r) := by
+          rw [check_round_c, if_pos]
+          simp only [beq_iff_eq, h0, h1]
+          simpa using hstart.symm
+        rw [verify_multi_round, hcheck, hr]
+        cases pt with
+        | nil =>
+          -- one round left: `Pt` and `rt` are empty too, and the chain ends here
+          cases Pt with
+          | nil => cases rt with
+            | nil => rfl
+            | cons _ _ => exact absurd hrest (by simp [HonestRounds])
+          | cons _ _ => exact absurd hrest (by simp [HonestRounds])
+        | cons p' pt' =>
+          cases Pt with
+          | nil => exact absurd hrest (by simp [HonestRounds])
+          | cons P' Pt' =>
+            cases rt with
+            | nil => exact absurd hrest (by simp [HonestRounds])
+            | cons r' rt' =>
+              -- the next claim is the true one, by `consistent_true_polys`
+              rw [consistent_true_polys] at hcons
+              -- with two or more rounds left, `get_last_eval` just drops the head
+              have hgle : get_last_eval (P :: P' :: Pt') (r :: r' :: rt')
+                  = get_last_eval (P' :: Pt') (r' :: rt') := rfl
+              rw [hgle]
+              exact ih (p' :: pt') (r' :: rt') (P.eval r) hrest hcons.2 (by simp)
+                (by simpa using hcons.1.symm)
+
+/--
+**A `WPoly` determines the round polynomial.**
+
+The transmitted triple is the degree-`≤2` interpolant through `0`, `1`, `pt2`.  If a
+polynomial of degree `≤ 2` agrees with the triple at those three points, `eval_lagrange`
+reproduces it *everywhere*: the difference has degree `≤ 2` and three distinct roots, so it is
+zero.
+
+This is the converse of the soundness direction.  `univariate_roots_bound` counts how often a
+*disagreeing* triple can still hit the true value at the challenge; this says an *agreeing*
+triple hits it at every challenge, which is what an honest prover needs.
+-/
+lemma RoundPoly.eval_lagrange_eq_of_agree (poly : RoundPoly F) (P : Polynomial F)
+    (hdeg : P.natDegree ≤ 2) (h0 : poly.eval0 = P.eval 0) (h1 : poly.eval1 = P.eval 1)
+    (h2 : poly.eval2 = P.eval (pt2 : F)) (r : F) :
+    poly.eval_lagrange r = P.eval r := by
+  classical
+  have key : poly.toPoly = P := by
+    by_contra hne
+    have hQ0 : poly.toPoly - P ≠ 0 := sub_ne_zero.mpr hne
+    have hQdeg : (poly.toPoly - P).natDegree ≤ 2 :=
+      le_trans (Polynomial.natDegree_sub_le _ _) (max_le poly.toPoly_natDegree hdeg)
+    have hsub : ({0, 1, (pt2 : F)} : Finset F) ⊆ (poly.toPoly - P).roots.toFinset := by
+      intro x hx
+      simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+      have hroot : ∀ y : F, poly.eval_lagrange y = P.eval y →
+          x = y → (poly.toPoly - P).IsRoot x := by
+        rintro y hy rfl
+        show Polynomial.eval x (poly.toPoly - P) = 0
+        rw [Polynomial.eval_sub, RoundPoly.eval_toPoly, hy, sub_self]
+      have : (poly.toPoly - P).IsRoot x := by
+        rcases hx with rfl | rfl | rfl
+        · exact hroot 0 (by rw [RoundPoly.eval_lagrange_zero, h0]) rfl
+        · exact hroot 1 (by rw [RoundPoly.eval_lagrange_one, h1]) rfl
+        · exact hroot (pt2 : F) (by rw [RoundPoly.eval_lagrange_pt2, h2]) rfl
+      simpa [Multiset.mem_toFinset, Polynomial.mem_roots hQ0] using this
+    have hcard : ({0, 1, (pt2 : F)} : Finset F).card = 3 := by
+      have hp0 : (pt2 : F) ≠ 0 := SumcheckInterp.pt2_ne_zero
+      have hp1 : (pt2 : F) ≠ 1 := SumcheckInterp.pt2_ne_one
+      rw [Finset.card_insert_of_notMem (by simp [hp0.symm, (zero_ne_one : (0:F) ≠ 1)]),
+          Finset.card_insert_of_notMem (by simp [hp1.symm]), Finset.card_singleton]
+    have hle := Finset.card_le_card hsub
+    have hr2 : (poly.toPoly - P).roots.toFinset.card ≤ 2 :=
+      le_trans (poly.toPoly - P).roots.toFinset_card_le
+        (le_trans (Polynomial.card_roots' _) hQdeg)
+    omega
+  rw [← RoundPoly.eval_toPoly, key]
 
 omit [DecidableEq F] in
 /-- A round polynomial that disagrees with `P_true_poly` at `0` or at `1` is a different

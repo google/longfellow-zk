@@ -46,7 +46,12 @@ One layer of a ZK proof.
 * `rounds` — the `ConstraintBuilder` rounds (`LayerProof::hp` plus the pad indices of the
   blinders).
 * `wc0`, `wc1` — the masked witness evaluations `W_hat[L,C]`, `W_hat[R,C]` (`LayerProof::wc`).
-* `alpha` — the coefficient of the claim combination (`LayerChallenge::alpha`).
+* `alpha` — the first of the pair `begin_layer` draws before any of the layer's messages
+  (`let (alpha, beta) = transcript.begin_layer(f)`,
+  `rust/runtime/zk/src/symbolic_sumcheck_verifier.rs:L73`); it combines the two inherited
+  claims.  The second, `beta`, is *not* stored here: it is `betas ly` of the run's beta
+  schedule, since it is a challenge indexed by layer rather than data the prover supplies.
+  It reaches the verifier's arithmetic through `bind_quad`'s call to `HQuad::bind_g`.
 * `dwL`, `dwR`, `dwLR` — this layer's claim pads `CLAIM_PAD[layer]`, i.e.
   `ovp_claim_pad(0)`, `(1)`, `(2)` (`zk_common.h:L246`).  The next layer's `first` reads
   `dwL` and `dwR`; `dwLR` carries the quadratic relation `dW[L]·dW[R]`.
@@ -98,52 +103,48 @@ lemma ZkLayer.first_matches_next_state {logw logc : ℕ}
   rfl
 
 /--
-The Ligero rows of one layer, expressed against the sumcheck state it is used at.
+The Ligero rows of one layer, at **the expression the verifier actually builds**.
 
-The existential is `ConstraintBuilder`'s starting expression: for layer 0 it is
-`Expression.zero` and the incoming claim is `0` (`finalize` starts at `ovp_poly_pad(0,0)`
-when `ly == 0`, `zk_common.h:L389`); for inner layers it is `builder_first` on the previous
-layer's `wc`s and claim pads, and `ZkLayer.first_matches_next_state` shows its value is
-exactly the claim the previous layer handed on.
-
-The second conjunct is the `builder_finalize` row plus the quadratic pad relation.
+`e` is a parameter rather than an existential.  That matters: an existential would admit rows
+no verifier could construct.  `ZkRowsHold` below supplies the real one — `Expression.zero` at
+layer 0, matching `claims_state.claim = [zero, zero]`
+(`symbolic_sumcheck_verifier.rs`), and `builder_first` on the previous layer's `wc`s and claim
+pads at an interior layer, matching `claim.axpy(claim[0], 1); claim.axpy(claim[1], alpha)`.
 -/
 def ZkLayerRow {nc nv logw logc : ℕ}
-    (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F)
-    (ly : ℕ) (st : LayerState logw logc F) (zl : ZkLayer M F) : Prop :=
-  ∃ e : Expression M F,
-    evaluates_to e pad = st.claim0 + zl.alpha * st.claim1 ∧
-    ligero_layer_checks (builder_run e zl.rounds) pad
-      (LC.eqq ly st (zl.toLayerData (logw := logw) (logc := logc) pad
-        (st.claim0 + zl.alpha * st.claim1)))
-      zl.wc0 zl.wc1 zl.dwL zl.dwR zl.dwLR
+    (LC : LayeredCircuit Witness nc nv logw logc F) (betas : ℕ → F) (pad : Pad M F)
+    (ly : ℕ) (st : LayerState logw logc F) (zl : ZkLayer M F) (e : Expression M F) : Prop :=
+  evaluates_to e pad = st.claim0 + zl.alpha * st.claim1 ∧
+  ligero_layer_checks (builder_run e zl.rounds) pad
+    (LC.eqq betas ly st (zl.toLayerData (logw := logw) (logc := logc) pad
+      (st.claim0 + zl.alpha * st.claim1)))
+    zl.wc0 zl.wc1 zl.dwL zl.dwR zl.dwLR
 
-/--
-**One ZK layer drives one sumcheck layer.**
+/-- The starting expression of a layer: `Expression.zero` for the first layer, and the
+previous layer's claims combined with this layer's `alpha` otherwise. -/
+noncomputable def zkExpr (prev : Option (ZkLayer M F)) (alpha : F) : Expression M F :=
+  match prev with
+  | none => Expression.zero M F
+  | some p => builder_first alpha p.wc0 p.wc1 p.dwL p.dwR
 
-Given the builder rounds and the `finalize` row, the sumcheck verifier of `layers.lean`
-accepts this layer and moves to the reduced state.  No assumption is needed beyond the two
-Ligero rows: the round checks pass by construction (`builder_run_verifies`) and the final
-identity is exactly what the row forces (`layer_checks_imply_sumcheck`).
--/
+/-- **One layer of a ZK proof drives `verify_layer` to accept.**  The round checks pass by
+construction (`builder_run_verifies`) and the final identity is what `finalize` forces. -/
 theorem zk_layer_verifies {nc nv logw logc : ℕ}
-    (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F)
-    (ly : ℕ) (st : LayerState logw logc F) (zl : ZkLayer M F)
-    (h : ZkLayerRow LC pad ly st zl) :
-    verify_layer LC ly st (zl.toLayerData (logw := logw) (logc := logc) pad
+    (LC : LayeredCircuit Witness nc nv logw logc F) (betas : ℕ → F) (pad : Pad M F)
+    (ly : ℕ) (st : LayerState logw logc F) (zl : ZkLayer M F) (e : Expression M F)
+    (h : ZkLayerRow LC betas pad ly st zl e) :
+    verify_layer LC betas ly st (zl.toLayerData (logw := logw) (logc := logc) pad
         (st.claim0 + zl.alpha * st.claim1))
       = some (next_state (zl.toLayerData (logw := logw) (logc := logc) pad
         (st.claim0 + zl.alpha * st.claim1))) := by
   set ld := zl.toLayerData (logw := logw) (logc := logc) pad (st.claim0 + zl.alpha * st.claim1)
     with hld
-  obtain ⟨e, he, hrowIn⟩ := h
-  refine (verify_layer_some_iff LC ly st _ ld).mpr ⟨rfl, ?_⟩
-  -- the rounds close on the builder's final expression
+  obtain ⟨he, hrowIn⟩ := h
+  refine (verify_layer_some_iff LC betas ly st _ ld).mpr ⟨rfl, ?_⟩
   have hrun := builder_run_verifies pad zl.rounds e
   rw [he] at hrun
-  -- and the `finalize` row says that expression is `EQQ * W[L,C] * W[R,C]`
   have hrow := layer_checks_imply_sumcheck (builder_run e zl.rounds) pad
-    (LC.eqq ly st ld) zl.wc0 zl.wc1 zl.dwL zl.dwR zl.dwLR hrowIn
+    (LC.eqq betas ly st ld) zl.wc0 zl.wc1 zl.dwL zl.dwR zl.dwLR hrowIn
   have hld_eq : ld.alpha = zl.alpha := rfl
   have hpolys : ld.polys = run_polys pad (st.claim0 + zl.alpha * st.claim1) zl.rounds := rfl
   have hchal : ld.challenges = run_challenges zl.rounds := rfl
@@ -177,15 +178,38 @@ omit [Fintype F] [DecidableEq F] in
   | nil => rfl
   | cons zl rest ih => simp [zkLayerDatas, ih]
 
-/-- The Ligero rows of every layer of a run, threaded through the state the same way. -/
 noncomputable def ZkRowsHold {nc nv logw logc : ℕ}
-    (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F) :
-    ℕ → LayerState logw logc F → List (ZkLayer M F) → Prop
-  | _, _, [] => True
-  | ly, st, zl :: rest =>
-      ZkLayerRow LC pad ly st zl ∧
-        ZkRowsHold LC pad (ly + 1)
-          (next_state (zl.toLayerData pad (st.claim0 + zl.alpha * st.claim1))) rest
+    (LC : LayeredCircuit Witness nc nv logw logc F) (betas : ℕ → F) (pad : Pad M F) :
+    ℕ → LayerState logw logc F → Option (ZkLayer M F) → List (ZkLayer M F) → Prop
+  | _, _, _, [] => True
+  | ly, st, prev, zl :: rest =>
+      ZkLayerRow LC betas pad ly st zl (zkExpr prev zl.alpha) ∧
+        ZkRowsHold LC betas pad (ly + 1)
+          (next_state (zl.toLayerData pad (st.claim0 + zl.alpha * st.claim1))) (some zl) rest
+
+omit [Fintype F] [DecidableEq F] in
+/--
+**At an interior layer the claim conjunct is free.**
+
+`ZkLayer.first_matches_next_state` says the value of `builder_first` on the previous layer's
+data *is* the claim `next_state` handed on.  So for every layer after the first, the first
+conjunct of `ZkLayerRow` is a theorem rather than an assumption — only layer 0 constrains
+anything, and what it constrains is that the run starts from claims of zero.
+-/
+lemma zkExpr_some_eval {logw logc : ℕ} (prev zl : ZkLayer M F) (pad : Pad M F)
+    (claim_prev : F) :
+    evaluates_to (zkExpr (some prev) zl.alpha) pad
+      = (next_state (prev.toLayerData (logw := logw) (logc := logc) pad claim_prev)).claim0
+        + zl.alpha
+          * (next_state (prev.toLayerData (logw := logw) (logc := logc) pad claim_prev)).claim1 :=
+  ZkLayer.first_matches_next_state prev zl pad claim_prev
+
+omit [Fintype F] [DecidableEq F] [SumcheckInterp F] in
+/-- At layer 0 the expression is `Expression.zero`, so the first conjunct says exactly that
+the run starts from a zero output claim — which is how both verifiers initialise. -/
+lemma zkExpr_none_eval (alpha : F) (pad : Pad M F) :
+    evaluates_to (zkExpr (none : Option (ZkLayer M F)) alpha) pad = 0 := by
+  simp [zkExpr, Expression.evaluates_to_zero]
 
 /--
 **The ZK proof drives the whole layer loop.**
@@ -195,18 +219,21 @@ This is the join that was missing: `layers.lean` could reduce claims from one la
 next, but nothing connected those layers to the ZK constraint system.
 -/
 theorem zk_layers_verify {nc nv logw logc : ℕ}
-    (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F) :
-    ∀ (zls : List (ZkLayer M F)) (ly : ℕ) (st : LayerState logw logc F),
-      ZkRowsHold LC pad ly st zls →
-      verify_layers LC ly st (zkLayerDatas pad st zls) = some (zkFinalState pad st zls) := by
+    (LC : LayeredCircuit Witness nc nv logw logc F) (betas : ℕ → F) (pad : Pad M F) :
+    ∀ (zls : List (ZkLayer M F)) (ly : ℕ) (st : LayerState logw logc F)
+      (prev : Option (ZkLayer M F)),
+      ZkRowsHold LC betas pad ly st prev zls →
+      verify_layers LC betas ly st (zkLayerDatas pad st zls)
+        = some (zkFinalState pad st zls) := by
   intro zls
   induction zls with
-  | nil => intro ly st _; rfl
+  | nil => intro ly st prev _; rfl
   | cons zl rest ih =>
-    intro ly st hrows
+    intro ly st prev hrows
     obtain ⟨hrow, hrest⟩ := hrows
-    rw [zkLayerDatas, zkFinalState, verify_layers, zk_layer_verifies LC pad ly st zl hrow]
-    exact ih (ly + 1) _ hrest
+    rw [zkLayerDatas, zkFinalState, verify_layers,
+      zk_layer_verifies LC betas pad ly st zl (zkExpr prev zl.alpha) hrow]
+    exact ih (ly + 1) _ (some zl) hrest
 
 /--
 **Multi-layer soundness of the ZK composition.**
@@ -220,15 +247,18 @@ Composing this with `input_row_binds_hands` (which pins the input-layer claims t
 committed witness) rules out the second alternative, leaving only luck.
 -/
 theorem zk_multi_layer_soundness {nc nv logw logc : ℕ}
-    (LC : LayeredCircuit Witness nc nv logw logc F) (pad : Pad M F) (w : Witness)
-    (hpos : 0 < logc + 2 * logw)
+    (LC : LayeredCircuit Witness nc nv logw logc F) (betas : ℕ → F) (pad : Pad M F)
+    (w : Witness) (hpos : 0 < logc + 2 * logw)
     (zls : List (ZkLayer M F)) (st0 : LayerState logw logc F)
-    (hrows : ZkRowsHold LC pad 0 st0 zls)
+    (hrows : ZkRowsHold LC betas pad 0 st0 none zls)
     (hshape : LayersShapeOK (zkLayerDatas pad st0 zls))
-    (hrand : GoodRandomness LC w 0 st0 (zkLayerDatas pad st0 zls))
-    (hwrong : ¬ ClaimsCorrect LC 0 w st0) :
-    AnyLayerRoundBad LC w 0 st0 (zkLayerDatas pad st0 zls)
-      ∨ ¬ ClaimsCorrect LC zls.length w (zkFinalState pad st0 zls) := by
-  have h := layers_reduction LC w hpos (zkLayerDatas pad st0 zls) 0 st0
-    (zkFinalState pad st0 zls) (zk_layers_verify LC pad zls 0 st0 hrows) hshape hrand hwrong
+    (hrand : GoodRandomness LC w betas 0 st0 (zkLayerDatas pad st0 zls))
+    (hwrong : ¬ ClaimsCorrect LC 0 w betas st0) :
+    AnyLayerRoundBad LC w betas 0 st0 (zkLayerDatas pad st0 zls)
+      ∨ ¬ ClaimsCorrect LC zls.length w betas (zkFinalState pad st0 zls) := by
+  have h := layers_reduction LC w betas hpos (zkLayerDatas pad st0 zls) 0 st0
+    (zkFinalState pad st0 zls) (zk_layers_verify LC betas pad zls 0 st0 none hrows)
+    hshape hrand hwrong
+  have hlen : (zkLayerDatas pad st0 zls).length = zls.length := zkLayerDatas_length pad st0 zls
+  rw [hlen] at h
   simpa using h

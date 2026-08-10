@@ -20,363 +20,313 @@ set_option relaxedAutoImplicit true
 terms as parameters.  This file discharges the two *randomness* terms against a concrete
 sample space and turns the resulting count into a fraction.
 
-## The sample space
+## The sample space, in protocol order
 
-Fiat–Shamir challenges are modelled the way `challenge_pullback_bound` models them: the sample space splits into `data ω` — everything decided before the challenge is
-drawn — and `alpha ω`, the challenge itself, with no pair `(d, a)` hit more than `K` times.
-Taking `Ω = D × F` with `data = Prod.fst`, `alpha = Prod.snd` and `K = 1` is the ideal case:
-the challenge is uniform and independent of the proof.
+A one-layer run samples three field elements, and it samples them at three different moments:
 
-The payoff (`core_soundness_probability`) is that `eps_bind` and `eps_deg` each become
-`1/|F|` of the sample space, rather than parameters the caller has to supply.
+    ZkProver::commit       begin_layer        rounds        elt_field
+    witness + pad,   -->   (beta, alpha) -->  challenges -->  alpha_in
+    prover coins (D)          F × F                             F
+
+The sample space is therefore `Ω = (D × (F × F)) × F`, and the protocol's causality is
+expressed by *which coordinates each object is allowed to read*:
+
+* `E_pre : D → Option (…)` — the extractor's output depends on the commitment alone.
+  `ZkProver::commit` (`rust/runtime/zk/src/prover.rs:L44`) fixes the witness and the pad
+  before the transcript exists, so this is a fact about the protocol, not a restriction on
+  the adversary.
+* `T_pre : D × (F × F) → EncTranscript` — the prover's messages *may* depend on the layer
+  challenges, because `begin_layer` (`rust/runtime/sumcheck/src/transcript.rs:L106`) precedes
+  every message of the layer.
+* `alpha_in = ω.2` — read by nothing else.  It is the fresh challenge drawn after all layers
+  have closed (`symbolic_sumcheck_verifier.rs:L247`).
+
+Both refinements matter.  If `T_pre` were a function of `D` alone the transcript could not
+react to `(alpha, beta)` even though the prover sees them first; and a single `alpha` serving
+as both the layer coefficient and the input-binding coefficient would let the two fail
+together on one draw.
+
+Fiat–Shamir challenges themselves are modelled the way `challenge_pullback_bound` models them:
+the space splits into "everything decided before the challenge" and the challenge, with no
+pair hit more than `K` times.  Making the challenge a coordinate is the ideal case, `K = 1`
+per prefix.
+
+The payoff (`core_soundness_probability`) is that `eps_bind` and `eps_deg` stop being
+parameters: they become `1/|F|` and `2/|F|` of the sample space.
 -/
 
 variable {Ω D F : Type} [Fintype Ω] [Fintype D] [DecidableEq D] [Field F] [Fintype F] [DecidableEq F]
 
 /-! ## Counting through a challenge split -/
 
-omit [Field F] in
-/--
-Counting through a `K`-to-one splitting of the sample space into "everything decided before
-the challenge" × "the challenge".  This is the same argument as
-`challenge_pullback_bound`, for a single challenge instead of a sequence.
--/
-lemma card_le_of_split (data : Ω → D) (alpha : Ω → F) (K : ℕ)
-    (huni : ∀ (d : D) (a : F),
-      (Finset.filter (fun ω => data ω = d ∧ alpha ω = a) Finset.univ).card ≤ K)
-    (Q : D × F → Prop) :
-    (Finset.filter (fun ω => Q (data ω, alpha ω)) Finset.univ).card
-      ≤ K * (Finset.filter Q Finset.univ).card := by
-  rw [card_filter_comp (fun ω => (data ω, alpha ω)) Q]
-  calc ∑ y ∈ Finset.filter Q Finset.univ,
-        (Finset.filter (fun ω => (data ω, alpha ω) = y) Finset.univ).card
-      ≤ ∑ _y ∈ Finset.filter Q Finset.univ, K := by
-        refine Finset.sum_le_sum (fun y _ => ?_)
-        have h : (Finset.filter (fun ω => (data ω, alpha ω) = y) Finset.univ)
-            = Finset.filter (fun ω => data ω = y.1 ∧ alpha ω = y.2) Finset.univ := by
-          ext ω; simp [Prod.ext_iff]
-        rw [h]; exact huni y.1 y.2
-    _ = (Finset.filter Q Finset.univ).card * K := by simp [Finset.sum_const, mul_comm]
-    _ = K * (Finset.filter Q Finset.univ).card := by ring
-
-omit [DecidableEq D] [Field F] [DecidableEq F] in
-/-- A bound of one bad challenge per pre-challenge state gives at most `|D|` bad pairs. -/
-lemma pairs_card_le (Q : D → F → Prop)
-    (hQ : ∀ d : D, (Finset.filter (fun a : F => Q d a) Finset.univ).card ≤ 1) :
-    (Finset.filter (fun p : D × F => Q p.1 p.2) Finset.univ).card ≤ Fintype.card D := by
-  rw [card_prod_filter Q]
-  calc ∑ d : D, (Finset.filter (fun a : F => Q d a) Finset.univ).card
-      ≤ ∑ _d : D, 1 := Finset.sum_le_sum (fun d _ => hQ d)
-    _ = Fintype.card D := by simp
-
-omit [DecidableEq D] [Field F] [DecidableEq F] in
-/-- `m` bad challenges per pre-challenge state gives at most `|D| · m` bad pairs. -/
-lemma pairs_card_le_mul {C : Type} [Fintype C] [DecidableEq C] (Q : D → C → Prop) (m : ℕ)
-    (hQ : ∀ d : D, (Finset.filter (fun a : C => Q d a) Finset.univ).card ≤ m) :
-    (Finset.filter (fun p : D × C => Q p.1 p.2) Finset.univ).card ≤ Fintype.card D * m := by
-  rw [card_prod_filter Q]
-  calc ∑ d : D, (Finset.filter (fun a : C => Q d a) Finset.univ).card
-      ≤ ∑ _d : D, m := Finset.sum_le_sum (fun d _ => hQ d)
-    _ = Fintype.card D * m := by simp [mul_comm]
-
-omit [DecidableEq D] [Field F] [DecidableEq F] in
-/--
-For each pre-challenge state the extractor's output is already fixed, so the quantities the
-challenge has to separate are fixed too and at most one challenge is bad.  Hence at most
-`|D|` of the `|D| · |F|` pairs are bad — a `1/|F|` fraction.
--/
-lemma option_bad_pairs_card {A : Type} (E : D → Option A) (P : D → A → F → Prop)
-    (hP : ∀ (d : D) (v : A), (Finset.filter (fun a : F => P d v a) Finset.univ).card ≤ 1) :
-    (Finset.filter (fun p : D × F => ∃ v, E p.1 = some v ∧ P p.1 v p.2) Finset.univ).card
-      ≤ Fintype.card D := by
-  have h := pairs_card_le (D := D) (F := F) (fun d a => ∃ v, E d = some v ∧ P d v a)
-    (fun d => by
-      cases hd : E d with
-      | none =>
-        refine le_trans (Finset.card_le_card (t := (∅ : Finset F)) ?_) (by simp)
-        intro a ha
-        simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha
-        obtain ⟨v, hv, -⟩ := ha
-        exact absurd hv (by simp)
-      | some v =>
-        refine le_trans (Finset.card_le_card
-          (t := Finset.filter (fun a : F => P d v a) Finset.univ) ?_) (hP d v)
-        intro a ha
-        simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha ⊢
-        obtain ⟨u, hu, hPu⟩ := ha
-        cases Option.some.inj hu
-        exact hPu)
-  convert h using 2
-  congr!
-
-omit [DecidableEq D] [Field F] [DecidableEq F] in
-/--
-For each pre-challenge state the extractor's output is already fixed, so the quantities the
-challenge has to separate are fixed too and at most one challenge is bad.  Hence at most
-`|D| · m` of the pairs are bad.
--/
-lemma option_bad_pairs_card_mul {A C : Type} [Fintype C] [DecidableEq C] (E : D → Option A)
-    (P : D → A → C → Prop) (m : ℕ)
-    (hP : ∀ (d : D) (v : A), (Finset.filter (fun a : C => P d v a) Finset.univ).card ≤ m) :
-    (Finset.filter (fun p : D × C => ∃ v, E p.1 = some v ∧ P p.1 v p.2) Finset.univ).card
-      ≤ Fintype.card D * m := by
-  have h := pairs_card_le_mul (D := D) (C := C) (fun d a => ∃ v, E d = some v ∧ P d v a) m
-    (fun d => by
-      cases hd : E d with
-      | none =>
-        refine le_trans (Finset.card_le_card (t := (∅ : Finset C)) ?_) (by simp)
-        intro a ha
-        simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha
-        obtain ⟨v, hv, -⟩ := ha
-        exact absurd hv (by simp)
-      | some v =>
-        refine le_trans (Finset.card_le_card
-          (t := Finset.filter (fun a : C => P d v a) Finset.univ) ?_) (hP d v)
-        intro a ha
-        simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha ⊢
-        obtain ⟨u, hu, hPu⟩ := ha
-        cases Option.some.inj hu
-        exact hPu)
-  convert h using 2
-  congr!
-
 /-! ## Counting the two layer challenges
 
-`begin_layer` draws *two* challenges per layer (`transcript_sumcheck.h:L54`): `alpha`, which
-combines the two inherited claims, and `beta`, which replaces the coefficient of every
-assert-zero gate (`prep_v`, `quad.h:L213`).  The sample space is therefore split as
-`D × (F × F)` — everything decided before the layer, then `(beta, alpha)`.
+`begin_layer` draws *two* challenges per layer (`transcript.rs:L106`, `transcript_sumcheck.h:L54`):
+`alpha`, which combines the two inherited claims, and `beta`, which replaces the coefficient of
+every assert-zero gate (`prep_v`, `quad.h:L213`).  They are drawn back to back, before any of
+the layer's messages, so the pair is a single coordinate `F × F` of the sample space — written
+`(beta, alpha)` here, the reverse of the draw order, which has no bearing on the count.
 
 The honest claim `S(beta, alpha)` is affine in each (`layer_claim_affine` and
 `layer_claim_affine_quad`), i.e. a bilinear form, so `bilinear_zero_card` bounds its zero set
 by `2·|F|` out of `|F|²`.
 -/
 
-omit [DecidableEq D] in
-/-- An affine function with a non-zero coefficient has at most one root. -/
-lemma affine_root_card (u v : F) (h : ¬ (u = 0 ∧ v = 0)) :
-    (Finset.filter (fun b : F => u + b * v = 0) Finset.univ).card ≤ 1 := by
-  refine Finset.card_le_one.mpr (fun a ha b hb => ?_)
-  simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha hb
-  by_cases hv : v = 0
-  · exact absurd ⟨by rw [hv] at ha; linear_combination ha, hv⟩ h
-  · have hz : (a - b) * v = 0 := by linear_combination ha - hb
-    rcases mul_eq_zero.mp hz with h1 | h1
-    · linear_combination h1
-    · exact absurd h1 hv
-
-omit [Fintype F] [DecidableEq F] in
-/--
-**The four corners are a certificate, not a restriction.**
-
-`alpha` and `beta` range over the whole field — they are Fiat–Shamir challenges
-(`begin_layer`, `transcript_sumcheck.h:L54`).  But the claim `S(beta, alpha)` is a *bilinear*
-form, so it is determined by four coefficients, and those four coefficients vanish exactly
-when `S` vanishes at `(0,0)`, `(0,1)`, `(1,0)`, `(1,1)`.  The corner form is therefore
-equivalent to "identically zero on `F × F`", and is what `ArithmetizedCircuit.arith` negates:
-a finite, checkable certificate for a statement about the whole field.
--/
-lemma bilinear_corners_iff (S : F → F → F) (c00 c10 c01 c11 : F)
-    (hS : ∀ b a : F, S b a = c00 + a * c10 + b * c01 + a * b * c11) :
-    (∀ b a : F, S b a = 0) ↔ (S 0 0 = 0 ∧ S 0 1 = 0 ∧ S 1 0 = 0 ∧ S 1 1 = 0) := by
-  constructor
-  · intro h; exact ⟨h 0 0, h 0 1, h 1 0, h 1 1⟩
-  · rintro ⟨h00, h01, h10, h11⟩
-    rw [hS 0 0] at h00
-    rw [hS 0 1] at h01
-    rw [hS 1 0] at h10
-    rw [hS 1 1] at h11
-    have e00 : c00 = 0 := by linear_combination h00
-    have e10 : c10 = 0 := by linear_combination h01 - h00
-    have e01 : c01 = 0 := by linear_combination h10 - h00
-    have e11 : c11 = 0 := by linear_combination h11 - h01 - h10 + h00
-    intro b a
-    rw [hS b a, e00, e10, e01, e11]; ring
-
-omit [DecidableEq D] in
-/--
-**Two-variable Schwartz–Zippel.**  A bilinear form that is not identically zero vanishes on
-at most `2·|F|` of the `|F|²` pairs.  Here `p.1` is `beta` and `p.2` is `alpha`.
--/
-lemma bilinear_zero_card (S : F → F → F) (c00 c10 c01 c11 : F)
-    (hS : ∀ b a : F, S b a = c00 + a * c10 + b * c01 + a * b * c11)
-    (hne : ¬ (c00 = 0 ∧ c10 = 0 ∧ c01 = 0 ∧ c11 = 0)) :
-    (Finset.filter (fun p : F × F => S p.1 p.2 = 0) Finset.univ).card
-      ≤ 2 * Fintype.card F := by
-  classical
-  set Bset : Finset F :=
-    Finset.filter (fun b : F => c10 + b * c11 = 0 ∧ c00 + b * c01 = 0) Finset.univ with hBset
-  have hBcard : Bset.card ≤ 1 := by
-    by_cases hc : c10 = 0 ∧ c11 = 0
-    · have h2 : ¬ (c00 = 0 ∧ c01 = 0) := fun h2 => hne ⟨h2.1, hc.1, h2.2, hc.2⟩
-      refine le_trans (Finset.card_le_card ?_) (affine_root_card (F := F) c00 c01 h2)
-      intro b hb
-      simp only [hBset, Finset.mem_filter, Finset.mem_univ, true_and] at hb ⊢
-      exact hb.2
-    · refine le_trans (Finset.card_le_card ?_) (affine_root_card (F := F) c10 c11 hc)
-      intro b hb
-      simp only [hBset, Finset.mem_filter, Finset.mem_univ, true_and] at hb ⊢
-      exact hb.1
-  set B1 : Finset (F × F) :=
-    Finset.filter (fun p : F × F => ¬ (c10 + p.1 * c11 = 0) ∧ S p.1 p.2 = 0) Finset.univ with hB1
-  set B2 : Finset (F × F) := Bset ×ˢ (Finset.univ : Finset F) with hB2
-  have hsub : Finset.filter (fun p : F × F => S p.1 p.2 = 0) Finset.univ ⊆ B1 ∪ B2 := by
-    intro p hp
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hp
-    by_cases hc : c10 + p.1 * c11 = 0
-    · refine Finset.mem_union_right _ (Finset.mem_product.mpr ⟨?_, Finset.mem_univ _⟩)
-      simp only [hBset, Finset.mem_filter, Finset.mem_univ, true_and]
-      refine ⟨hc, ?_⟩
-      rw [hS p.1 p.2] at hp
-      linear_combination hp - p.2 * hc
-    · exact Finset.mem_union_left _ (by simp [hB1, hc, hp])
-  have h1 : B1.card ≤ Fintype.card F := by
-    have hfib : B1.card = ∑ b : F, (B1.filter (fun p => p.1 = b)).card :=
-      Finset.card_eq_sum_card_fiberwise (fun p _ => Finset.mem_univ p.1)
-    rw [hfib]
-    refine le_trans (Finset.sum_le_sum (fun b _ => ?_)) (by simp : ∑ _b : F, 1 ≤ Fintype.card F)
-    refine Finset.card_le_one.mpr (fun p hp q hq => ?_)
-    simp only [hB1, Finset.mem_filter, Finset.mem_univ, true_and] at hp hq
-    obtain ⟨⟨hpv, hpz⟩, hpb⟩ := hp
-    obtain ⟨⟨-, hqz⟩, hqb⟩ := hq
-    have hb : q.1 = p.1 := by rw [hpb, hqb]
-    rw [hS p.1 p.2] at hpz
-    rw [hS q.1 q.2, hb] at hqz
-    have hz : (p.2 - q.2) * (c10 + p.1 * c11) = 0 := by linear_combination hpz - hqz
-    rcases mul_eq_zero.mp hz with h1 | h1
-    · exact Prod.ext hb.symm (by linear_combination h1)
-    · exact absurd h1 hpv
-  calc (Finset.filter (fun p : F × F => S p.1 p.2 = 0) Finset.univ).card
-      ≤ (B1 ∪ B2).card := Finset.card_le_card hsub
-    _ ≤ B1.card + B2.card := Finset.card_union_le _ _
-    _ ≤ Fintype.card F + Fintype.card F := by
-        refine Nat.add_le_add h1 ?_
-        rw [hB2, Finset.card_product, Finset.card_univ]
-        calc Bset.card * Fintype.card F ≤ 1 * Fintype.card F := by gcongr
-          _ = Fintype.card F := one_mul _
-    _ = 2 * Fintype.card F := by ring
-
 section Events
 
-variable {nc nv nw ninp npub logv logw logc M : ℕ} [SumcheckInterp F]
+variable {nc nv ninp npub logv logw logc M : ℕ} [SumcheckInterp F]
 variable {Circuit Input Witness : Type}
 
 omit [DecidableEq D] in
-/-- `eps_bind ≤ |D|·|F|`: the input-binding collision costs a `1/|F|` fraction of
-`|D|·|F|²`. -/
+/--
+`eps_bind ≤ |D|·|F|²`: the input-binding collision costs a `1/|F|` fraction of `|D|·|F|³`.
+
+The counting works because `alpha_in` is the **last** coordinate.  Fix a point of
+`D × (F × F)` — the commitment and the layer pair — and both the extracted witness/pad
+(through `E_pre`, which does not even read the layer pair) and the transcript's `wc0`/`wc1`
+(through `T_pre`, which does) are determined.  So the two quantities the input row must
+separate are constants, and `input_binding_bad_card` leaves at most one bad `alpha_in`.
+-/
 theorem event_alpha_bad_card
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
-    (accepts : D × (F × F) → Prop) (inp : Input) (var_dwR var_dwL : Fin M)
-    (T_pre : D → EncTranscript M F)
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (accepts : (D × (F × F)) × F → Prop) (inp : Input) (var_dwR var_dwL : Fin M)
+    (T_pre : D × (F × F) → EncTranscript M F)
     (E_pre : D → Option (AugmentedWitness M F Witness)) :
-    event_card (Event_AlphaBad AC accepts inp (fun p => p.2.2) var_dwR var_dwL
-        (fun p => T_pre p.1) (fun p => E_pre p.1))
-      ≤ Fintype.card D * Fintype.card F := by
+    event_card (Event_AlphaBad AC accepts inp (fun ω => ω.2) var_dwR var_dwL
+        (fun ω => T_pre ω.1) (fun ω => E_pre ω.1.1))
+      ≤ Fintype.card D * Fintype.card F * Fintype.card F := by
   refine le_trans (Finset.card_le_card (t := Finset.filter
-    (fun p : D × (F × F) => ∃ v : AugmentedWitness M F Witness, E_pre p.1 = some v ∧
-      InputBindingBad (true_evals AC inp v.1 (T_pre p.1).challenges).1
-        (true_evals AC inp v.1 (T_pre p.1).challenges).2
-        ((T_pre p.1).wc0 + v.2 var_dwL) ((T_pre p.1).wc1 + v.2 var_dwR) p.2.2)
+    (fun ω : (D × (F × F)) × F => ∃ v : AugmentedWitness M F Witness, E_pre ω.1.1 = some v ∧
+      InputBindingBad (true_evals AC inp v.1 (T_pre ω.1).challenges).1
+        (true_evals AC inp v.1 (T_pre ω.1).challenges).2
+        ((T_pre ω.1).wc0 + v.2 var_dwL) ((T_pre ω.1).wc1 + v.2 var_dwR) ω.2)
     Finset.univ) ?_) ?_
-  · intro p hp
-    simp only [Event_AlphaBad, Finset.mem_filter, Finset.mem_univ, true_and] at hp ⊢
-    obtain ⟨-, w, pad, hE, hbad⟩ := hp
+  · intro ω hω
+    simp only [Event_AlphaBad, Finset.mem_filter, Finset.mem_univ, true_and] at hω ⊢
+    obtain ⟨-, w, pad, hE, hbad⟩ := hω
     exact ⟨(w, pad), hE, hbad⟩
-  · refine option_bad_pairs_card_mul (D := D) (C := F × F) E_pre
-      (fun d v p => InputBindingBad (true_evals AC inp v.1 (T_pre d).challenges).1
-        (true_evals AC inp v.1 (T_pre d).challenges).2
-        ((T_pre d).wc0 + v.2 var_dwL) ((T_pre d).wc1 + v.2 var_dwR) p.2)
-      (Fintype.card F) (fun d v => ?_)
-    refine le_trans (Finset.card_le_card (t := (Finset.univ : Finset F) ×ˢ
-      Finset.filter (fun a : F =>
-        InputBindingBad (true_evals AC inp v.1 (T_pre d).challenges).1
-          (true_evals AC inp v.1 (T_pre d).challenges).2
-          ((T_pre d).wc0 + v.2 var_dwL) ((T_pre d).wc1 + v.2 var_dwR) a) Finset.univ) ?_) ?_
-    · intro q hq
-      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
-      exact Finset.mem_product.mpr ⟨Finset.mem_univ _, by simpa using hq⟩
-    · rw [Finset.card_product, Finset.card_univ]
-      calc Fintype.card F * _ ≤ Fintype.card F * 1 := by
-            gcongr; exact input_binding_bad_card _ _ _ _
-        _ = Fintype.card F := mul_one _
+  · refine le_trans (option_bad_pairs_card (D := D × (F × F)) (F := F) (fun q => E_pre q.1)
+      (fun q v a => InputBindingBad (true_evals AC inp v.1 (T_pre q).challenges).1
+        (true_evals AC inp v.1 (T_pre q).challenges).2
+        ((T_pre q).wc0 + v.2 var_dwL) ((T_pre q).wc1 + v.2 var_dwR) a)
+      (fun q v => input_binding_bad_card _ _ _ _)) (le_of_eq ?_)
+    simp [Fintype.card_prod, mul_assoc]
+
+omit [DecidableEq D] [SumcheckInterp F] in
+/--
+**Two-variable Schwartz–Zippel on the layer pair.**  On the prefix `D × (F × F)` — the
+commitment and the two challenges `begin_layer` draws — at most `|D|·2|F|` points are
+degenerate.  This is the heart of `event_degenerate_card`; the outer theorem just carries it
+across the `alpha_in` coordinate.
+-/
+theorem degenerate_pairs_card
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (c : Circuit) (inp : Input)
+    (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (E_pre : D → Option (AugmentedWitness M F Witness)) :
+    (Finset.filter (fun p : D × (F × F) => ∃ v : AugmentedWitness M F Witness,
+        E_pre p.1 = some v ∧ (AC.Degenerate c inp v.1 p.2.2 p.2.1 q_challenge g0 g1
+          ∧ AC.eval c inp v.1 = false)) Finset.univ).card
+      ≤ Fintype.card D * (2 * Fintype.card F) := by
+  have hfib : ∀ (_d : D) (v : AugmentedWitness M F Witness),
+      (Finset.filter (fun p : F × F =>
+        AC.Degenerate c inp v.1 p.2 p.1 q_challenge g0 g1 ∧ AC.eval c inp v.1 = false)
+        Finset.univ).card ≤ 2 * Fintype.card F := by
+    intro _d v
+    by_cases hev : AC.eval c inp v.1 = false
+    case neg =>
+      refine le_trans (Finset.card_le_card (t := (∅ : Finset (F × F))) ?_) (by simp)
+      intro p hp
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hp
+      exact absurd hp.2 hev
+    have hb : (Finset.filter (fun p : F × F =>
+        layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c p.1) (AC.W_mle inp v.1) p.2 q_challenge g0 g1 = 0)
+        Finset.univ).card ≤ 2 * Fintype.card F := by
+      refine bilinear_zero_card (F := F)
+        (fun b a => layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c b) (AC.W_mle inp v.1) a q_challenge g0 g1)
+        (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1)
+        (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 1 q_challenge g0 g1
+          - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1)
+        (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 0 q_challenge g0 g1
+          - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1)
+        ((layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 1 q_challenge g0 g1
+          - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 0 q_challenge g0 g1)
+          - (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 1 q_challenge g0 g1
+            - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1)) ?_ ?_
+      · intro b a
+        have h1 := layer_claim_affine (nc := nc) (nv := nv) (AC.Quad_mle c b) (AC.W_mle inp v.1)
+          a q_challenge g0 g1
+        have h2 := layer_claim_affine_quad (nc := nc) (nv := nv) (AC.Quad_mle c b)
+          (AC.Quad_mle c 0) (AC.Quad_mle c 1) b
+          (fun g l r => AC.Quad_mle_affine_beta c b g l r) (AC.W_mle inp v.1) 0 q_challenge g0 g1
+        have h3 := layer_claim_affine_quad (nc := nc) (nv := nv) (AC.Quad_mle c b)
+          (AC.Quad_mle c 0) (AC.Quad_mle c 1) b
+          (fun g l r => AC.Quad_mle_affine_beta c b g l r) (AC.W_mle inp v.1) 1 q_challenge g0 g1
+        linear_combination h1 + (1 - a) * h2 + a * h3
+      · intro hz
+        refine AC.arith c inp v.1 q_challenge g0 g1 hev ⟨?_, ?_, ?_, ?_⟩
+        · show layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1 = 0
+          exact hz.1
+        · show layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 1 q_challenge g0 g1 = 0
+          linear_combination hz.1 + hz.2.1
+        · show layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 0 q_challenge g0 g1 = 0
+          linear_combination hz.1 + hz.2.2.1
+        · show layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 1 q_challenge g0 g1 = 0
+          linear_combination hz.1 + hz.2.1 + hz.2.2.1 + hz.2.2.2
+    refine le_trans (Finset.card_le_card ?_) hb
+    intro x hx
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢
+    exact hx.1
+  have hmain := option_bad_pairs_card_mul (D := D) (C := F × F) E_pre
+    (fun _d v p => AC.Degenerate c inp v.1 p.2 p.1 q_challenge g0 g1
+      ∧ AC.eval c inp v.1 = false) (2 * Fintype.card F)
+    (fun d v => le_trans (Finset.card_le_card (fun x hx => by
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢; exact hx)) (hfib d v))
+  refine le_trans (le_of_eq ?_) hmain
+  congr 1
+  ext p
+  simp only [Finset.mem_filter, Finset.mem_univ, true_and]
 
 omit [DecidableEq D] in
-/-- `eps_deg ≤ 2·|D|·|F|`: degenerate layer randomness costs a `2/|F|` fraction, one `1/|F|`
-for each of the two challenges `begin_layer` draws. -/
+/--
+`eps_deg ≤ 2·|D|·|F|²`: degenerate layer randomness costs a `2/|F|` fraction, one `1/|F|` for
+each of the two challenges `begin_layer` draws.
+
+The event is decided by the prefix `D × (F × F)` alone — it never reads `alpha_in` — so the
+bound is `degenerate_pairs_card` on that prefix, carried across the whole `alpha_in`
+coordinate by `card_filter_fst_le`.
+-/
 theorem event_degenerate_card
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
-    (accepts : D × (F × F) → Prop) (c : Circuit) (inp : Input)
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (accepts : (D × (F × F)) × F → Prop) (c : Circuit) (inp : Input)
     (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
-    (E_pre : D → Option (AugmentedWitness M F Witness))
-    (hev : ∀ v : AugmentedWitness M F Witness, AC.eval c inp v.1 = false) :
-    event_card (Event_Degenerate AC accepts c inp (fun p => p.2.2) (fun p => p.2.1)
-        q_challenge g0 g1 (fun p => E_pre p.1))
-      ≤ Fintype.card D * (2 * Fintype.card F) := by
+    (E_pre : D → Option (AugmentedWitness M F Witness)) :
+    event_card (Event_Degenerate AC accepts c inp (fun ω => ω.1.2.2) (fun ω => ω.1.2.1)
+        q_challenge g0 g1 (fun ω => E_pre ω.1.1))
+      ≤ Fintype.card D * (2 * Fintype.card F) * Fintype.card F := by
   refine le_trans (Finset.card_le_card (t := Finset.filter
-    (fun p : D × (F × F) => ∃ v : AugmentedWitness M F Witness, E_pre p.1 = some v ∧
-      AC.Degenerate c inp v.1 p.2.2 p.2.1 q_challenge g0 g1) Finset.univ) ?_) ?_
-  · intro p hp
-    simp only [Event_Degenerate, Finset.mem_filter, Finset.mem_univ, true_and] at hp ⊢
-    obtain ⟨-, w, pad, hE, hdeg⟩ := hp
+    (fun ω : (D × (F × F)) × F => ∃ v : AugmentedWitness M F Witness, E_pre ω.1.1 = some v ∧
+      (AC.Degenerate c inp v.1 ω.1.2.2 ω.1.2.1 q_challenge g0 g1
+        ∧ AC.eval c inp v.1 = false)) Finset.univ) ?_) ?_
+  · intro ω hω
+    simp only [Event_Degenerate, Finset.mem_filter, Finset.mem_univ, true_and] at hω ⊢
+    obtain ⟨-, w, pad, hE, hdeg⟩ := hω
     exact ⟨(w, pad), hE, hdeg⟩
-  refine option_bad_pairs_card_mul (D := D) (C := F × F) E_pre
-    (fun _d v p => AC.Degenerate c inp v.1 p.2 p.1 q_challenge g0 g1)
-    (2 * Fintype.card F) (fun d v => ?_)
-  have hb : (Finset.filter (fun p : F × F =>
-      layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c p.1) (AC.W_mle inp v.1) p.2 q_challenge g0 g1 = 0)
-      Finset.univ).card ≤ 2 * Fintype.card F := by
-    refine bilinear_zero_card (F := F)
-      (fun b a => layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c b) (AC.W_mle inp v.1) a q_challenge g0 g1)
-      (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1)
-      (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 1 q_challenge g0 g1
-        - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1)
-      (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 0 q_challenge g0 g1
-        - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1)
-      ((layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 1 q_challenge g0 g1
-        - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 0 q_challenge g0 g1)
-        - (layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 1 q_challenge g0 g1
-          - layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1)) ?_ ?_
-    · intro b a
-      have h1 := layer_claim_affine (nc := nc) (nv := nv) (AC.Quad_mle c b) (AC.W_mle inp v.1) a q_challenge g0 g1
-      have h2 := layer_claim_affine_quad (nc := nc) (nv := nv) (AC.Quad_mle c b) (AC.Quad_mle c 0) (AC.Quad_mle c 1) b
-        (fun g l r => AC.Quad_mle_affine_beta c b g l r) (AC.W_mle inp v.1) 0 q_challenge g0 g1
-      have h3 := layer_claim_affine_quad (nc := nc) (nv := nv) (AC.Quad_mle c b) (AC.Quad_mle c 0) (AC.Quad_mle c 1) b
-        (fun g l r => AC.Quad_mle_affine_beta c b g l r) (AC.W_mle inp v.1) 1 q_challenge g0 g1
-      linear_combination h1 + (1 - a) * h2 + a * h3
-    · intro hz
-      refine AC.arith c inp v.1 q_challenge g0 g1 (hev v) ⟨?_, ?_, ?_, ?_⟩
-      · show layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 0 q_challenge g0 g1 = 0
-        exact hz.1
-      · show layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 0) (AC.W_mle inp v.1) 1 q_challenge g0 g1 = 0
-        linear_combination hz.1 + hz.2.1
-      · show layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 0 q_challenge g0 g1 = 0
-        linear_combination hz.1 + hz.2.2.1
-      · show layer_claim (nc := nc) (nv := nv) (AC.Quad_mle c 1) (AC.W_mle inp v.1) 1 q_challenge g0 g1 = 0
-        linear_combination hz.1 + hz.2.1 + hz.2.2.1 + hz.2.2.2
-  refine le_trans (Finset.card_le_card ?_) hb
-  intro x hx
-  simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢
-  exact hx
+  refine card_filter_fst_le (X := D × (F × F)) (Y := F)
+    (fun p => ∃ v : AugmentedWitness M F Witness, E_pre p.1 = some v ∧
+      (AC.Degenerate c inp v.1 p.2.2 p.2.1 q_challenge g0 g1 ∧ AC.eval c inp v.1 = false))
+    (Fintype.card D * (2 * Fintype.card F)) ?_
+  exact le_trans (Finset.card_le_card (fun p hp => by
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hp ⊢; exact hp))
+    (degenerate_pairs_card AC c inp q_challenge g0 g1 E_pre)
+
+/-!
+### The same two counts, over an abstract sample space
+
+`event_alpha_bad_card` and `event_degenerate_card` are stated at a literal product, which fixes
+one ordering of the coordinates.  The protocol's causality is really a family of *splittings* —
+for each challenge, "everything decided before it" and "it" — and stating it that way lets the
+coordinates sit in the order the protocol draws them rather than the order the proof found
+convenient.  `event_card_le_split` transports each count at no cost.
+-/
+
+/-- `eps_bind`, over any sample space that splits at `alpha_in`. -/
+theorem event_alpha_bad_card_split {P : Type} [Fintype P] [DecidableEq P]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (inp : Input) (var_dwR var_dwL : Fin M)
+    (dataOf : Ω → P) (ainOf : Ω → F)
+    (hinj : Function.Injective (fun ω => (dataOf ω, ainOf ω)))
+    (T_pre : P → EncTranscript M F) (E_pre : P → Option (AugmentedWitness M F Witness)) :
+    event_card (Event_AlphaBad AC accepts inp ainOf var_dwR var_dwL
+        (fun ω => T_pre (dataOf ω)) (fun ω => E_pre (dataOf ω)))
+      ≤ Fintype.card P := by
+  classical
+  obtain ⟨Q, hQdef⟩ : ∃ Q : P × F → Prop, Q = fun p =>
+      ∃ v : AugmentedWitness M F Witness, E_pre p.1 = some v ∧
+        InputBindingBad (true_evals AC inp v.1 (T_pre p.1).challenges).1
+          (true_evals AC inp v.1 (T_pre p.1).challenges).2
+          ((T_pre p.1).wc0 + v.2 var_dwL) ((T_pre p.1).wc1 + v.2 var_dwR) p.2 := ⟨_, rfl⟩
+  have hQ : (Finset.filter Q Finset.univ).card ≤ Fintype.card P := by
+    refine le_trans (Finset.card_le_card ?_)
+      (option_bad_pairs_card E_pre
+        (fun d v a => InputBindingBad (true_evals AC inp v.1 (T_pre d).challenges).1
+          (true_evals AC inp v.1 (T_pre d).challenges).2
+          ((T_pre d).wc0 + v.2 var_dwL) ((T_pre d).wc1 + v.2 var_dwR) a)
+        (fun d v => input_binding_bad_card _ _ _ _))
+    intro p hp
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, hQdef] at hp ⊢
+    exact hp
+  have hmain := event_card_le_split (Ω := Ω) dataOf ainOf hinj
+    (fun ω => accepts ω ∧ ∃ w pad, E_pre (dataOf ω) = some (w, pad) ∧
+      InputBindingBad (true_evals AC inp w (T_pre (dataOf ω)).challenges).1
+        (true_evals AC inp w (T_pre (dataOf ω)).challenges).2
+        ((T_pre (dataOf ω)).wc0 + pad var_dwL) ((T_pre (dataOf ω)).wc1 + pad var_dwR) (ainOf ω))
+    Q (fun ω hω => by
+      obtain ⟨-, w, pad, hE, hbad⟩ := hω
+      rw [hQdef]
+      exact ⟨(w, pad), hE, hbad⟩)
+    (Fintype.card P) hQ
+  refine le_trans (Finset.card_le_card ?_) hmain
+  intro ω hω
+  simp only [Event_AlphaBad, Finset.mem_filter, Finset.mem_univ, true_and] at hω ⊢
+  exact hω
+
+/-- `eps_deg`, over any sample space that splits at the layer's `(beta, alpha)` pair. -/
+theorem event_degenerate_card_split {P : Type} [Fintype P] [DecidableEq P]
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (accepts : Ω → Prop) (c : Circuit) (inp : Input)
+    (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (dataOf : Ω → P) (pairOf : Ω → F × F)
+    (hinj : Function.Injective (fun ω => (dataOf ω, pairOf ω)))
+    (E_pre : P → Option (AugmentedWitness M F Witness)) :
+    event_card (Event_Degenerate AC accepts c inp (fun ω => (pairOf ω).2)
+        (fun ω => (pairOf ω).1) q_challenge g0 g1 (fun ω => E_pre (dataOf ω)))
+      ≤ Fintype.card P * (2 * Fintype.card F) := by
+  classical
+  obtain ⟨Q, hQdef⟩ : ∃ Q : P × (F × F) → Prop, Q = fun p =>
+      ∃ v : AugmentedWitness M F Witness, E_pre p.1 = some v ∧
+        (AC.Degenerate c inp v.1 p.2.2 p.2.1 q_challenge g0 g1 ∧
+          AC.eval c inp v.1 = false) := ⟨_, rfl⟩
+  have hQ : (Finset.filter Q Finset.univ).card ≤ Fintype.card P * (2 * Fintype.card F) := by
+    refine le_trans (Finset.card_le_card ?_)
+      (degenerate_pairs_card (D := P) AC c inp q_challenge g0 g1 E_pre)
+    intro p hp
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, hQdef] at hp ⊢
+    exact hp
+  have hmain := event_card_le_split (Ω := Ω) dataOf pairOf hinj
+    (fun ω => accepts ω ∧ ∃ w pad, E_pre (dataOf ω) = some (w, pad) ∧
+      (AC.Degenerate c inp w ((pairOf ω).2) ((pairOf ω).1) q_challenge g0 g1 ∧
+        AC.eval c inp w = false))
+    Q (fun ω hω => by
+      obtain ⟨-, w, pad, hE, hdeg⟩ := hω
+      rw [hQdef]
+      exact ⟨(w, pad), hE, hdeg⟩)
+    (Fintype.card P * (2 * Fintype.card F)) hQ
+  refine le_trans (Finset.card_le_card ?_) hmain
+  intro ω hω
+  simp only [Event_Degenerate, Finset.mem_filter, Finset.mem_univ, true_and] at hω ⊢
+  exact hω
 
 end Events
 
 /-! ## Reading the bound as a probability -/
 
 /--
-Turn the count into a fraction of the sample space.  With `|Ω| = |D| · |F|` and the two
-randomness terms bounded by `|D|`, each contributes exactly `1/|F|`.
+Turn the count into a fraction of the sample space.  The space is `|Ω| = |D|·|F|³` — the
+commitment, the layer pair, and `alpha_in` — and the two randomness terms are bounded by
+`|D|·|F|²` and `2·|D|·|F|²`, so they contribute `1/|F|` and `2/|F|`.
 -/
 lemma count_to_prob {nD nF a b c e t : ℕ} (hD : 0 < nD) (hF : 0 < nF)
-    (ht : t ≤ a + b + c + e) (hb : b ≤ nD * nF) (hc : c ≤ 2 * (nD * nF)) :
-    (t : ℚ) / (nD * nF * nF) ≤ (a : ℚ) / (nD * nF * nF) + 3 / nF
-      + (e : ℚ) / (nD * nF * nF) := by
+    (ht : t ≤ a + b + c + e) (hb : b ≤ nD * nF * nF) (hc : c ≤ 2 * (nD * nF * nF)) :
+    (t : ℚ) / (nD * nF * nF * nF) ≤ (a : ℚ) / (nD * nF * nF * nF) + 3 / nF
+      + (e : ℚ) / (nD * nF * nF * nF) := by
   have hDq : (0 : ℚ) < nD := by exact_mod_cast hD
   have hFq : (0 : ℚ) < nF := by exact_mod_cast hF
-  have hpos : (0 : ℚ) < (nD : ℚ) * nF * nF := by positivity
+  have hpos : (0 : ℚ) < (nD : ℚ) * nF * nF * nF := by positivity
   have htq : (t : ℚ) ≤ (a : ℚ) + b + c + e := by exact_mod_cast ht
-  have hbq : (b : ℚ) ≤ (nD : ℚ) * nF := by exact_mod_cast hb
-  have hcq : (c : ℚ) ≤ 2 * ((nD : ℚ) * nF) := by exact_mod_cast hc
-  have h3 : (3 : ℚ) / nF = (3 * ((nD : ℚ) * nF)) / ((nD : ℚ) * nF * nF) := by
+  have hbq : (b : ℚ) ≤ (nD : ℚ) * nF * nF := by exact_mod_cast hb
+  have hcq : (c : ℚ) ≤ 2 * ((nD : ℚ) * nF * nF) := by exact_mod_cast hc
+  have h3 : (3 : ℚ) / nF = (3 * ((nD : ℚ) * nF * nF)) / ((nD : ℚ) * nF * nF * nF) := by
     field_simp
   rw [h3, ← add_div, ← add_div, div_le_div_iff_of_pos_right hpos]
   linarith
@@ -385,50 +335,60 @@ omit [DecidableEq D] in
 /--
 **Soundness as a probability, with the randomness terms instantiated.**
 
-Over the sample space `D × F` — everything decided before the layer's combination
-coefficient, times the coefficient — the fraction of accepting runs on which the extractor
-fails is at most
+Over the sample space `(D × (F × F)) × F` — the commitment, the layer pair `begin_layer`
+draws, and the fresh input-binding `alpha_in` — the fraction of accepting runs on which the
+extractor fails is at most
 
 ```
-eps_FSK / (|D|·|F|)  +  2/|F|  +  eps_sumcheck / (|D|·|F|)
+eps_FSK / (|D|·|F|³)  +  3/|F|  +  eps_sumcheck / (|D|·|F|³)
 ```
 
-The `2/|F|` is the two random-combination collisions (`Event_AlphaBad` and
-`Event_Degenerate`), each discharged by `option_bad_pairs_card` rather than assumed.  The
+The `3/|F|` is `1/|F|` for the `alpha_in` collision (`Event_AlphaBad`) plus `2/|F|` for the
+layer pair collapsing the claim (`Event_Degenerate`), each *counted* rather than assumed.  The
 remaining two terms are Ligero knowledge soundness and the sumcheck bound;
-`core_soundness_derived_eps` gives `eps_sumcheck = K · n · d · |F|^(n-1)`, which over
-`|D|·|F|` runs is the familiar `n · d / |F|` once `K` and `|D|` are matched up.
+`core_soundness_derived_eps` gives `eps_sumcheck = K · n · d · |F|^(n-1)`, which is the
+familiar `n · d / |F|` once `K` and the sample space are matched up.
+
+The transcript is `T_pre : D × (F × F) → EncTranscript`, so the prover's messages may depend
+on `(alpha, beta)` — which they do, since `begin_layer` runs first.  The extractor is
+`E_pre : D → …`, fixed at commitment time.
 -/
 theorem core_soundness_probability
-    {nc nv nw ninp npub logv logw logc M : ℕ} [SumcheckInterp F]
+    {nc nv ninp npub logv logw logc M : ℕ} [SumcheckInterp F]
     [DecidableEq (Fin M)] {Circuit Input Witness : Type} (eps_FSK eps_sumcheck : ℕ)
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
-    (accepts : D × (F × F) → Prop) (C : Circuit) (x : Input)
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (accepts : (D × (F × F)) × F → Prop) (C : Circuit) (x : Input)
     (w_ref : Witness) (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
     (var_dwR var_dwL var_dwL_dwR : Fin M)
-    (T_pre : D → EncTranscript M F) (E_pre : D → Option (AugmentedWitness M F Witness))
+    (T_pre : D × (F × F) → EncTranscript M F)
+    (E_pre : D → Option (AugmentedWitness M F Witness))
     (hpos : 0 < logc + 2 * logw) (hD : 0 < Fintype.card D) (hF : 0 < Fintype.card F)
-    (hev : ∀ v : AugmentedWitness M F Witness, AC.eval C x v.1 = false)
-    (lig : IsLigeroKnowledgeSound AC accepts (fun p => T_pre p.1) C x w_ref
-             (fun p => p.2.2) (fun p => p.2.1) q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR
-             (fun p => E_pre p.1) eps_FSK)
-    (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts (fun p => T_pre p.1))
-    (ci : IsSumcheckCorrelationIntractable AC accepts (fun p => T_pre p.1) var_dwR var_dwL C x
-            (fun p => E_pre p.1) (fun p => p.2.2) (fun p => p.2.1) q_challenge g0 g1 eps_sumcheck) :
-    (event_card (Event_Fail AC accepts C x (fun p => p.2.2) (fun p => p.2.1) q_challenge g0 g1
-        var_dwR var_dwL (fun p => T_pre p.1) (fun p => E_pre p.1)) : ℚ)
-        / (Fintype.card D * Fintype.card F * Fintype.card F)
-      ≤ (eps_FSK : ℚ) / (Fintype.card D * Fintype.card F * Fintype.card F)
+    (lig : IsLigeroKnowledgeSound AC accepts (fun ω => T_pre ω.1) C x w_ref
+             (fun ω => ω.1.2.2) (fun ω => ω.1.2.1) (fun ω => ω.2)
+             q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR
+             (fun ω => E_pre ω.1.1) eps_FSK)
+    (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts (fun ω => T_pre ω.1))
+    (ci : IsSumcheckCorrelationIntractable AC accepts (fun ω => T_pre ω.1) var_dwR var_dwL C x
+            (fun ω => E_pre ω.1.1) (fun ω => ω.1.2.2) (fun ω => ω.1.2.1)
+            q_challenge g0 g1 eps_sumcheck) :
+    (event_card (Event_Fail AC accepts C x (fun ω => ω.1.2.2) (fun ω => ω.1.2.1)
+        q_challenge g0 g1 var_dwR var_dwL (fun ω => T_pre ω.1) (fun ω => E_pre ω.1.1)) : ℚ)
+        / (Fintype.card D * Fintype.card F * Fintype.card F * Fintype.card F)
+      ≤ (eps_FSK : ℚ) / (Fintype.card D * Fintype.card F * Fintype.card F * Fintype.card F)
         + 3 / Fintype.card F
-        + (eps_sumcheck : ℚ) / (Fintype.card D * Fintype.card F * Fintype.card F) := by
-  refine count_to_prob (b := Fintype.card D * Fintype.card F)
-    (c := Fintype.card D * (2 * Fintype.card F)) hD hF ?_ le_rfl (by ring_nf; omega)
+        + (eps_sumcheck : ℚ)
+            / (Fintype.card D * Fintype.card F * Fintype.card F * Fintype.card F) := by
+  refine count_to_prob (b := Fintype.card D * Fintype.card F * Fintype.card F)
+    (c := Fintype.card D * (2 * Fintype.card F) * Fintype.card F) hD hF ?_ le_rfl
+    (le_of_eq (by ring))
   exact core_soundness_theorem (eps_FSK := eps_FSK) (eps_sumcheck := eps_sumcheck)
-      AC accepts C x w_ref (fun p => p.2.2) (fun p => p.2.1) q_challenge g0 g1
-      var_dwR var_dwL var_dwL_dwR (fun p => T_pre p.1) (fun p => E_pre p.1) hpos lig
-      (Fintype.card D * Fintype.card F) (Fintype.card D * (2 * Fintype.card F))
+      AC accepts C x w_ref (fun ω => ω.1.2.2) (fun ω => ω.1.2.1) (fun ω => ω.2)
+      q_challenge g0 g1
+      var_dwR var_dwL var_dwL_dwR (fun ω => T_pre ω.1) (fun ω => E_pre ω.1.1) hpos lig
+      (Fintype.card D * Fintype.card F * Fintype.card F)
+      (Fintype.card D * (2 * Fintype.card F) * Fintype.card F)
       (event_alpha_bad_card AC accepts x var_dwR var_dwL T_pre E_pre)
-      (event_degenerate_card AC accepts C x q_challenge g0 g1 E_pre hev) wf ci
+      (event_degenerate_card AC accepts C x q_challenge g0 g1 E_pre) wf ci
 
 /-!
 ## Removing `K`
@@ -504,24 +464,42 @@ lemma regular_fiber_card {F : Type} [Fintype F] [DecidableEq F] {n : ℕ}
   rw [hfib, hconst, Finset.sum_const, Finset.card_univ, smul_eq_mul, Fintype.card_fun,
       Fintype.card_fin]
 
+/--
+**The fiber of a challenge coordinate, wherever it sits.**
+
+If the sample space factors as "everything else" × "the challenge sequence" — for *any*
+placement of the coordinate, expressed by a bijection rather than a literal product shape —
+then every fiber has exactly `|A|` elements, so `h_unif` holds with `K = |A|` and the map is
+regular.  The placements used below (last, second-of-two, and buried at `ω.1.1.2`) are all
+instances.
+-/
+lemma fiber_card_of_coord {A F : Type} [Fintype A] [Fintype F] [DecidableEq F] {n : ℕ}
+    {Ω : Type} [Fintype Ω] (chal : Ω → (Fin n → F)) (rest : Ω → A)
+    (hbij : Function.Bijective (fun ω => (rest ω, chal ω)))
+    (cs : Fin n → F) :
+    (Finset.filter (fun ω => chal ω = cs) Finset.univ).card = Fintype.card A := by
+  classical
+  rw [← Finset.card_univ (α := A)]
+  refine Finset.card_bij (fun ω _ => rest ω) (fun _ _ => Finset.mem_univ _) ?_ ?_
+  · intro ω hω ω' hω' h
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hω hω'
+    refine hbij.1 ?_
+    show (rest ω, chal ω) = (rest ω', chal ω')
+    rw [h, hω, hω']
+  · intro a _
+    obtain ⟨ω, hω⟩ := hbij.2 (a, cs)
+    have h1 : rest ω = a := congrArg Prod.fst hω
+    have h2 : chal ω = cs := congrArg Prod.snd hω
+    exact ⟨ω, by simp [h2], h1⟩
+
 /-- **The split sample space: `h_unif` is a theorem.**  When the challenge sequence is a
 coordinate of the sample space, the fiber over `cs` is exactly the rest of the space. -/
 lemma split_fiber_card {A F : Type} [Fintype A] [Fintype F] [DecidableEq F] {n : ℕ}
     (cs : Fin n → F) :
     (Finset.filter (fun ω : A × (Fin n → F) => ω.2 = cs) Finset.univ).card
-      = Fintype.card A := by
-  classical
-  have h : (Finset.filter (fun ω : A × (Fin n → F) => ω.2 = cs) Finset.univ)
-      = Finset.image (fun a : A => (a, cs)) Finset.univ := by
-    ext ω
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image]
-    constructor
-    · intro h
-      exact ⟨ω.1, by cases ω; simp_all⟩
-    · rintro ⟨a, rfl⟩
-      rfl
-  rw [h, Finset.card_image_of_injective _ (fun a b hab => (Prod.ext_iff.mp hab).1),
-      Finset.card_univ]
+      = Fintype.card A :=
+  fiber_card_of_coord (fun ω => ω.2) (fun ω => ω.1)
+    ⟨fun _ _ h => by simpa [Prod.ext_iff] using h, fun p => ⟨p, rfl⟩⟩ cs
 
 /-- The split sample space is regular. -/
 lemma split_regular {A F : Type} [Fintype A] [Fintype F] [DecidableEq F] {n : ℕ} :
@@ -529,26 +507,24 @@ lemma split_regular {A F : Type} [Fintype A] [Fintype F] [DecidableEq F] {n : �
   intro cs cs'
   simp only [split_fiber_card]
 
-/-- The fiber of a *middle* coordinate: `Ω = (A × challenges) × B`. -/
-lemma mid_fiber_card {A B F : Type} [Fintype A] [Fintype B] [Fintype F] [DecidableEq F] {n : ℕ}
-    (cs : Fin n → F) :
-    (Finset.filter (fun ω : (A × (Fin n → F)) × B => ω.1.2 = cs) Finset.univ).card
-      = Fintype.card A * Fintype.card B := by
-  have h : (Finset.filter (fun ω : (A × (Fin n → F)) × B => ω.1.2 = cs) Finset.univ)
-      = Finset.image (fun p : A × B => ((p.1, cs), p.2)) Finset.univ := by
-    ext ω
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image]
-    constructor
-    · intro h
-      exact ⟨(ω.1.1, ω.2), by obtain ⟨⟨a, c⟩, b⟩ := ω; simp_all⟩
-    · rintro ⟨p, rfl⟩
-      rfl
-  rw [h, Finset.card_image_of_injective _ ?inj, Finset.card_univ, Fintype.card_prod]
-  case inj =>
-    intro p p' hpp
-    have h1 : p.1 = p'.1 := congrArg (fun x => x.1.1) hpp
-    have h2 : p.2 = p'.2 := congrArg (fun x => x.2) hpp
-    exact Prod.ext h1 h2
+/--
+**When the pre-state and the challenges together *are* the sample point, `K = 1`.**
+
+`sumcheck_ci_of_nonadaptive` bounds the fibers of the *pair* `(state, challenge_map)` — how
+many runs share both a pre-challenge state and a challenge sequence.  If that pair is
+injective, as it is when the two are complementary coordinates of the sample space, there is
+at most one such run, so the idealisation costs nothing beyond making the challenges a
+coordinate at all.
+-/
+lemma pair_fiber_le_one {S B Ω : Type} [Fintype Ω] [DecidableEq S] [DecidableEq B]
+    (state : Ω → S) (chal : Ω → B)
+    (hinj : Function.Injective (fun ω => (state ω, chal ω))) (s : S) (cs : B) :
+    (Finset.filter (fun ω => state ω = s ∧ chal ω = cs) Finset.univ).card ≤ 1 := by
+  refine Finset.card_le_one.mpr (fun a ha b hb => ?_)
+  simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha hb
+  refine hinj ?_
+  show (state a, chal a) = (state b, chal b)
+  rw [ha.1, ha.2, hb.1, hb.2]
 
 /-- The arithmetic behind "`K` cancels": `K · n · d · |F|^(n-1)` over `|Ω| = K · |F|^n`. -/
 lemma prob_of_split_arith (t cA cF nn dd : ℕ) (hA : 0 < cA) (hF : 0 < cF) (hn : 0 < nn)
@@ -592,63 +568,260 @@ theorem sumcheck_prob_of_split {A F : Type} [Fintype A] [Field F] [Fintype F] [D
 /--
 **Soundness as a probability, with `K` eliminated.**
 
-Same as `core_soundness_probability`, but the sample space is
-`(D₀ × challenges) × F` — everything decided before the challenges, the challenge sequence,
-and the layer coefficient — so `h_unif` holds by `mid_fiber_card` with
-`K = |D₀|·|F|`, and that `K` cancels against `|Ω|`.  The bound
+Same as `core_soundness_probability`, but every source of randomness is now a coordinate, in
+protocol order:
 
 ```
-eps_FSK / |Ω|  +  2/|F|  +  n·d/|F|
+Ω = ((D₀ × challenges) × (beta, alpha)) × alpha_in
 ```
 
-has no `K` and no `eps_sumcheck` in it.  With `d = 2` the last term is `2n/|F|`.
+The Fiat–Shamir strategy is indexed by the **pre-challenge state**
+`S = (D₀ × (beta, alpha)) × alpha_in` — everything the run decides other than the challenges.
+Together, `state` and `challenge_map` recover the sample point, so `pair_fiber_le_one` gives
+`K = 1`, and the `|S|` factor in `sumcheck_ci_of_nonadaptive`'s bound cancels against
+`|Ω| = |S|·|F|^n`.  The bound
+
+```
+eps_FSK / |Ω|  +  3/|F|  +  n·d/|F|
+```
+
+has no `K`, no `|S|` and no `eps_sumcheck` in it.  With `d = 2` the last term is `2n/|F|`.
+
+Indexing by the pre-state is what makes this inhabitable at all.  With a single global
+strategy, round 0's empty prefix would force every accepted run to transmit the same first
+polynomial, and the *honest* side would be outright false as soon as `alpha` varies — see
+`honest_polys_need_state` (`example.lean`).
+
+The one liberty taken is that the sumcheck challenges sit *before* the layer pair in the
+product while the protocol draws them after.  Nothing in the argument reads the order: what
+matters is that `T_pre` may depend on both, `E_pre` on neither, and `alpha_in` on nothing —
+and putting the challenges earlier only widens what `T_pre` and `E_pre` are allowed to see.
 -/
 theorem core_soundness_probability_ideal_fs
     {D₀ F : Type} [Fintype D₀] [DecidableEq D₀] [Field F] [Fintype F] [DecidableEq F]
-    {nc nv nw ninp npub logv logw logc M n d : ℕ} [SumcheckInterp F]
+    {nc nv ninp npub logv logw logc M n d : ℕ} [SumcheckInterp F]
     [DecidableEq (Fin M)] {Circuit Input Witness : Type} (eps_FSK : ℕ)
-    (AC : ArithmetizedCircuit Circuit Input Witness nc nv nw ninp npub logv logw logc F)
-    (fs : IsFiatShamirTranscript F n d)
-    (accepts : (D₀ × (Fin n → F)) × (F × F) → Prop) (C : Circuit) (x : Input)
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (fam : IsFiatShamirFamily ((D₀ × (F × F)) × F) F n d)
+    (accepts : ((D₀ × (Fin n → F)) × (F × F)) × F → Prop) (C : Circuit) (x : Input)
     (w_ref : Witness) (q_challenge : Vector F logc)
     (g0 g1 : Vector F logv) (var_dwR var_dwL var_dwL_dwR : Fin M)
-    (T_pre : D₀ × (Fin n → F) → EncTranscript M F)
+    (T_pre : (D₀ × (Fin n → F)) × (F × F) → EncTranscript M F)
     (E_pre : D₀ × (Fin n → F) → Option (AugmentedWitness M F Witness))
     (hpos : 0 < logc + 2 * logw) (hD : 0 < Fintype.card D₀) (hF : 0 < Fintype.card F)
     (hn : 0 < n)
-    (hev : ∀ v : AugmentedWitness M F Witness, AC.eval C x v.1 = false)
-    (lig : IsLigeroKnowledgeSound AC accepts (fun p => T_pre p.1) C x w_ref
-             (fun p => p.2.2) (fun p => p.2.1) q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR
-             (fun p => E_pre p.1) eps_FSK)
-    (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts (fun p => T_pre p.1))
-    (na : IsNonAdaptiveRun AC fs accepts (fun p => T_pre p.1) var_dwR var_dwL C x
-            (fun p => E_pre p.1) (fun p => p.2.2) (fun p => p.2.1) q_challenge g0 g1
-            (fun ω => ω.1.2)) :
-    (event_card (Event_Fail AC accepts C x (fun p => p.2.2) (fun p => p.2.1) q_challenge g0 g1
-        var_dwR var_dwL (fun p => T_pre p.1) (fun p => E_pre p.1)) : ℚ)
-        / (Fintype.card (D₀ × (Fin n → F)) * Fintype.card F * Fintype.card F)
-      ≤ (eps_FSK : ℚ) / (Fintype.card (D₀ × (Fin n → F)) * Fintype.card F * Fintype.card F)
+    (lig : IsLigeroKnowledgeSound AC accepts (fun ω => T_pre ω.1) C x w_ref
+             (fun ω => ω.1.2.2) (fun ω => ω.1.2.1) (fun ω => ω.2)
+             q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR
+             (fun ω => E_pre ω.1.1) eps_FSK)
+    (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts (fun ω => T_pre ω.1))
+    (na : IsNonAdaptiveRun AC fam accepts (fun ω => T_pre ω.1) var_dwR var_dwL C x
+            (fun ω => E_pre ω.1.1) (fun ω => ω.1.2.2) (fun ω => ω.1.2.1) q_challenge g0 g1
+            (fun ω => ((ω.1.1.1, ω.1.2), ω.2)) (fun ω => ω.1.1.2)) :
+    (event_card (Event_Fail AC accepts C x (fun ω => ω.1.2.2) (fun ω => ω.1.2.1)
+        q_challenge g0 g1 var_dwR var_dwL (fun ω => T_pre ω.1) (fun ω => E_pre ω.1.1)) : ℚ)
+        / (Fintype.card (D₀ × (Fin n → F)) * Fintype.card F * Fintype.card F * Fintype.card F)
+      ≤ (eps_FSK : ℚ)
+          / (Fintype.card (D₀ × (Fin n → F)) * Fintype.card F * Fintype.card F * Fintype.card F)
         + 3 / Fintype.card F
         + (n : ℚ) * d / Fintype.card F := by
   have hcardD : Fintype.card (D₀ × (Fin n → F)) = Fintype.card D₀ * Fintype.card F ^ n := by
     rw [Fintype.card_prod, Fintype.card_fun, Fintype.card_fin]
   have hDpos : 0 < Fintype.card (D₀ × (Fin n → F)) := by
     rw [hcardD]; exact Nat.mul_pos hD (Nat.pow_pos hF)
-  have ci := sumcheck_ci_of_nonadaptive AC fs accepts (fun p => T_pre p.1) var_dwR var_dwL C x
-      (fun p => E_pre p.1) (fun p => p.2.2) (fun p => p.2.1) q_challenge g0 g1 (fun ω => ω.1.2)
-      (Fintype.card D₀ * Fintype.card (F × F)) (fun cs => le_of_eq (mid_fiber_card cs)) na
+  -- the pre-state and the challenge sequence together *are* the sample point
+  have hinj : Function.Injective
+      (fun ω : ((D₀ × (Fin n → F)) × (F × F)) × F => (((ω.1.1.1, ω.1.2), ω.2), ω.1.1.2)) := by
+    rintro ⟨⟨⟨d, ch⟩, ab⟩, ain⟩ ⟨⟨⟨d', ch'⟩, ab'⟩, ain'⟩ h
+    simp only [Prod.mk.injEq] at h
+    obtain ⟨⟨⟨hd, hab⟩, hain⟩, hch⟩ := h
+    simp_all
+  have ci := sumcheck_ci_of_nonadaptive AC fam accepts (fun ω => T_pre ω.1) var_dwR var_dwL C x
+      (fun ω => E_pre ω.1.1) (fun ω => ω.1.2.2) (fun ω => ω.1.2.1) q_challenge g0 g1
+      (fun ω => ((ω.1.1.1, ω.1.2), ω.2)) (fun ω => ω.1.1.2) 1
+      (fun s cs => pair_fiber_le_one _ _ hinj s cs) na
+  rw [one_mul] at ci
   refine le_trans (core_soundness_probability (D := D₀ × (Fin n → F)) eps_FSK _ AC accepts C x
-    w_ref q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR T_pre E_pre hpos hDpos hF hev
+    w_ref q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR T_pre E_pre hpos hDpos hF
     lig wf ci) ?_
   gcongr ?_ + ?_ + ?_
   · exact le_rfl
   · exact le_rfl
+  have hSpos : 0 < Fintype.card ((D₀ × (F × F)) × F) := by
+    simp only [Fintype.card_prod]
+    exact Nat.mul_pos (Nat.mul_pos hD (Nat.mul_pos hF hF)) hF
   have harith := prob_of_split_arith
-      ((Fintype.card D₀ * Fintype.card (F × F)) * (n * d * Fintype.card F ^ (n - 1)))
-      (Fintype.card D₀ * Fintype.card (F × F)) (Fintype.card F) n d
-      (Nat.mul_pos hD (by rw [Fintype.card_prod]; exact Nat.mul_pos hF hF)) hF hn le_rfl
-  have hden : ((Fintype.card (D₀ × (Fin n → F)) : ℚ)) * Fintype.card F * Fintype.card F
-      = ((Fintype.card D₀ * Fintype.card (F × F) : ℕ) : ℚ) * (Fintype.card F : ℚ) ^ n := by
-    rw [hcardD]; simp [Fintype.card_prod]; ring
+      (Fintype.card ((D₀ × (F × F)) × F) * (n * d * Fintype.card F ^ (n - 1)))
+      (Fintype.card ((D₀ × (F × F)) × F)) (Fintype.card F) n d hSpos hF hn le_rfl
+  have hden : ((Fintype.card (D₀ × (Fin n → F)) : ℚ))
+        * Fintype.card F * Fintype.card F * Fintype.card F
+      = ((Fintype.card ((D₀ × (F × F)) × F) : ℕ) : ℚ) * (Fintype.card F : ℚ) ^ n := by
+    rw [hcardD]; push_cast [Fintype.card_prod]; ring
   rw [hden]
   exact harith
+
+/--
+**The ZK path, with nothing left to supply but `eps_FSK`.**
+
+`core_soundness_probability_ideal_fs` is generic in the round count `n`, the degree bound `d`
+and the Fiat–Shamir family, so a caller could instantiate it at any of them — and the README's
+claim that `d = 2` is *derived* is only true if the family is the one the arithmetization
+determines.  This corollary removes the choice:
+
+* `logc = 0` — the ZK path, where the copy point is a `Vector F 0`;
+* `n = 0 + 2·logw` — the round count `ArithmetizedCircuit` fixes, not a parameter;
+* `d = 2` — from `famOfArithmetized`, whose `hd` field is
+  `round_poly_natDegree_le_two`, i.e. the fact that `WPoly` is `Poly<3>`;
+* the family is `famOfArithmetized` itself, so the degree bound applies to the *honest* round
+  polynomials (`circuit_true_polys_eq_famOfArithmetized`), not to some unrelated family.
+
+The resulting bound is
+
+```
+Pr[accepts ∧ extraction fails]  ≤  eps_FSK/|Ω|  +  3/|F|  +  4·logw/|F|
+```
+
+and `eps_FSK` really is the only free parameter left.
+-/
+theorem zk_soundness_probability
+    {D₀ F : Type} [Fintype D₀] [DecidableEq D₀] [Field F] [Fintype F] [DecidableEq F]
+    {nc nv ninp npub logv logw M : ℕ} [SumcheckInterp F]
+    [DecidableEq (Fin M)] {Circuit Input Witness : Type} (eps_FSK : ℕ)
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw 0 F)
+    (accepts : ((D₀ × (Fin (0 + 2 * logw) → F)) × (F × F)) × F → Prop)
+    (C : Circuit) (x : Input) (w_ref : Witness) (q_challenge : Vector F 0)
+    (g0 g1 : Vector F logv) (var_dwR var_dwL var_dwL_dwR : Fin M)
+    (T_pre : (D₀ × (Fin (0 + 2 * logw) → F)) × (F × F) → EncTranscript M F)
+    (E_pre : D₀ × (Fin (0 + 2 * logw) → F) → Option (AugmentedWitness M F Witness))
+    (wOf : ((D₀ × (F × F)) × F) → Witness) (alphaOf betaOf : ((D₀ × (F × F)) × F) → F)
+    (p_func : ((D₀ × (F × F)) × F) → ProverStrategy F (0 + 2 * logw))
+    (hpos : 0 < 0 + 2 * logw) (hD : 0 < Fintype.card D₀) (hF : 0 < Fintype.card F)
+    (lig : IsLigeroKnowledgeSound AC accepts (fun ω => T_pre ω.1) C x w_ref
+             (fun ω => ω.1.2.2) (fun ω => ω.1.2.1) (fun ω => ω.2)
+             q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR
+             (fun ω => E_pre ω.1.1) eps_FSK)
+    (wf : IsWellFormedTranscript (logw := logw) (logc := 0) accepts (fun ω => T_pre ω.1))
+    (na : IsNonAdaptiveRun AC
+            (famOfArithmetized AC C x q_challenge g0 g1 wOf alphaOf betaOf p_func)
+            accepts (fun ω => T_pre ω.1) var_dwR var_dwL C x
+            (fun ω => E_pre ω.1.1) (fun ω => ω.1.2.2) (fun ω => ω.1.2.1) q_challenge g0 g1
+            (fun ω => ((ω.1.1.1, ω.1.2), ω.2)) (fun ω => ω.1.1.2)) :
+    (event_card (Event_Fail AC accepts C x (fun ω => ω.1.2.2) (fun ω => ω.1.2.1)
+        q_challenge g0 g1 var_dwR var_dwL (fun ω => T_pre ω.1) (fun ω => E_pre ω.1.1)) : ℚ)
+        / (Fintype.card (D₀ × (Fin (0 + 2 * logw) → F))
+            * Fintype.card F * Fintype.card F * Fintype.card F)
+      ≤ (eps_FSK : ℚ)
+          / (Fintype.card (D₀ × (Fin (0 + 2 * logw) → F))
+              * Fintype.card F * Fintype.card F * Fintype.card F)
+        + 3 / Fintype.card F
+        + ((0 + 2 * logw : ℕ) : ℚ) * 2 / Fintype.card F :=
+  core_soundness_probability_ideal_fs (D₀ := D₀) (n := 0 + 2 * logw) (d := 2) eps_FSK AC
+    (famOfArithmetized AC C x q_challenge g0 g1 wOf alphaOf betaOf p_func)
+    accepts C x w_ref q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR T_pre E_pre
+    hpos hD hF hpos lig wf na
+
+/-!
+## The sample space in protocol order
+
+`core_soundness_probability_ideal_fs` puts the challenge sequence *inside* the extractor's
+prefix — `D := D₀ × (Fin n → F)` — so the extractor formally may read it, and the sequence sits
+before the layer pair although the protocol draws it after.  Neither breaks the counting, since
+widening what the extractor and transcript may see only weakens the hypotheses.  But it is a
+safe over-approximation, not the causal order.
+
+This is the causal order:
+
+```
+Ω  =  ((D₀ × (beta, alpha)) × round challenges) × alpha_in
+```
+
+* `E_pre : D₀ → …` — the extractor reads the **commitment only**, matching `ZkProver::commit`
+  fixing the witness and pad before the transcript exists;
+* `T_pre : (D₀ × (F × F)) × (Fin n → F) → …` — the prover's messages may depend on the layer
+  pair and on the challenges, since both precede them.  That round `i`'s message depends only
+  on the prefix through `i−1` is `IsNonAdaptiveRun.prover_eq`, not the product shape;
+* `alpha_in` last, read by nothing else.
+
+The counts are unchanged: `|Ω| = |D₀|·|F|^(n+3)`, `eps_bind = |Ω|/|F|`,
+`eps_deg = 2·|Ω|/|F|`, and the sumcheck term is `n·d/|F|` after `K = 1` and `|S|` cancel.
+-/
+
+/-- The pre-challenge state of a run in protocol order: commitment, layer pair, `alpha_in`. -/
+abbrev ProtoState (D₀ F : Type) : Type := (D₀ × (F × F)) × F
+
+/-- The sample space in protocol order. -/
+abbrev ProtoΩ (D₀ F : Type) (n : ℕ) : Type := ((D₀ × (F × F)) × (Fin n → F)) × F
+
+/--
+**Core soundness over a sample space in protocol order.**
+
+Same bound as `core_soundness_theorem`, with `eps_bind` and `eps_deg` derived rather than
+supplied, and with the extractor typed so that it cannot read any challenge.
+-/
+theorem core_soundness_protocol_order
+    {D₀ : Type} [Fintype D₀] [DecidableEq D₀]
+    {nc nv ninp npub logv logw logc M n d : ℕ} [SumcheckInterp F]
+    [DecidableEq (Fin M)] {Circuit Input Witness : Type} (eps_FSK : ℕ)
+    (AC : ArithmetizedCircuit Circuit Input Witness nc nv ninp npub logv logw logc F)
+    (fam : IsFiatShamirFamily (ProtoState D₀ F) F n d)
+    (accepts : ProtoΩ D₀ F n → Prop) (C : Circuit) (x : Input) (w_ref : Witness)
+    (q_challenge : Vector F logc) (g0 g1 : Vector F logv)
+    (var_dwR var_dwL var_dwL_dwR : Fin M)
+    (T_pre : (D₀ × (F × F)) × (Fin n → F) → EncTranscript M F)
+    (E_pre : D₀ → Option (AugmentedWitness M F Witness))
+    (hpos : 0 < logc + 2 * logw)
+    (lig : IsLigeroKnowledgeSound AC accepts (fun ω => T_pre ω.1) C x w_ref
+             (fun ω => ω.1.1.2.2) (fun ω => ω.1.1.2.1) (fun ω => ω.2)
+             q_challenge g0 g1 var_dwR var_dwL var_dwL_dwR
+             (fun ω => E_pre ω.1.1.1) eps_FSK)
+    (wf : IsWellFormedTranscript (logw := logw) (logc := logc) accepts (fun ω => T_pre ω.1))
+    (na : IsNonAdaptiveRun AC fam accepts (fun ω => T_pre ω.1) var_dwR var_dwL C x
+            (fun ω => E_pre ω.1.1.1) (fun ω => ω.1.1.2.2) (fun ω => ω.1.1.2.1)
+            q_challenge g0 g1 (fun ω => ((ω.1.1.1, ω.1.1.2), ω.2)) (fun ω => ω.1.2)) :
+    event_card (Event_Fail AC accepts C x (fun ω => ω.1.1.2.2) (fun ω => ω.1.1.2.1)
+        q_challenge g0 g1 var_dwR var_dwL (fun ω => T_pre ω.1) (fun ω => E_pre ω.1.1.1))
+      ≤ eps_FSK
+        + Fintype.card ((D₀ × (F × F)) × (Fin n → F))
+        + Fintype.card (D₀ × ((Fin n → F) × F)) * (2 * Fintype.card F)
+        + 1 * (Fintype.card (ProtoState D₀ F) * (n * d * (Fintype.card F) ^ (n - 1))) := by
+  classical
+  -- `alpha_in` is the last coordinate: the input binding costs one draw
+  have hbind := event_alpha_bad_card_split (Ω := ProtoΩ D₀ F n)
+    (P := (D₀ × (F × F)) × (Fin n → F)) AC accepts x var_dwR var_dwL
+    (fun ω => ω.1) (fun ω => ω.2)
+    (fun a b h => by
+      obtain ⟨⟨p, cs⟩, ain⟩ := a; obtain ⟨⟨p', cs'⟩, ain'⟩ := b
+      simp only [Prod.mk.injEq] at h ⊢
+      exact ⟨h.1, h.2⟩)
+    T_pre (fun p => E_pre p.1.1)
+  -- the layer pair is a coordinate: the degeneracy costs `2|F|`
+  have hdeg := event_degenerate_card_split (Ω := ProtoΩ D₀ F n)
+    (P := D₀ × ((Fin n → F) × F)) AC accepts C x q_challenge g0 g1
+    (fun ω => (ω.1.1.1, ω.1.2, ω.2)) (fun ω => ω.1.1.2)
+    (fun a b h => by
+      obtain ⟨⟨⟨d, pr⟩, cs⟩, ain⟩ := a; obtain ⟨⟨⟨d', pr'⟩, cs'⟩, ain'⟩ := b
+      simp only [Prod.mk.injEq] at h ⊢
+      exact ⟨⟨⟨h.1.1, h.2⟩, h.1.2.1⟩, h.1.2.2⟩)
+    (fun p => E_pre p.1)
+  -- the challenge sequence is a coordinate, so `K = 1`
+  have hinj : Function.Injective
+      (fun ω : ProtoΩ D₀ F n => (((ω.1.1.1, ω.1.1.2), ω.2), ω.1.2)) := by
+    rintro ⟨⟨⟨d, pr⟩, cs⟩, ain⟩ ⟨⟨⟨d', pr'⟩, cs'⟩, ain'⟩ h
+    simp only [Prod.mk.injEq] at h ⊢
+    exact ⟨⟨⟨h.1.1.1, h.1.1.2⟩, h.2⟩, h.1.2⟩
+  have ci := sumcheck_ci_of_nonadaptive AC fam accepts (fun ω => T_pre ω.1) var_dwR var_dwL C x
+    (fun ω => E_pre ω.1.1.1) (fun ω => ω.1.1.2.2) (fun ω => ω.1.1.2.1) q_challenge g0 g1
+    (fun ω => ((ω.1.1.1, ω.1.1.2), ω.2)) (fun ω => ω.1.2) 1
+    (fun s cs => pair_fiber_le_one _ _ hinj s cs) na
+  exact core_soundness_theorem (eps_FSK := eps_FSK)
+    (eps_sumcheck := 1 * (Fintype.card (ProtoState D₀ F)
+      * (n * d * (Fintype.card F) ^ (n - 1))))
+    (AC := AC) (accepts := accepts) (C := C) (x := x) (w_ref := w_ref)
+    (alpha := fun ω => ω.1.1.2.2) (beta := fun ω => ω.1.1.2.1) (alpha_in := fun ω => ω.2)
+    (q_challenge := q_challenge) (g0 := g0) (g1 := g1)
+    (var_dwR := var_dwR) (var_dwL := var_dwL) (var_dwL_dwR := var_dwL_dwR)
+    (T_prime := fun ω => T_pre ω.1) (E_Ligero := fun ω => E_pre ω.1.1.1)
+    (hpos := hpos) (lig := lig)
+    (eps_bind := Fintype.card ((D₀ × (F × F)) × (Fin n → F)))
+    (eps_deg := Fintype.card (D₀ × ((Fin n → F) × F)) * (2 * Fintype.card F))
+    (h_bind := hbind) (h_deg := hdeg) (wf := wf) (ci := ci)
