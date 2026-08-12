@@ -16,9 +16,7 @@ use compile_algebra::gf2_128::Gf2_128Field;
 use core_algebra::SerializableField;
 use core_proto::circuit::Circuit;
 use mdoc_zk_circuits::{
-    config::{
-        K_HASH_V256_BIT_PLUCKER, K_HASH_V8_BIT_PLUCKER, K_NREQ, K_RATEINV, K_SHA_BIT_PLUCKER,
-    },
+    config::{K_HASH_V256_BIT_PLUCKER, K_HASH_V8_BIT_PLUCKER, K_SHA_BIT_PLUCKER},
     hash::circuit::MdocHash,
     MdocHashCompileField,
 };
@@ -66,6 +64,7 @@ where
 pub fn generate_hash_circuit(
     f128_compile: &Gf2_128Field,
     num_attrs: usize,
+    profile: crate::LigeroProfile,
 ) -> Result<(Circuit<Gf2_128Field>, runtime_ligero::param::LigeroConfig), String> {
     use std::fmt::Write;
 
@@ -103,15 +102,15 @@ pub fn generate_hash_circuit(
     let best_block_enc = runtime_ligero::optimize_geometry(
         num_witness,
         num_quadratic_constraints,
-        K_RATEINV,
-        K_NREQ,
+        profile.rateinv,
+        profile.nreq,
         f128_compile.serialized_size_bytes(),
         2,
         &make_interpolator,
     );
     let config = runtime_ligero::param::LigeroConfig {
-        rateinv: K_RATEINV,
-        nreq: K_NREQ,
+        rateinv: profile.rateinv,
+        nreq: profile.nreq,
         block_enc: best_block_enc,
     };
     println!("  Compile time: {duration:?}");

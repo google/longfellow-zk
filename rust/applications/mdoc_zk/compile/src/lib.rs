@@ -25,8 +25,16 @@ use compile_algebra::{gf2_128::Gf2_128Field, p256::P256Field};
 pub use generate_hash::*;
 pub use generate_sig::*;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LigeroProfile {
+    pub rateinv: usize,
+    pub nreq: usize,
+}
+
 pub fn compile_circuits(
     num_attrs: usize,
+    hash_profile: LigeroProfile,
+    sig_profile: LigeroProfile,
 ) -> Result<
     (
         Vec<u8>,
@@ -37,8 +45,8 @@ pub fn compile_circuits(
 > {
     let f128_compile = Gf2_128Field::new();
     let p256_compile = P256Field::new();
-    let (seg_sig, config_sig) = generate_sig_circuit(&p256_compile)?;
-    let (seg_hash, config_hash) = generate_hash_circuit(&f128_compile, num_attrs)?;
+    let (seg_sig, config_sig) = generate_sig_circuit(&p256_compile, sig_profile)?;
+    let (seg_hash, config_hash) = generate_hash_circuit(&f128_compile, num_attrs, hash_profile)?;
 
     let writer_sig =
         core_proto::writer::CircuitWriter::new(&p256_compile, core_proto::FieldID::P256);
@@ -59,7 +67,10 @@ pub fn compile_circuits(
 
 pub use compile_circuits as generate_circuits;
 
-pub fn compile_all_circuits() -> Vec<
+pub fn compile_all_circuits(
+    hash_profile: LigeroProfile,
+    sig_profile: LigeroProfile,
+) -> Vec<
     Result<
         (
             Vec<u8>,
@@ -74,7 +85,7 @@ pub fn compile_all_circuits() -> Vec<
         for num_attrs in 1..=4 {
             let tx_thread = tx.clone();
             s.spawn(move || {
-                let res = compile_circuits(num_attrs);
+                let res = compile_circuits(num_attrs, hash_profile, sig_profile);
                 tx_thread.send((num_attrs, res)).unwrap();
             });
         }
