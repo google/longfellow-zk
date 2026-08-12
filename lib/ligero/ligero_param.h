@@ -133,7 +133,7 @@ struct LigeroParam {
   size_t w;           // number of witnesses in a witness block
   size_t nwrow;       // number of witness rows
   size_t nqtriples;   // number of triples of quadratic-check rows
-  size_t nwqrow;      // nwqrow + nqtriples
+  size_t nwqrow;      // nwrow + 3 * nqtriples;
   size_t nrow;        // total number of rows (nwqrow + three blinding rows)
   size_t mc_pathlen;  // length of a Merkle-tree proof
                       // with BLOCK_ENC-BLOCK leaves
