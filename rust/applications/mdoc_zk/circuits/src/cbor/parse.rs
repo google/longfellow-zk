@@ -27,13 +27,16 @@ pub struct CborElement {
 
 #[derive(Debug, Clone)]
 pub enum CborValue {
-    Integer(u64),
+    Integer(i128),
     Bytes(Vec<u8>),
     Text(String),
     Array(Vec<CborElement>),
     Map(Vec<(CborElement, CborElement)>),
     Tag(u64, Box<CborElement>),
     Simple(u8),
+    Float16(u16),
+    Float32(u32),
+    Float64(u64),
 }
 
 pub struct CborParser<'a> {
@@ -57,15 +60,19 @@ impl<'a> CborParser<'a> {
     }
 
     fn read_bytes(&mut self, len: usize) -> Result<&'a [u8], String> {
-        if self.offset + len > self.data.len() {
-            return Err("Unexpected EOF".to_string());
-        }
-        let res = &self.data[self.offset..self.offset + len];
-        self.offset += len;
+        let end = self
+            .offset
+            .checked_add(len)
+            .ok_or_else(|| "CBOR length overflow".to_string())?;
+        let res = self
+            .data
+            .get(self.offset..end)
+            .ok_or_else(|| "Unexpected EOF".to_string())?;
+        self.offset = end;
         Ok(res)
     }
 
-    pub fn parse_val(&mut self) -> Result<CborElement, String> {
+    fn parse_val(&mut self) -> Result<CborElement, String> {
         let start = self.offset;
         let b = self.read_byte()?;
         let major = b >> 5;
@@ -92,14 +99,18 @@ impl<'a> CborParser<'a> {
         };
 
         let value = match major {
-            0 => CborValue::Integer(val),
-            1 => CborValue::Integer(val),
+            0 => CborValue::Integer(i128::from(val)),
+            1 => CborValue::Integer(-1 - i128::from(val)),
             2 => {
-                let bytes = self.read_bytes(val as usize)?.to_vec();
+                let len = usize::try_from(val)
+                    .map_err(|_| "CBOR byte string length does not fit usize".to_string())?;
+                let bytes = self.read_bytes(len)?.to_vec();
                 CborValue::Bytes(bytes)
             }
             3 => {
-                let bytes = self.read_bytes(val as usize)?;
+                let len = usize::try_from(val)
+                    .map_err(|_| "CBOR text string length does not fit usize".to_string())?;
+                let bytes = self.read_bytes(len)?;
                 let s = String::from_utf8(bytes.to_vec()).map_err(|e| e.to_string())?;
                 CborValue::Text(s)
             }
@@ -123,174 +134,109 @@ impl<'a> CborParser<'a> {
                 let inner = self.parse_val()?;
                 CborValue::Tag(val, Box::new(inner))
             }
-            7 => CborValue::Simple(info),
+            7 => match info {
+                0..=23 => CborValue::Simple(info),
+                24 => CborValue::Simple(
+                    u8::try_from(val)
+                        .map_err(|_| "CBOR simple value does not fit u8".to_string())?,
+                ),
+                25 => CborValue::Float16(
+                    u16::try_from(val)
+                        .map_err(|_| "CBOR half-float bits do not fit u16".to_string())?,
+                ),
+                26 => CborValue::Float32(
+                    u32::try_from(val).map_err(|_| "CBOR float bits do not fit u32".to_string())?,
+                ),
+                27 => CborValue::Float64(val),
+                _ => return Err(format!("Unsupported simple value info: {info}")),
+            },
             _ => return Err(format!("Unsupported major type: {major}")),
         };
 
         let end = self.offset;
         Ok(CborElement { value, start, end })
     }
-}
 
-pub fn parse_mso_cbor(data: &[u8]) -> Result<CborElement, String> {
-    let mut parser = CborParser::new(data);
-    let top = parser.parse_val()?;
-    if let CborValue::Bytes(ref payload) = top.value {
-        let mut sub_parser = CborParser::new(payload);
-        let inner = sub_parser.parse_val()?;
-        if let CborValue::Tag(24, ref bstr_el) = inner.value {
-            if let CborValue::Bytes(ref map_bytes) = bstr_el.value {
-                let mut map_parser = CborParser::new(map_bytes);
-                return map_parser.parse_val();
-            }
+    pub fn parse_exact(&mut self) -> Result<CborElement, String> {
+        let element = self.parse_val()?;
+        if self.offset != self.data.len() {
+            return Err(format!(
+                "Trailing data after CBOR item: {} bytes",
+                self.data.len() - self.offset
+            ));
         }
-    }
-    Err(format!(
-        "Invalid MSO structure: expected Bytes containing Tag 24 ByteString Map, got: {:?}",
-        top.value
-    ))
-}
-
-#[must_use]
-pub fn find_key_in_map(el: &CborElement, target_key: &str) -> Option<CborIndexVal> {
-    match &el.value {
-        CborValue::Map(pairs) => {
-            for (k, v) in pairs {
-                if let CborValue::Text(s) = &k.value {
-                    if s == target_key {
-                        return Some(CborIndexVal {
-                            k: k.start,
-                            v: v.start,
-                        });
-                    }
-                }
-                if let Some(res) = find_key_in_map(v, target_key) {
-                    return Some(res);
-                }
-            }
-        }
-        CborValue::Array(arr) => {
-            for item in arr {
-                if let Some(res) = find_key_in_map(item, target_key) {
-                    return Some(res);
-                }
-            }
-        }
-        CborValue::Tag(_, inner) => {
-            return find_key_in_map(inner, target_key);
-        }
-        _ => {}
-    }
-    None
-}
-
-#[must_use]
-pub fn find_element_by_key(el: &CborElement, target_key: &str) -> Option<CborElement> {
-    match &el.value {
-        CborValue::Map(pairs) => {
-            for (k, v) in pairs {
-                if let CborValue::Text(s) = &k.value {
-                    if s == target_key {
-                        return Some(v.clone());
-                    }
-                }
-                if let Some(res) = find_element_by_key(v, target_key) {
-                    return Some(res);
-                }
-            }
-        }
-        CborValue::Array(arr) => {
-            for item in arr {
-                if let Some(res) = find_element_by_key(item, target_key) {
-                    return Some(res);
-                }
-            }
-        }
-        CborValue::Tag(_, inner) => {
-            return find_element_by_key(inner, target_key);
-        }
-        _ => {}
-    }
-    None
-}
-
-#[must_use]
-pub fn find_key_element_by_key(el: &CborElement, target_key: &str) -> Option<CborElement> {
-    match &el.value {
-        CborValue::Map(pairs) => {
-            for (k, v) in pairs {
-                if let CborValue::Text(s) = &k.value {
-                    if s == target_key {
-                        return Some(k.clone());
-                    }
-                }
-                if let Some(res) = find_key_element_by_key(v, target_key) {
-                    return Some(res);
-                }
-            }
-        }
-        CborValue::Array(arr) => {
-            for item in arr {
-                if let Some(res) = find_key_element_by_key(item, target_key) {
-                    return Some(res);
-                }
-            }
-        }
-        CborValue::Tag(_, inner) => {
-            return find_key_element_by_key(inner, target_key);
-        }
-        _ => {}
-    }
-    None
-}
-
-#[must_use]
-pub fn find_digest_offset(el: &CborElement, namespace: &str, digest_id: u64) -> Option<usize> {
-    let ns_el = find_element_by_key(el, namespace)?;
-    if let CborValue::Map(pairs) = &ns_el.value {
-        for (k, v) in pairs {
-            if let CborValue::Integer(n) = k.value {
-                if n == digest_id {
-                    return Some(v.start);
-                }
-            }
-        }
-    }
-    None
-}
-
-#[must_use]
-pub fn get_array(el: &CborElement) -> Option<&Vec<CborElement>> {
-    match &el.value {
-        CborValue::Array(arr) => Some(arr),
-        CborValue::Tag(_, inner) => get_array(inner),
-        _ => None,
+        Ok(element)
     }
 }
 
-#[must_use]
-pub fn get_bytes(el: &CborElement) -> Option<&Vec<u8>> {
-    match &el.value {
-        CborValue::Bytes(b) => Some(b),
-        CborValue::Tag(_, inner) => get_bytes(inner),
-        _ => None,
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::{CborParser, CborValue};
 
-#[must_use]
-pub fn find_device_key_coordinate(
-    device_key_map: &CborElement,
-    mdoc_or_mso: &[u8],
-    coordinate_byte: u8,
-) -> Option<Vec<u8>> {
-    if let CborValue::Map(pairs) = &device_key_map.value {
-        for (k, v) in pairs {
-            if mdoc_or_mso[k.start] == coordinate_byte {
-                if let CborValue::Bytes(b) = &v.value {
-                    return Some(b.clone());
-                }
-            }
-        }
+    fn parse_integer(data: &[u8]) -> i128 {
+        let mut parser = CborParser::new(data);
+        let element = parser.parse_exact().expect("test CBOR must be valid");
+        let CborValue::Integer(value) = element.value else {
+            panic!("test CBOR must be an integer");
+        };
+        value
     }
-    None
+
+    #[test]
+    fn parses_positive_and_negative_integers_semantically() {
+        assert_eq!(parse_integer(&[0x00]), 0);
+        assert_eq!(
+            parse_integer(&[0x1b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
+            u64::MAX.into()
+        );
+        assert_eq!(parse_integer(&[0x20]), -1);
+        assert_eq!(parse_integer(&[0x21]), -2);
+        assert_eq!(
+            parse_integer(&[0x3b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
+            -18_446_744_073_709_551_616
+        );
+    }
+
+    #[test]
+    fn parses_extended_simple_values() {
+        let mut parser = CborParser::new(&[0xf8, 0x20]);
+        let element = parser.parse_exact().expect("test CBOR must be valid");
+        assert!(matches!(element.value, CborValue::Simple(32)));
+    }
+
+    #[test]
+    fn preserves_floating_point_bits() {
+        let mut half_parser = CborParser::new(&[0xf9, 0x3c, 0x00]);
+        let half = half_parser
+            .parse_exact()
+            .expect("half-float CBOR must be valid");
+        assert!(matches!(half.value, CborValue::Float16(0x3c00)));
+
+        let mut single_parser = CborParser::new(&[0xfa, 0x3f, 0x80, 0x00, 0x00]);
+        let single = single_parser
+            .parse_exact()
+            .expect("single-float CBOR must be valid");
+        assert!(matches!(single.value, CborValue::Float32(0x3f80_0000)));
+
+        let mut double_parser =
+            CborParser::new(&[0xfb, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        let double = double_parser
+            .parse_exact()
+            .expect("double-float CBOR must be valid");
+        assert!(matches!(
+            double.value,
+            CborValue::Float64(0x3ff0_0000_0000_0000)
+        ));
+    }
+
+    #[test]
+    fn rejects_trailing_data_without_parsing_it() {
+        let mut parser = CborParser::new(&[0x01, 0xff]);
+        assert_eq!(
+            parser
+                .parse_exact()
+                .expect_err("trailing data must be rejected"),
+            "Trailing data after CBOR item: 1 bytes"
+        );
+    }
 }

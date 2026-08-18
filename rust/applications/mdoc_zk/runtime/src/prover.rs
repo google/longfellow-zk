@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use mdoc_zk_circuits::cbor::mdoc::{parse_mdoc, ParsedMdoc};
+use mdoc_zk_circuits::cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc};
 use runtime_algebra::{
     gf2_128::Gf2_128Field, lch14_reed_solomon::Lch14InterpolatorFactory, p256::P256Field,
     reed_solomon::FftInterpolatorFactory, secp256r1::Secp256r1, SupportsFFT,
@@ -104,7 +104,10 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
 
     let parsed: ParsedMdoc<runtime_algebra::RuntimeNat<4>> =
-        parse_mdoc(mdoc_bytes, transcript, doc_type);
+        parse_mdoc(mdoc_bytes, transcript, doc_type).map_err(|err| match err {
+            MdocParseError::TooBig => MdocProverErrorCode::TaggedMsoTooBig,
+            _ => MdocProverErrorCode::MsoDecodingFailure,
+        })?;
 
     for req_attr in attrs {
         if parsed.get_attribute(&req_attr.id).is_none() {

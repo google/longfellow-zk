@@ -25,12 +25,29 @@ struct TestCircuits {
 
 impl TestCircuits {
     fn compile_all() -> Self {
-        let results = mdoc_zk_compile::compile_all_circuits();
+        let first_spec = &mdoc_zk_runtime::CURRENT_ZK_SPECS[0];
+        let hash_profile = mdoc_zk_compile::LigeroProfile {
+            rateinv: first_spec.ligero_hash.rateinv,
+            nreq: first_spec.ligero_hash.nreq,
+        };
+        let sig_profile = mdoc_zk_compile::LigeroProfile {
+            rateinv: first_spec.ligero_sig.rateinv,
+            nreq: first_spec.ligero_sig.nreq,
+        };
+        let results = mdoc_zk_compile::compile_all_circuits(hash_profile, sig_profile);
         let mut circuits = std::collections::HashMap::new();
         for (idx, res) in results.into_iter().enumerate() {
             let nattrs = idx + 1;
-            let (lfa_bytes, _, _) = res.expect("Failed to compile circuit");
+            let (lfa_bytes, config_sig, config_hash) = res.expect("Failed to compile circuit");
             let spec = &mdoc_zk_runtime::CURRENT_ZK_SPECS[nattrs - 1];
+            assert_eq!(
+                config_hash, spec.ligero_hash,
+                "Hash Ligero config mismatch for nattrs={nattrs}"
+            );
+            assert_eq!(
+                config_sig, spec.ligero_sig,
+                "Signature Ligero config mismatch for nattrs={nattrs}"
+            );
             let archive = core_proto::archive::CircuitArchive::from_bytes(&lfa_bytes).unwrap();
             let compressed =
                 zstd::encode_all(&lfa_bytes[..], mdoc_zk_circuits::config::K_ZSTD_LEVEL).unwrap();

@@ -20,8 +20,16 @@ pub struct ZkSpecStruct {
     pub combined_hash: [u8; 32],
     pub num_attributes: usize,
     pub version: usize,
-    pub block_enc_hash: usize,
-    pub block_enc_sig: usize,
+    pub ligero_hash: LigeroConfig,
+    pub ligero_sig: LigeroConfig,
+}
+
+const fn ligero_config(rateinv: usize, nreq: usize, block_enc: usize) -> LigeroConfig {
+    LigeroConfig {
+        rateinv,
+        nreq,
+        block_enc,
+    }
 }
 
 impl ZkSpecStruct {
@@ -51,8 +59,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 1,
         version: 7,
-        block_enc_hash: 4151,
-        block_enc_sig: 4096,
+        ligero_hash: ligero_config(7, 132, 4151),
+        ligero_sig: ligero_config(7, 132, 4096),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -63,8 +71,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 2,
         version: 7,
-        block_enc_hash: 4265,
-        block_enc_sig: 4096,
+        ligero_hash: ligero_config(7, 132, 4265),
+        ligero_sig: ligero_config(7, 132, 4096),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -75,8 +83,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 3,
         version: 7,
-        block_enc_hash: 4307,
-        block_enc_sig: 4096,
+        ligero_hash: ligero_config(7, 132, 4307),
+        ligero_sig: ligero_config(7, 132, 4096),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -87,8 +95,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 4,
         version: 7,
-        block_enc_hash: 4415,
-        block_enc_sig: 4096,
+        ligero_hash: ligero_config(7, 132, 4415),
+        ligero_sig: ligero_config(7, 132, 4096),
     },
     // Circuits produced on 2025-10-10
     ZkSpecStruct {
@@ -100,8 +108,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 1,
         version: 6,
-        block_enc_hash: 4096,
-        block_enc_sig: 2945,
+        ligero_hash: ligero_config(4, 128, 4096),
+        ligero_sig: ligero_config(4, 128, 2945),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -112,8 +120,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 2,
         version: 6,
-        block_enc_hash: 4025,
-        block_enc_sig: 2945,
+        ligero_hash: ligero_config(4, 128, 4025),
+        ligero_sig: ligero_config(4, 128, 2945),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -124,8 +132,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 3,
         version: 6,
-        block_enc_hash: 4121,
-        block_enc_sig: 2945,
+        ligero_hash: ligero_config(4, 128, 4121),
+        ligero_sig: ligero_config(4, 128, 2945),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -136,8 +144,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 4,
         version: 6,
-        block_enc_hash: 4283,
-        block_enc_sig: 2945,
+        ligero_hash: ligero_config(4, 128, 4283),
+        ligero_sig: ligero_config(4, 128, 2945),
     },
     // Circuits produced on 2025-08-21
     ZkSpecStruct {
@@ -149,8 +157,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 1,
         version: 5,
-        block_enc_hash: 4096,
-        block_enc_sig: 2945,
+        ligero_hash: ligero_config(4, 128, 4096),
+        ligero_sig: ligero_config(4, 128, 2945),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -161,8 +169,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 2,
         version: 5,
-        block_enc_hash: 4025,
-        block_enc_sig: 2945,
+        ligero_hash: ligero_config(4, 128, 4025),
+        ligero_sig: ligero_config(4, 128, 2945),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -173,8 +181,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 3,
         version: 5,
-        block_enc_hash: 4121,
-        block_enc_sig: 2945,
+        ligero_hash: ligero_config(4, 128, 4121),
+        ligero_sig: ligero_config(4, 128, 2945),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -185,8 +193,8 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
         ],
         num_attributes: 4,
         version: 5,
-        block_enc_hash: 4283,
-        block_enc_sig: 2945,
+        ligero_hash: ligero_config(4, 128, 4283),
+        ligero_sig: ligero_config(4, 128, 2945),
     },
 ];
 
@@ -202,8 +210,8 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
         ],
         num_attributes: 1,
         version: CURRENT_VERSION,
-        block_enc_hash: 5255,
-        block_enc_sig: 4445,
+        ligero_hash: ligero_config(7, 132, 5255),
+        ligero_sig: ligero_config(7, 132, 4445),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -214,8 +222,8 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
         ],
         num_attributes: 2,
         version: CURRENT_VERSION,
-        block_enc_hash: 5246,
-        block_enc_sig: 4445,
+        ligero_hash: ligero_config(7, 132, 5246),
+        ligero_sig: ligero_config(7, 132, 4445),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -226,8 +234,8 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
         ],
         num_attributes: 3,
         version: CURRENT_VERSION,
-        block_enc_hash: 5246,
-        block_enc_sig: 4445,
+        ligero_hash: ligero_config(7, 132, 5246),
+        ligero_sig: ligero_config(7, 132, 4445),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -238,8 +246,8 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
         ],
         num_attributes: 4,
         version: CURRENT_VERSION,
-        block_enc_hash: 5246,
-        block_enc_sig: 4445,
+        ligero_hash: ligero_config(7, 132, 5246),
+        ligero_sig: ligero_config(7, 132, 4445),
     },
 ];
 
@@ -272,17 +280,5 @@ pub fn is_supported_version(version: usize) -> bool {
 
 #[must_use]
 pub fn ligero_configs(zk_spec: &ZkSpecStruct) -> (LigeroConfig, LigeroConfig) {
-    let rateinv = if zk_spec.version < 7 { 4 } else { 7 };
-    let nreq = if zk_spec.version < 7 { 128 } else { 132 };
-    let config_hash = LigeroConfig {
-        rateinv,
-        nreq,
-        block_enc: zk_spec.block_enc_hash,
-    };
-    let config_sig = LigeroConfig {
-        rateinv,
-        nreq,
-        block_enc: zk_spec.block_enc_sig,
-    };
-    (config_hash, config_sig)
+    (zk_spec.ligero_hash, zk_spec.ligero_sig)
 }
