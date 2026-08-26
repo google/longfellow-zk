@@ -79,21 +79,41 @@ and therefore the whole array never needs to be stored explicitly.
 For `n = 2^l` and `X` of size `l`, `bindv(EQ_{n}, X)` can be computed
 recursively in linear time as follows.
 
-``` python
-def bindeq(
-        field: FiniteField,
-        challenges: list[FiniteRingElement],
-        ) -> list[FiniteRingElement]:
-    log_n = len(challenges)
-    if log_n == 0:
-        return [field.one()]
-    n = 2 ** log_n
-    b = [field.zero() for _ in range(n)]
-    a = bindeq(field, challenges[1:])
-    for i in range(n // 2):
-        b[2 * i] = (field.one() - challenges[0]) * a[i]
-        b[2 * i + 1] = challenges[0] * a[i]
-    return b
+``` rust
+/// Computes the multilinear extension of the equality polynomial EQ_{2^l}(x, r).
+pub fn bindeq<F: Field>(challenges: &[F]) -> Vec<F> {
+    let log_n = challenges.len();
+    if log_n == 0 {
+        return vec![F::one()];
+    }
+    let n = 1 << log_n;
+    let mut b = vec![F::zero(); n];
+    let a = bindeq(&challenges[1..]);
+    for i in 0..(n / 2) {
+        b[2 * i] = (F::one() - challenges[0]) * a[i];
+        b[2 * i + 1] = challenges[0] * a[i];
+    }
+    b
+}
+
+/// Evaluates the equality polynomial EQ(r, x) at integer point `x_int` of length `nbits`.
+pub fn eq<F: Field>(r: &[F], x_int: usize, nbits: usize) -> F {
+    let mut product = F::one();
+    for b in 0..nbits {
+        if ((x_int >> b) & 1) == 1 {
+            product *= r[b];
+        } else {
+            product *= F::one() - r[b];
+        }
+    }
+    product
+}
+
+/// Evaluates a linear combination of equality polynomials across two challenge vectors:
+/// `eq2(x, logn, g0, g1, alpha) = eq(g0, x, logn) + alpha * eq(g1, x, logn)`
+pub fn eq2<F: Field>(x: usize, logn: usize, g0: &[F], g1: &[F], alpha: F) -> F {
+    eq(g0, x, logn) + alpha * eq(g1, x, logn)
+}
 ```
 
 For `m <= n`, `bindv(EQ_{n}, X)[i]` and `bindv(EQ_{m}, X)[i]`
@@ -245,112 +265,126 @@ constraints can be checked with the Ligero zero-knowledge system (see
 The variables used in these constraints are assigned sequentially, first
 to the private circuit inputs, then to elements of the one-time pad.
 Variables for one-time pad values are assigned to values for circuit
-layers in order, starting with the output layer. Within each layer,
+layers in order, starting with the output layer (layer 0). Within each layer,
 variables are first assigned to one-time pad values for sumcheck
 polynomials, then to the per-layer claim values. The number of sumcheck
 polynomials for each layer is equal to double the value of
-`log_num_input_wires` for that layer of the circuit.
+`logw` for that layer of the circuit (two hands for each round).
 The polynomials are represented by two field
 elements each, one for the evaluation at `P0 = 0`, and one for the
 evaluation at `P2`. At the end of the variables for each layer, three
-variables are assigned for claim-related values. Two variables are used
+variables are assigned for claim-related values. Two variables `c0` and `c1` are used
 for the one-time pad values for the claims `vl` and `vr`. Then, a
-variable is used for the product of those two one-time pad values.
+variable `cr` is used for the product of those two one-time pad values (`cr = c0 * c1`).
 
-``` python
-def construct_symbolic_variables(
-        field: FiniteField,
-        circuit: Circuit,
-        ) -> tuple[
-            tuple[MPolynomial, ...],
-            list[LayerPad[MPolynomial]],
-        ]:
-    num_private_inputs = circuit.ninputs - circuit.pub_in
-    witness_length = (
-        num_private_inputs
-        + sum(l.log_num_input_wires for l in circuit.layers) * 4
-        + len(circuit.layers) * 3
-    )
-    ring = PolynomialRing(field, witness_length, "w")
-    variables = ring.gens()
-    witness_variables = variables[:num_private_inputs]
-    pad_variables = variables[num_private_inputs:]
-    return (
-        witness_variables,
-        construct_symbolic_pad(field, circuit, pad_variables)
-    )
+``` rust
+/// Padding for a single round of sumcheck (masks for p0 and p2 evals for both hands).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RoundPad<T> {
+    pub hp: [[T; 2]; 2], // hp[hand] = [p0_mask, p2_mask]
+}
 
+/// Padding for final layer claim masks.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LayerClaimsPad<T> {
+    pub c0: T,
+    pub c1: T,
+    pub cr: T, // Product c0 * c1
+}
 
-def construct_symbolic_pad(
-        field: FiniteField,
-        circuit: Circuit,
-        variables: Sequence[MPolynomial],
-        ) -> list[LayerPad[MPolynomial]]:
-    it = iter(variables)
-    layers = []
-    for layer in circuit.layers:
-        evals: list[list[SumcheckPolynomial[MPolynomial]]] = []
-        for round in range(layer.log_num_input_wires):
-            evals.append([])
-            for _ in range(2):
-                evals[round].append(
-                    SumcheckPolynomial(
-                        next(it),
-                        next(it),
-                    ),
-                )
-        vl = next(it)
-        vr = next(it)
-        vl_vr = next(it)
-        layers.append(LayerPad(
-            evals,
-            vl,
-            vr,
-            vl_vr,
-        ))
-    return layers
+/// Padding for a single circuit layer.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LayerPad<T> {
+    pub rounds: Vec<RoundPad<T>>,
+    pub claims: LayerClaimsPad<T>,
+}
 
+/// Padding for the entire circuit.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CircuitPad<T> {
+    pub layers: Vec<LayerPad<T>>,
+}
 
-def construct_concrete_pad(
-        field: FiniteField,
-        circuit: Circuit,
-        pad_prg: Callable[
-            [FiniteField],
-            FiniteRingElement,
-        ] = random_element,
-        ) -> tuple[
-            list[LayerPad[FiniteRingElement]],
-            list[FiniteRingElement],
-        ]:
-    """
-    Chooses one-time pad values, and returns them in structured and
-    flattened forms.
-    """
-    layers = []
-    flattened = []
-    for layer in circuit.layers:
-        evals: list[list[SumcheckPolynomial[FiniteRingElement]]] = []
-        for round in range(layer.log_num_input_wires):
-            evals.append([])
-            for _ in range(2):
-                p0 = pad_prg(field)
-                p2 = pad_prg(field)
-                evals[round].append(SumcheckPolynomial(p0, p2))
-                flattened.append(p0)
-                flattened.append(p2)
-        vl = pad_prg(field)
-        vr = pad_prg(field)
-        vl_vr = vl * vr
-        layers.append(LayerPad(
-            evals,
-            vl,
-            vr,
-            vl_vr,
-        ))
-        flattened.append(vl)
-        flattened.append(vr)
-        flattened.append(vl_vr)
-    return (layers, flattened)
+impl<F: Field> LayerPad<F> {
+    /// Samples concrete random field element masks for a single circuit layer.
+    pub fn sample<R: Rng>(logw: usize, rng: &mut R) -> Self {
+        let mut rounds = Vec::with_capacity(logw);
+        for _ in 0..logw {
+            rounds.push(RoundPad {
+                hp: [
+                    [F::sample(rng), F::sample(rng)],
+                    [F::sample(rng), F::sample(rng)],
+                ],
+            });
+        }
+        let c0 = F::sample(rng);
+        let c1 = F::sample(rng);
+        let cr = c0 * c1;
+
+        LayerPad {
+            rounds,
+            claims: LayerClaimsPad { c0, c1, cr },
+        }
+    }
+
+    /// Appends all pad elements in order to a witness vector.
+    pub fn flatten_into(&self, out: &mut Vec<F>) {
+        for r in &self.rounds {
+            out.extend_from_slice(&r.hp[0]);
+            out.extend_from_slice(&r.hp[1]);
+        }
+        out.push(self.claims.c0);
+        out.push(self.claims.c1);
+        out.push(self.claims.cr);
+    }
+}
+
+impl LayerPad<usize> {
+    /// Generates the symbolic witness indices for a single circuit layer pad starting at `pad_base`.
+    pub fn generate_indices(logw: usize, pad_base: &mut usize) -> Self {
+        let mut rounds = Vec::with_capacity(logw);
+        for _ in 0..logw {
+            let hand0 = [*pad_base, *pad_base + 1];
+            let hand1 = [*pad_base + 2, *pad_base + 3];
+            *pad_base += 4;
+            rounds.push(RoundPad { hp: [hand0, hand1] });
+        }
+        let c0 = *pad_base;
+        let c1 = *pad_base + 1;
+        let cr = *pad_base + 2;
+        *pad_base += 3;
+
+        LayerPad {
+            rounds,
+            claims: LayerClaimsPad { c0, c1, cr },
+        }
+    }
+}
+
+impl<F: Field> CircuitPad<F> {
+    /// Samples random field element padding for all layers in the circuit and flattens them into witness padding.
+    pub fn sample<R: Rng>(circuit_data: &Circuit<F>, rng: &mut R) -> (Self, Vec<F>) {
+        let mut pad_witness = Vec::new();
+        let mut layers = Vec::with_capacity(circuit_data.layers.len());
+        for layer in &circuit_data.layers {
+            let layer_pad = LayerPad::sample(layer.logw, rng);
+            layer_pad.flatten_into(&mut pad_witness);
+            layers.push(layer_pad);
+        }
+        (CircuitPad { layers }, pad_witness)
+    }
+}
+
+impl CircuitPad<usize> {
+    /// Generates symbolic witness indices for all layers in the circuit starting at `pad_base`.
+    pub fn generate_indices<F: Field>(circuit_data: &Circuit<F>, pad_base: &mut usize) -> Self {
+        let mut layers = Vec::with_capacity(circuit_data.layers.len());
+        for layer in &circuit_data.layers {
+            layers.push(LayerPad::generate_indices(layer.logw, pad_base));
+        }
+        CircuitPad { layers }
+    }
+}
 ```
 
 ## Transform circuit and wires into a padded proof
@@ -413,383 +447,414 @@ These two claim values are encrypted with a one-time pad and sent to the
 verifier.
 
 Before the first round, a fixed number of verifier challenges are
-generated and discarded. These are reserved for possible future
+generated and discarded (`begin_circuit`). These are reserved for possible future
 extensions to the protocol. Additionally, a fixed number of challenges
 are generated for binding the output wires before the first round, with
 the remainder of the challenges being discarded. In both of these cases,
-`MAX_BINDINGS = 40` challenges are generated. For all subsequent layers,
+`MAX_LOGW = 40` challenges are generated. For all subsequent layers,
 challenges used for binding output wires are generated one at a time,
 with no extra unused challenges.
 
-``` python
-def sumcheck_circuit(
-        field: FiniteField,
-        circuit: Circuit,
-        wires: list[list[FiniteRingElement]],
-        pad: list[LayerPad[FiniteRingElement]],
-        transcript: Transcript) -> list[LayerProof]:
-    for _ in range(MAX_BINDINGS):
-        # Discard initial challenges. These are reserved for possible
-        # future use.
-        _ = transcript.generate_field(field)
-    challenges = [
-        transcript.generate_field(field)
-        for _ in range(MAX_BINDINGS)
-    ]
-    G = (
-        challenges[:circuit.log_num_outputs],
-        challenges[:circuit.log_num_outputs],
-    )
-    proof: list[LayerProof] = []
-    for j, layer in enumerate(circuit.layers):
-        alpha = transcript.generate_field(field)
+``` rust
+#[derive(Clone, Debug)]
+pub struct SumcheckRoundEvals<F> {
+    pub evals: [F; 2],
+}
 
-        # Form the combined quad, QZ = Q + beta * Z, to handle
-        # in-circuit assertions.
-        beta = transcript.generate_field(field)
-        QZ = layer.quad + beta * layer.Z
+#[derive(Clone, Debug)]
+pub struct SumcheckLayerProof<F> {
+    pub hp: [Vec<SumcheckRoundEvals<F>>; 2],
+    pub claims: [F; 2],
+}
 
-        # QZ is three-dimensional, QZ[g, l, r].
-        QUAD = QZ.bindv(G[0]) + alpha * QZ.bindv(G[1])
-        # Having bound g, QUAD is now effectively two-dimensional,
-        # QUAD[l, r].
-        QUAD = QUAD.drop_dimension()
+/// Returns the element at `index`, treating the slice as infinitely padded with zeroes.
+pub fn vector_ref<F: Field>(w: &[F], index: usize) -> F {
+    if index < w.len() { w[index] } else { F::zero() }
+}
 
-        layer_proof, G = sumcheck_layer(
-            field,
-            QUAD,
-            wires[j + 1],
-            layer.log_num_input_wires,
-            pad[j],
+/// Evaluates a single round polynomial for the sumcheck protocol.
+/// Returns evaluations at 0, 1, and x2.
+fn eval_round_poly<F: Field + 'static>(
+    quad_terms: &[Term<F>],
+    active_hand: &[F],
+    other_hand: &[F],
+    hand: usize,
+    eval_point_x2: F,
+) -> [F; 3] {
+    let one_minus_x2 = F::one() - eval_point_x2;
+    let mut ev0 = F::zero();
+    let mut ev1 = F::zero();
+    let mut ev2 = F::zero();
+
+    let other_hand_idx = 1 - hand;
+
+    for term in quad_terms {
+        let is_even = term.h[hand] % 2 == 0;
+        let pair_base_idx = term.h[hand] & !1;
+
+        let w0 = vector_ref(active_hand, pair_base_idx);
+        let w1 = vector_ref(active_hand, pair_base_idx | 1);
+        let other_val = vector_ref(other_hand, term.h[other_hand_idx]);
+
+        let coef = term.k * other_val;
+        let wx2 = w0 + eval_point_x2 * (w1 - w0);
+
+        if is_even {
+            ev0 += coef * w0;
+            ev2 += coef * one_minus_x2 * wx2;
+        } else {
+            ev1 += coef * w1;
+            ev2 += coef * eval_point_x2 * wx2;
+        }
+    }
+
+    [ev0, ev1, ev2]
+}
+
+/// Binds active wires to a challenge point:
+/// wires[i] = (1 - challenge) * wires[2*i] + challenge * wires[2*i + 1]
+pub fn bind<F: Field>(wires: &mut Vec<F>, challenge: F) {
+    let n = wires.len().div_ceil(2);
+    let one_minus_c = F::one() - challenge;
+    for i in 0..n {
+        let w0 = vector_ref(wires, 2 * i);
+        let w1 = vector_ref(wires, 2 * i + 1);
+        wires[i] = w0 * one_minus_c + w1 * challenge;
+    }
+    wires.truncate(n);
+}
+
+pub fn sumcheck_prove_layer<F: Field + 'static>(
+    transcript: &mut Transcript,
+    layer_pad: &LayerPad<F>,
+    wires: &[F],
+    mut quad_terms: Vec<Term<F>>,
+    logw: usize,
+) -> (SumcheckLayerProof<F>, [Vec<F>; 2], [F; 2]) {
+    let mut challenges = [Vec::new(), Vec::new()];
+    let mut hp = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
+
+    let x2 = F::sumcheck_eval_points()[2];
+    let mut active_wires = [wires.to_vec(), wires.to_vec()];
+
+    for round in 0..logw {
+        for hand in 0..2 {
+            let other_hand = 1 - hand;
+            let evaluations = eval_round_poly(
+                &quad_terms,
+                &active_wires[hand],
+                &active_wires[other_hand],
+                hand,
+                x2,
+            );
+
+            // Pad the polynomial evaluations
+            let round_pad = &layer_pad.rounds[round].hp[hand];
+            let padded_sumcheck_poly =
+                [evaluations[0] - round_pad[0], evaluations[2] - round_pad[1]];
+
+            // Get challenge from transcript
+            let challenge = round_poly(transcript, &padded_sumcheck_poly);
+            challenges[hand].push(challenge);
+
+            hp[hand].push(SumcheckRoundEvals {
+                evals: padded_sumcheck_poly,
+            });
+
+            // Fold the active wires with the challenge
+            bind(&mut active_wires[hand], challenge);
+
+            // Update quadratic terms for the next round
+            let one_minus_c = F::one() - challenge;
+            for term in quad_terms.iter_mut() {
+                if term.h[hand] % 2 == 0 {
+                    term.k *= one_minus_c;
+                } else {
+                    term.k *= challenge;
+                }
+                term.h[hand] /= 2;
+            }
+        }
+    }
+
+    let next_claims = [
+        vector_ref(&active_wires[0], 0),
+        vector_ref(&active_wires[1], 0),
+    ];
+    let proof_claims = [
+        next_claims[0] - layer_pad.claims.c0,
+        next_claims[1] - layer_pad.claims.c1,
+    ];
+
+    end_layer(transcript, &proof_claims);
+
+    let proof = SumcheckLayerProof {
+        hp,
+        claims: proof_claims,
+    };
+    (proof, challenges, next_claims)
+}
+
+pub fn sumcheck_prove<F: Field + 'static>(
+    transcript: &mut Transcript,
+    in_layers: &[Vec<F>],
+    circuit_data: &Circuit<F>,
+    circuit_pad: &CircuitPad<F>,
+) -> (Vec<SumcheckLayerProof<F>>, [F; 2]) {
+    let (_copy_challenges, global_challenges) = begin_circuit::<F>(transcript);
+
+    let initial_logv = ceil_lg2(circuit_data.noutput);
+    let mut current_logv = initial_logv;
+    let mut current_challenges = [
+        global_challenges[0..initial_logv].to_vec(),
+        global_challenges[0..initial_logv].to_vec(),
+    ];
+
+    let mut final_claims = [F::zero(); 2];
+    let mut proofs = Vec::with_capacity(circuit_data.layers.len());
+
+    for layer_index in 0..circuit_data.layers.len() {
+        let layer = &circuit_data.layers[layer_index];
+        let (alpha, beta) = begin_layer(transcript);
+
+        let mut quad_terms = layer.quad.clone();
+        bind_g(
+            &mut quad_terms,
+            current_logv,
+            &current_challenges[0],
+            &current_challenges[1],
+            alpha,
+            beta,
+        );
+
+        let (proof, next_challenges, next_claims) = sumcheck_prove_layer(
             transcript,
-        )
-        proof.append(layer_proof)
-    return proof
-```
+            &circuit_pad.layers[layer_index],
+            &in_layers[layer_index],
+            quad_terms,
+            layer.logw,
+        );
 
-``` python
-def sumcheck_layer(
-        field: FiniteField,
-        QUAD: SparseArray,
-        wires: list[FiniteRingElement],
-        log_num_input_wires: int,
-        layer_pad: LayerPad[FiniteRingElement],
-        transcript: Transcript) -> tuple[
-            LayerProof,
-            tuple[list[FiniteRingElement], list[FiniteRingElement]],
-        ]:
-    VL = DenseArray(field, wires)
-    VR = DenseArray(field, wires)
-    P2 = sumcheck_p2(field)
-    evals: list[list[SumcheckPolynomial[FiniteRingElement]]] = []
-    G: tuple[list, list] = ([], [])
-    for round in range(log_num_input_wires):
-        evals.append([])
-        for hand in range(2):
-            # Consider the following polynomial.
-            #
-            # p(x) = \sum_{l, r} bind(QUAD, x)[l, r]
-            #                    * bind(VL, x)[l]
-            #                    * VR[r]
-            #
-            # We evaluate this polynomial at the points P0 and P2.
-            # The sum of p(P0) and p(P1) is implicitly known already,
-            # so p(P1) does not need to be calculated.
-            #
-            # Implementation note: this can be computed more
-            # efficiently by first computing the intermediate array
-            # defined as follows:
-            #
-            # A[l] = \sum_{r} QUAD[l, r] * VR[r]
-            #
-            # This allows performing only one pass over the quad, and
-            # binding only 1-D arrays with length equal to the number
-            # of wires.
-            eval_p0 = sum(
-                (
-                    v * VL[k[hand]] * VR[k[1 - hand]]
-                    for (k, v) in QUAD.entries.items()
-                    if k[hand] & 1 == 0
-                ),
-                start=field.zero(),
-            )
-            QUAD_bind_p2 = QUAD.bind(P2, axis=hand)
-            VL_bind_p2 = VL.bind(P2)
-            eval_p2 = field.zero()
-            for (k, v) in QUAD_bind_p2.entries.items():
-                eval_p2 += v * VL_bind_p2[k[hand]] * VR[k[1 - hand]]
-            blinded_p0 = eval_p0 - layer_pad.evals[round][hand].p0
-            blinded_p2 = eval_p2 - layer_pad.evals[round][hand].p2
-            evals[round].append(SumcheckPolynomial(
-                blinded_p0,
-                blinded_p2,
-            ))
-            transcript.write_field(blinded_p0)
-            transcript.write_field(blinded_p2)
-            challenge = transcript.generate_field(field)
-            G[hand].append(challenge)
+        current_logv = layer.logw;
+        current_challenges = next_challenges;
+        final_claims = next_claims;
+        proofs.push(proof);
+    }
 
-            # Bind the current index variable to the challenge.
-            VL = VL.bind(challenge)
-            QUAD = QUAD.bind(challenge, axis=hand)
-
-            # Swap VL and VR.
-            (VL, VR) = (VR, VL)
-
-    layer_proof = LayerProof(
-        evals,
-        VL[0] - layer_pad.vl,
-        VR[0] - layer_pad.vr,
-    )
-    transcript.write_field_element_array([
-        layer_proof.vl,
-        layer_proof.vr,
-    ])
-    return (layer_proof, G)
+    (proofs, final_claims)
+}
 ```
 
 ## Generate constraints from the public inputs and the padded proof
 
-This section defines a procedure `constraints_circuit` for transforming
-the proof returned by `sumcheck_circuit` into constraints to be checked
-by the commitment scheme.  Specifically, each layer produces one linear
+This section defines the procedure `symbolic_sumcheck_verifier_core` for transforming
+the proof returned by `sumcheck_prove` into constraints to be checked
+by the commitment scheme. Specifically, each layer produces one linear
 constraint and one quadratic constraint. One additional linear
 constraint is added after processing the input layer.
 
 The main difficulty in describing the algorithm is that it operates
 not on concrete witnesses, but on expressions in which the witnesses
-are symbolic quantities.  Symbolic manipulation is necessary because
-the verifier does not have access to the witnesses.  To avoid
-overspecifying the exact representation of such symbolic expressions,
-the convention is that the prefix `sym_` indicates not a concrete
-value, but a symbolic representation of the value.  Thus, `w[3]` is
-the fourth concrete witness in the `w` array, and `sym_w[3]` is a
-symbolic representation of the fourth element in the `w` array.  The
-algorithm does not need arbitrarily complex symbolic expressions.  It
-suffices to keep track of affine symbolic expressions of the form 
-`k + SUM_{i} a[i] sym_w[i]` for some (concrete, nonsymbolic) field elements
-`k` and `a[]`.
+are symbolic quantities. Symbolic manipulation is necessary because
+the verifier does not have access to the witnesses. In the reference implementation,
+symbolic quantities are represented by affine expressions `Expression<F>`
+of the form `k + SUM_{i} a[i] * Var(i)` for known constant `k` and coefficients `a[i]`.
+`Var(i)` represents the `i`-th variable in the combined witness vector `W`.
 
-``` python
-def constraints_circuit(
-        field: FiniteField,
-        circuit: Circuit,
-        public_inputs: list[FiniteRingElement],
-        sym_private_inputs: Sequence[MPolynomial],
-        sym_pad: list[LayerPad[MPolynomial]],
-        transcript: Transcript,
-        proof: list[LayerProof]) -> tuple[
-            list[MPolynomial],
-            list[QuadraticConstraint],
-        ]:
-    """
-    Processes a sumcheck proof, and produces lists of constraints for
-    verification.
+Linear constraints are converted into sparse constraint terms `LigeroTerm<F>` representing
+`A * W + b = 0`, and quadratic constraints are represented by variable indices `(c0, c1, cr)`
+enforcing `W[c0] * W[c1] = W[cr]`.
 
-    Linear constrants are returned as expressions of the form
-    `k + SUM_{i} a[i] sym_w[i]`, representing
-    `k + SUM_{i} a[i] sym_w[i] = 0`, and quadratic constraints are
-    returned as objects holding three variables, representing
-    `w_x * w_y = w_z`.
-    """
-    for _ in range(MAX_BINDINGS):
-        # Discard initial challenges. These are reserved for possible
-        # future use.
-        _ = transcript.generate_field(field)
-    challenges = [
-        transcript.generate_field(field)
-        for _ in range(MAX_BINDINGS)
-    ]
-    G = (
-        challenges[:circuit.log_num_outputs],
-        challenges[:circuit.log_num_outputs],
-    )
-    linear_constraints = []
-    quadratic_constraints = []
-    claim_0: MPolynomial | FiniteRingElement
-    claim_1: MPolynomial | FiniteRingElement
-    for j, layer in enumerate(circuit.layers):
-        alpha = transcript.generate_field(field)
-        beta = transcript.generate_field(field)
-        QZ = layer.quad + beta * layer.Z
-        QUAD = QZ.bindv(G[0]) + alpha * QZ.bindv(G[1])
-        QUAD = QUAD.drop_dimension()
-        if j == 0:
-            claim_0 = field.zero()
-            claim_1 = field.zero()
-        else:
-            claim_0 = claim_0 + sym_pad[j - 1].vl
-            claim_1 = claim_1 + sym_pad[j - 1].vr
-        (
-            G,
-            (claim_0, claim_1),
-            linear_constraint,
-            quadratic_constraint,
-        ) = constraints_layer(
-            field,
-            QUAD,
-            layer.log_num_input_wires,
-            sym_pad[j],
-            transcript,
-            proof[j],
-            (claim_0, claim_1),
-            alpha,
-        )
-        linear_constraints.append(linear_constraint)
-        quadratic_constraints.append(quadratic_constraint)
+``` rust
+pub struct ClaimsState<F> {
+    pub logv: usize,
+    pub claim: [Expression<F>; 2],
+    pub hc: [Vec<F>; 2],
+}
 
-    # Add a constraint checking that the two final claims equal the
-    # binding of sym_inputs with G[0] and G[1].
-    gamma = transcript.generate_field(field)
-    # eq2 = bindv(EQ, G[0]) + gamma * bindv(EQ, G[1])
-    eq2 = [
-        a + gamma * b
-        for a, b in zip(
-            bindeq(field, G[0]),
-            bindeq(field, G[1]),
-        )
-    ]
-    sym_layer_pad = sym_pad[-1]
-    num_private_inputs = circuit.ninputs - circuit.pub_in
-    final_constraint = (
-        sum(
-            (
-                eq2[i] * public_inputs[i]
-                for i in range(circuit.pub_in)
-            ),
-            start=field.zero(),
-        )
-        + sum(
-            (
-                eq2[i + circuit.pub_in] * sym_private_inputs[i]
-                for i in range(num_private_inputs)
-            ),
-            start=field.zero(),
-        )
-        - claim_0
-        - sym_layer_pad.vl
-        - gamma * claim_1
-        - gamma * sym_layer_pad.vr
-    )
-    linear_constraints.append(final_constraint)
-    return linear_constraints, quadratic_constraints
-```
+pub struct SymRes<F> {
+    pub a: Vec<LigeroTerm<F>>,
+    pub b: Vec<F>,
+}
 
-``` python
-def constraints_layer(
-        field: FiniteField,
-        QUAD: SparseArray,
-        log_num_input_wires: int,
-        sym_layer_pad: LayerPad[MPolynomial],
-        transcript: Transcript,
-        layer_proof: LayerProof,
-        claims: tuple[
-            MPolynomial | FiniteRingElement,
-            MPolynomial | FiniteRingElement,
+fn constrain_to_be_zero<F: Field>(
+    a: &mut Vec<LigeroTerm<F>>,
+    b: &mut Vec<F>,
+    expr: &Expression<F>,
+) {
+    let c = b.len();
+    for (&witness_idx, &coeff) in &expr.terms {
+        a.push(LigeroTerm {
+            coeff,
+            constraint_idx: c,
+            witness_idx,
+        });
+    }
+    b.push(expr.known);
+}
+
+pub fn symbolic_sumcheck_round<F: Field + 'static>(
+    claim: Expression<F>,
+    round_pad: &[usize; 2],
+    hp_evals: &[F; 2],
+    ts: &mut Transcript,
+) -> (Expression<F>, F) {
+    let challenge_val = round_poly(ts, hp_evals);
+    let lag = lagrange_basis(challenge_val);
+
+    let p0 = Var(round_pad[0]) + hp_evals[0];
+    let p2 = Var(round_pad[1]) + hp_evals[1];
+    let p1 = claim - p0.clone();
+
+    let next_claim = p0 * lag[0] + p1 * lag[1] + p2 * lag[2];
+
+    (next_claim, challenge_val)
+}
+
+fn verify_layer<F: Field + 'static>(
+    a: &mut Vec<LigeroTerm<F>>,
+    b: &mut Vec<F>,
+    claims_state: &mut ClaimsState<F>,
+    pad: &LayerPad<usize>,
+    clr: &CircuitLayer<F>,
+    plr: &SumcheckLayerProof<F>,
+    ts: &mut Transcript,
+) {
+    let (alpha, beta) = begin_layer(ts);
+    let mut lchal_hc = [Vec::new(), Vec::new()];
+
+    let mut claim = claims_state.claim[0].clone() + claims_state.claim[1].clone() * alpha;
+
+    for round in 0..clr.logw {
+        for hand in 0..2 {
+            let hp = &plr.hp[hand][round];
+            let round_pad = &pad.rounds[round].hp[hand];
+            let (next_claim, challenge_val) =
+                symbolic_sumcheck_round(claim, round_pad, &hp.evals, ts);
+            claim = next_claim;
+            lchal_hc[hand].push(challenge_val);
+        }
+    }
+
+    let eqq = eval_bound_quad(
+        &clr.quad,
+        claims_state.logv,
+        &claims_state.hc[0],
+        &claims_state.hc[1],
+        &lchal_hc[0],
+        &lchal_hc[1],
+        clr.logw,
+        alpha,
+        beta,
+    );
+
+    let prod_expr = (Var(pad.claims.c0) * plr.claims[1]
+        + Var(pad.claims.c1) * plr.claims[0]
+        + Var(pad.claims.cr)
+        + (plr.claims[0] * plr.claims[1]))
+        * eqq;
+
+    claim -= prod_expr;
+
+    constrain_to_be_zero(a, b, &claim);
+
+    end_layer(ts, &plr.claims);
+
+    *claims_state = ClaimsState {
+        logv: clr.logw,
+        claim: [
+            Var(pad.claims.c0) + plr.claims[0],
+            Var(pad.claims.c1) + plr.claims[1],
         ],
-        alpha: FiniteRingElement) -> tuple[
-            tuple[list[FiniteRingElement], list[FiniteRingElement]],
-            tuple[FiniteRingElement, FiniteRingElement],
-            MPolynomial,
-            QuadraticConstraint,
-        ]:
-    # Initial claim. This is a known constant during the first round,
-    # but it will be a symbolic affine expression in subsequent
-    # rounds.
-    sym_claim = claims[0] + alpha * claims[1]
+        hc: lchal_hc,
+    };
+}
 
-    # Lagrange basis polynomials
-    R = field["x"]
-    lag_0 = R.lagrange_polynomial([
-        (field.zero(), field.one()),
-        (field.one(), field.zero()),
-        (sumcheck_p2(field), field.zero()),
-    ])
-    lag_1 = R.lagrange_polynomial([
-        (field.zero(), field.zero()),
-        (field.one(), field.one()),
-        (sumcheck_p2(field), field.zero()),
-    ])
-    lag_2 = R.lagrange_polynomial([
-        (field.zero(), field.zero()),
-        (field.one(), field.zero()),
-        (sumcheck_p2(field), field.one()),
-    ])
+fn input_constraint<F: Field>(
+    a: &mut Vec<LigeroTerm<F>>,
+    b: &mut Vec<F>,
+    num_public_inputs: usize,
+    num_inputs: usize,
+    pub_inputs: &[F],
+    claims_logv: usize,
+    claims_hc0: &[F],
+    claims_hc1: &[F],
+    got_expr: Expression<F>,
+    alpha: F,
+) {
+    let mut eq_vec = Vec::with_capacity(num_inputs);
+    for i in 0..num_inputs {
+        eq_vec.push(eq2(i, claims_logv, claims_hc0, claims_hc1, alpha));
+    }
 
-    G: tuple[list[FiniteRingElement], list[FiniteRingElement]] = (
-        [],
-        [],
-    )
-    for round in range(log_num_input_wires):
-        for hand in range(2):
-            hp = layer_proof.evals[round][hand]
-            sym_hpad = sym_layer_pad.evals[round][hand]
+    let mut pub_binding = F::zero();
+    for i in 0..num_public_inputs {
+        pub_binding += eq_vec[i] * pub_inputs[i];
+    }
 
-            transcript.write_field(hp.p0)
-            transcript.write_field(hp.p2)
-            challenge = transcript.generate_field(field)
-            G[hand].append(challenge)
+    let mut mle_expr = Expression::from(pub_binding);
+    for w in 0..(num_inputs - num_public_inputs) {
+        mle_expr += Var(w) * eq_vec[num_public_inputs + w];
+    }
 
-            # After decrypting, the polynomial evaluations are
-            # expected to be:
-            #
-            #   p(P0) = hp.p0 + sym_hpad.p0
-            #   p(P2) = hp.p2 + sym_hpad.p2
-            sym_p0 = hp.p0 + sym_hpad.p0
-            sym_p2 = hp.p2 + sym_hpad.p2
+    mle_expr -= got_expr;
 
-            # Compute the implied evaluation, p(P1) = claim - p(P0),
-            # in symbolic form.
-            sym_p1 = sym_claim - sym_p0
+    constrain_to_be_zero(a, b, &mle_expr);
+}
 
-            # Given p(P0), p(P1), and p(P2), interpolate the new
-            # claim symbolically.
-            sym_claim = (
-                lag_0(challenge) * sym_p0
-                + lag_1(challenge) * sym_p1
-                + lag_2(challenge) * sym_p2
-            )
+pub fn symbolic_sumcheck_verifier_core<F: Field + 'static>(
+    mut pad_index: usize,
+    pub_inputs: &[F],
+    circuit_data: &Circuit<F>,
+    proof: &[SumcheckLayerProof<F>],
+    ts: &mut Transcript,
+) -> SymRes<F> {
+    let mut a = Vec::new();
+    let mut b = Vec::new();
 
-            QUAD = QUAD.bind(challenge, axis=hand)
+    let num_inputs = circuit_data.ninput;
+    let num_public_inputs = circuit_data.npublic_input;
 
-    # Now the bound QUAD is a 1x1 array.
-    Q = QUAD.drop_dimension().drop_dimension()[()]
+    let logv_output = ceil_lg2(circuit_data.noutput);
+    let (_, g_ch) = begin_circuit::<F>(ts);
+    let hc_init = g_ch[0..logv_output].to_vec();
 
-    # We want to verify that
-    #
-    #   sym_claim = Q * VL * VR
-    #
-    # where VL = layer_proof.vl + sym_layer_pad.vl
-    #   and VR = layer_proof.vr + sym_layer_pad.vr
-    #
-    # To keep this constraint linear, we expand the multiplication,
-    # and replace sym_layer_pad.vl * sym_layer_pad.vr with
-    # sym_layer_pad.vl_vr, checking that these quantities are equal
-    # in a separate quadratic constraint.
+    let mut claims_state = ClaimsState {
+        logv: logv_output,
+        claim: [Expression::zero(), Expression::zero()],
+        hc: [hc_init.clone(), hc_init],
+    };
 
-    linear_constraint = (
-        sym_claim - Q * (
-            layer_proof.vl * layer_proof.vr
-            + layer_proof.vr * sym_layer_pad.vl
-            + layer_proof.vl * sym_layer_pad.vr
-            + sym_layer_pad.vl_vr
-        )
-    )
-    quadratic_constraint = QuadraticConstraint(
-        sym_layer_pad.vl,
-        sym_layer_pad.vr,
-        sym_layer_pad.vl_vr,
-    )
+    let circuit_pad = CircuitPad::generate_indices(circuit_data, &mut pad_index);
 
-    transcript.write_field_element_array([
-        layer_proof.vl,
-        layer_proof.vr,
-    ])
+    for ly in 0..circuit_data.layers.len() {
+        verify_layer(
+            &mut a,
+            &mut b,
+            &mut claims_state,
+            &circuit_pad.layers[ly],
+            &circuit_data.layers[ly],
+            &proof[ly],
+            ts,
+        );
+    }
 
-    return (
-        G,
-        (layer_proof.vl, layer_proof.vr),
-        linear_constraint,
-        quadratic_constraint,
-    )
+    let alpha_input = ts.get_elt_field();
+    let got_expr = claims_state.claim[0].clone() + claims_state.claim[1].clone() * alpha_input;
+
+    input_constraint(
+        &mut a,
+        &mut b,
+        num_public_inputs,
+        num_inputs,
+        pub_inputs,
+        claims_state.logv,
+        &claims_state.hc[0],
+        &claims_state.hc[1],
+        got_expr,
+        alpha_input,
+    );
+
+    SymRes { a, b }
+}
 ```
