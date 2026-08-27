@@ -229,6 +229,8 @@ GF(2^16^)                     |   0x05
 2^64 - 2^32 + 1               |   0x08
 F_{2^64 - 59}^2^              |   0x09
 secp256k1                     |   0x0a
+Fp24_6 = GF(Q)[x]/(x^6^ - 7)  |   0x0b
+GF(Q), Q = 2^23^ - 2^13^ + 1  |   0x0c
 F_{2^{0--15}^-byte prime}^2^  |   0xe{0--f}
 F_{2^{0--15}^-byte prime}     |   0xf{0--f}
 Table: Finite field identifiers.
@@ -237,11 +239,15 @@ The GF(2^128^) field uses the irreducible polynomial x^128^ + x^7^ + x^2^ + x + 
 The p256 prime is equal to 115792089210356248762697446949407573530086143415290314195533631308867097853951, which is the base field used by the NIST P256 elliptic curve.
 The p384 prime is equal to 39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319 which is the base field used by the NIST P384 curve.  The p512 prime is equal to 2^521^ - 1.  The F_p64^2 field is the quadratic field extension of the base field defined by prime 18446744073709551557 using polynomial x^2 + 1, i.e. by injecting a square root of -1 to the field.
 
+The field `0x0b` is the sextic extension `Fp24_6 = GF(Q)[x] / (x^6^ - 7)`, where `Q = 2^23^ - 2^13^ + 1 = 8380417`.  An element is the tuple of its six coordinates `(a_0, ..., a_5)` representing `sum_{0 <= i < 6} a_i x^i`.  The field `0x0c` is the base prime field `GF(Q)`, which is the subfield of `Fp24_6` embedded as the constant coordinate `a -> (a, 0, 0, 0, 0, 0)`.
+
 
 ### Serializing a single field element
 Unless specified otherwise, a field element, referred to as an `Elt`, is serialized to bytes in little-endian order. For example, a 256-bit element of the finite field F~p256~ is serialized into 32-bytes starting with the least-significant byte.
 
 *  `write_elt(e, F)`: produces a byte encoding of a field element e in field F.
+
+An element of `Fp24_6` (`0x0b`) is serialized as its six coordinates `(a_0, ..., a_5)` in order, each a 3-byte little-endian encoding of an integer in `[0, Q)`, for 18 bytes total.  An element of `GF(Q)` (`0x0c`) is serialized as a single 3-byte little-endian integer in `[0, Q)`.
 
 ### Serializing an element of a subfield
 In some cases, when both Prover and Verifier can explicitly conclude that a field element belongs to a smaller subfield, then both parties can use a more efficient sub-field serialization method.   This optimization can be used when the larger field `F` is a field extension of a smaller field, and both parties can conclude that the serialized element belongs to the smaller subfield.
