@@ -103,6 +103,12 @@ pub fn read_ligero_proof<F: Field + 'static, R: Read>(
     }
 
     let num_paths = read_size_4bytes(io)?;
+    if num_paths > 2 * (geom.encoded_len - geom.dblock_len) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "num_paths exceeds Merkle geometry bound",
+        ));
+    }
     let mut merkle_paths = Vec::with_capacity(num_paths);
     for _ in 0..num_paths {
         let mut path = vec![0u8; 32];

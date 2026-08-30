@@ -23,6 +23,12 @@ pub fn read_uleb128<R: Read>(reader: &mut R) -> std::io::Result<u64> {
         let mut b = [0u8; 1];
         reader.read_exact(&mut b)?;
         let byte = b[0];
+        if shift >= 64 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "uleb128 value exceeds 64 bits",
+            ));
+        }
         val |= ((byte & 0x7f) as u64) << shift;
         if (byte & 0x80) == 0 {
             break;
