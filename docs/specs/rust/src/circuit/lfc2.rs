@@ -21,6 +21,18 @@ use crate::{
     io::{read_elt_field, read_uleb128, zigzag_decode_delta},
 };
 
+const MAX_LOGW: usize = 40;
+const MAX_WIRES: usize = 5_000_000;
+const MAX_LAYERS: usize = 10_000;
+const MAX_CONSTANTS: usize = 5_000_000;
+const MAX_DELTAS: usize = 20_000_000;
+const MAX_TERMS_PER_LAYER: usize = 20_000_000;
+const MAX_TOTAL_TERMS: usize = 20_000_000;
+
+fn invalid_data(msg: &'static str) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidData, msg)
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Term<F> {
     pub k: F,
@@ -50,29 +62,53 @@ pub struct Circuit<F> {
 pub fn parse_lfc2_bytes<F: Field + 'static, R: Read>(io: &mut R) -> std::io::Result<Circuit<F>> {
     let mut magic = [0u8; 4];
     io.read_exact(&mut magic)?;
-    assert_eq!(&magic, b"LFC2", "Invalid magic header");
+    if &magic != b"LFC2" {
+        return Err(invalid_data("Invalid magic header"));
+    }
 
     let field_id = read_uleb128(io)?;
     let nv = read_uleb128(io)? as usize;
     read_uleb128(io)?;
     let logv = ceil_lg2(nv);
+    if logv > MAX_LOGW {
+        return Err(invalid_data("logv exceeds MAX_LOGW"));
+    }
     let npub_in = read_uleb128(io)? as usize;
     let subfield_boundary = read_uleb128(io)? as usize;
     let ninput = read_uleb128(io)? as usize;
+    if ninput > MAX_WIRES {
+        return Err(invalid_data("ninput exceeds MAX_WIRES"));
+    }
+    if npub_in > ninput {
+        return Err(invalid_data("npublic_input exceeds ninput"));
+    }
     let nl = read_uleb128(io)? as usize;
+    if nl > MAX_LAYERS {
+        return Err(invalid_data("nl exceeds MAX_LAYERS"));
+    }
 
     let num_const = read_uleb128(io)? as usize;
+    if num_const > MAX_CONSTANTS {
+        return Err(invalid_data("num_const exceeds MAX_CONSTANTS"));
+    }
     let mut constants = Vec::with_capacity(num_const);
     for _ in 0..num_const {
         constants.push(read_elt_field(io)?);
     }
 
     let mut layers = Vec::with_capacity(nl);
+    let mut total_terms = 0usize;
     for _ in 0..nl {
         let logw = read_uleb128(io)? as usize;
+        if logw > MAX_LOGW {
+            return Err(invalid_data("logw exceeds MAX_LOGW"));
+        }
         let nw = read_uleb128(io)? as usize;
 
         let num_deltas = read_uleb128(io)? as usize;
+        if num_deltas > MAX_DELTAS {
+            return Err(invalid_data("num_deltas exceeds MAX_DELTAS"));
+        }
         struct Delta {
             g: isize,
             h0: isize,
@@ -90,9 +126,15 @@ pub fn parse_lfc2_bytes<F: Field + 'static, R: Read>(io: &mut R) -> std::io::Res
         }
 
         let num_segments = read_uleb128(io)? as usize;
+        if num_segments > MAX_DELTAS {
+            return Err(invalid_data("num_segments exceeds MAX_DELTAS"));
+        }
         let mut segments = Vec::with_capacity(num_segments);
         for _ in 0..num_segments {
             let seg_len = read_uleb128(io)? as usize;
+            if seg_len > MAX_TERMS_PER_LAYER {
+                return Err(invalid_data("seg_len exceeds MAX_TERMS_PER_LAYER"));
+            }
             let mut seg = Vec::with_capacity(seg_len);
             for _ in 0..seg_len {
                 seg.push(read_uleb128(io)? as usize);
@@ -101,6 +143,9 @@ pub fn parse_lfc2_bytes<F: Field + 'static, R: Read>(io: &mut R) -> std::io::Res
         }
 
         let token_len = read_uleb128(io)? as usize;
+        if token_len > MAX_TERMS_PER_LAYER {
+            return Err(invalid_data("token_len exceeds MAX_TERMS_PER_LAYER"));
+        }
         let mut tokens = Vec::with_capacity(token_len);
         for _ in 0..token_len {
             tokens.push(read_uleb128(io)? as usize);
@@ -109,8 +154,21 @@ pub fn parse_lfc2_bytes<F: Field + 'static, R: Read>(io: &mut R) -> std::io::Res
         let mut hc = Vec::new();
         let (mut g, mut h0, mut h1) = (0isize, 0isize, 0isize);
         for tok in tokens {
+            if tok >= segments.len() {
+                return Err(invalid_data("token index out of bounds"));
+            }
             for &didx in &segments[tok] {
+                if didx >= deltas.len() {
+                    return Err(invalid_data("delta index out of bounds"));
+                }
                 let d = &deltas[didx];
+                if d.k_index >= constants.len() {
+                    return Err(invalid_data("k_index out of bounds"));
+                }
+                if total_terms >= MAX_TOTAL_TERMS {
+                    return Err(invalid_data("total term count exceeds MAX_TOTAL_TERMS"));
+                }
+                total_terms += 1;
                 g += d.g;
                 h0 += d.h0;
                 h1 += d.h1;
