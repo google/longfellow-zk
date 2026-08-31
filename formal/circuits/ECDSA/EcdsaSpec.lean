@@ -28,7 +28,7 @@ def StandardEcdsaVerify (pk : AffinePoint F) (e : Nat) (r s : Nat) (order : Nat)
   -- 1. Public key validation
   pk.IsOnCurve params ∧
   let PK_proj := pk.toProjective
-  bsmul (padBits (natToBits order) params.kBits) PK_proj params = infinityPoint ∧
+  ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) PK_proj params) infinityPoint ∧
   
   -- 2. Signature validation
   0 < r ∧ r < order ∧

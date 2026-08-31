@@ -60,7 +60,7 @@ theorem ecdsa_circuit_soundness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F
     [h_prime : Fact (Nat.Prime order)]
     (h : ValidEcdsaWitness w pk e order params)
     (h_G_on : ProjectivePoint.IsOnCurve ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params)
-    (h_pk_order : bsmul (padBits (natToBits order) params.kBits) pk.toProjective params = infinityPoint)
+    (h_pk_order : ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) pk.toProjective params) infinityPoint)
     (h_G_order : ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params) infinityPoint)
     (h_R_order : ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) ({ X := w.rx, Y := w.ry : AffinePoint F }).toProjective params) infinityPoint) :
     ∃ (r s : Nat) (e_nat : Nat),
@@ -173,10 +173,6 @@ theorem ecdsa_circuit_soundness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F
     rw [h_pt_eq]
     exact z_ne_zero_of_point_equality_and_on_curve (addE ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective ({ X := w.pre.getD 4 0, Y := w.pre.getD 5 0 : AffinePoint F }).toProjective params) (w.pre.getD 6 0) (w.pre.getD 7 0) params h_GRPK_on h_grpk_eq
 
-  have h_PK_order_equiv : ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) pk.toProjective params) infinityPoint := by
-    have h_std_order := h_pk_order
-    exact h_std_order ▸ ProjectiveEquiv.refl _
-
   have ⟨h_s_pos, h_s_lt⟩ := s_range w pk e order params h_copy
   have h_s_inv := exists_mod_inv_of_prime_of_lt_of_pos h_s_lt h_s_pos
   rcases h_s_inv with ⟨s_inv, hs_inv⟩
@@ -184,7 +180,7 @@ theorem ecdsa_circuit_soundness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F
   have h_equiv := ecdsa_algebraic_equivalence bi_nat pk w.rx w.ry w.pre params order
     h_bi_nat_len h_bi_nat_bounds ⟨h_pre_len, h_gpk_eq, h_gr_eq, h_rpk_eq, h_grpk_eq⟩ h_GPK_Z h_GR_Z h_RPK_Z h_GRPK_Z
     h_G_on h_PK_proj_on h_R_proj_on
-    h_G_order h_PK_order_equiv h_R_order
+    h_G_order h_pk_order h_R_order
     ⟨h_pure_x, h_pure_z⟩ s_inv hs_inv
   rcases h_equiv with ⟨h_R_eq, h_RZ_ne⟩
   let z := e_nat % order
