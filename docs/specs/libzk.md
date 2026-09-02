@@ -133,7 +133,7 @@ erasure codes</title>
 # Fiat-Shamir primitives {#fiat-shamir}
 A ZK protocol may in general instruct the Prover and Verifier to engage in multiple rounds of communication. However, it is often more convenient to deploy a non-interactive or single-message protocol that only requires a single message from Prover to Verifier. It is possible to apply the Fiat-Shamir heuristic to transform an Interactive Oracle Protocol (IOP) into a single-message protocol. In this variant of the protocol, the Verifier does not explicitly send challenges to the Prover; instead, the Verifier computes the challenges by hashing the transcript of the conversation so far.
 
-While the base Fiat-Shamir framework is described in [@I-D.irtf-cfrg-fiat-shamir#03], Interactive Oracle Proofs require more structured multi-round transcripts and multi-challenge extractions (such as combinations without replacement for column queries). The subsections below define a complete, self-contained specification of the *Hash-and-Expand* transcript instantiation and *Universal ZK TLV Codec* aligning with the IOP extensions proposed for the CFRG Fiat-Shamir draft.
+While the base Fiat-Shamir framework is described in [@I-D.draft-irtf-cfrg-fiat-shamir#03], Interactive Oracle Proofs require more structured multi-round transcripts and multi-challenge extractions (such as combinations without replacement for column queries). The subsections below define a complete, self-contained specification of the *Hash-and-Expand* transcript instantiation and *Universal ZK TLV Codec* aligning with the IOP extensions proposed for the CFRG Fiat-Shamir draft.
 
 {{fs.md}}
 
