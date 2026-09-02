@@ -47,7 +47,7 @@ jobs:
 
     - name: Install mmark
       run: |
-        go install github.com/mmarkdown/mmark@latest
+        go install github.com/mmarkdown/mmark/v2@latest
 
     - name: Setup Python (for xml2rfc)
       uses: actions/setup-python@v5
