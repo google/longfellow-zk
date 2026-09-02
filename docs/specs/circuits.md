@@ -26,7 +26,7 @@ struct {
 } CircuitLayer;
 ```
 
-The `quads` array stores the main portion of the circuit. Each `Quad` structure contains a g, h0, h1 and a constant `v` which is represented as an index into the `const_table` array in the `Circuit`.  Each `g`,`h0`, and `h1` is stored as a difference from the corresponding item in the *previous* quad. In other words, these three values are delta-encoded in order to improve the compressibility of the circuit representation. The Delta spec uses LSB as a sign bit to indicate negative numbers.
+The `quads` array stores the main portion of the circuit. Each `Quad` structure contains a `g`, an `h0`, an `h1`, and a constant `v` which is represented as an index into the `const_table` array in the `Circuit`.  Each `g`,`h0`, and `h1` is stored as a difference from the corresponding item in the *previous* quad. In other words, these three values are delta-encoded in order to improve the compressibility of the circuit representation. The Delta spec uses LSB as a sign bit to indicate negative numbers.
 
 ```
 struct {
