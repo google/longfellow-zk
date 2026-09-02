@@ -54,6 +54,7 @@ impl<const N: usize, const W: usize, F: SerializableField + RuntimeField<W>> Pol
     }
 
     pub fn eval_monomial(&self, x: &F::E, f: &F) -> F::E {
+        assert!(N > 0, "polynomial must contain at least one evaluation");
         let mut e = self.evaluations[N - 1].clone();
         for i in (0..(N - 1)).rev() {
             f.mul(&mut e, x);
@@ -76,6 +77,7 @@ impl<const N: usize, const W: usize, F: SerializableField + InterpolationField<W
     }
 
     pub fn eval_newton(&self, x: &F::E, f: &F) -> F::E {
+        assert!(N > 0, "polynomial must contain at least one evaluation");
         let mut e = self.evaluations[N - 1].clone();
         for i in (0..(N - 1)).rev() {
             let mut dx = x.clone();

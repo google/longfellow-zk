@@ -18,11 +18,11 @@ use compile_algebra::{
 };
 use compile_compiler::{
     algsimp::AlgebraicRewriter,
+    arena::CompilerArena,
     cse::Cse,
-    ir::{Expr, RewriteT},
-    CompilerArena,
+    ir::{AssertionItem, Expr, RewriteT},
 };
-use core_algebra::Nat;
+use core_algebra::{AlgebraicField, Nat};
 
 fn run_test<
     const W: usize,
@@ -40,7 +40,7 @@ fn run_test<
     let sum_nodes = algebraic.sum(&[c1, c2], false);
 
     match &sum_nodes.v {
-        Expr::Constant(ref val) => {
+        Expr::Constant(val) => {
             assert_eq!(f.to_nat(val), F::N::from_u64(30));
         }
         _ => panic!("Expected Constant(30), got {sum_nodes:?}"),
@@ -51,4 +51,28 @@ fn run_test<
 fn test_rewrite_algebraic_simplification() {
     let f = P256Field::new();
     run_test::<4, P256Field>(&f);
+}
+
+#[test]
+fn test_rewrite_coalesces_algebraically_equal_assertions() {
+    let f = P256Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let aid1 = tracker.new_leaf("first");
+    let aid2 = tracker.new_leaf("second");
+    let source_arena = CompilerArena::new();
+    let cse = Cse::new(&source_arena);
+    let x = cse.input(1);
+    let linear_x = cse.linear(&f.one(), &x);
+    let assertions = source_arena.alloc_slice(&[
+        AssertionItem { id: aid1, expr: x },
+        AssertionItem {
+            id: aid2,
+            expr: linear_x,
+        },
+    ]);
+
+    let target_arena = CompilerArena::new();
+    let rewritten = compile_compiler::assertion::rewrite(&target_arena, &f, assertions, &tracker);
+    assert_eq!(rewritten.len(), 1);
+    assert_eq!(rewritten[0].id, aid1);
 }

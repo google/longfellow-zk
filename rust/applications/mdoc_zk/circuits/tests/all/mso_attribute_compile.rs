@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use compile_algebra::gf2_128::Gf2_128Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use mdoc_zk_circuits::mso_attribute::circuit::AttributeVerifier;
 use mso_attribute_corruptors::MsoAttributeMockGiven;
@@ -29,19 +28,19 @@ pub fn compile_attribute_circuit<const W: usize, FC>(
     compile_compiler::debug::CircuitDebugSymbols,
 )
 where FC: mdoc_zk_circuits::MdocHashCompileField {
-    let arena = CompilerArena::new();
-    let assertion = {
-        let iologic = CompilerLogic::new(&arena, fc);
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
         let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
         let verifier = AttributeVerifier::new(&iologic);
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let given_wires = mdoc_zk_circuits::mso_attribute::allocate_given(&bv, &mut pos);
         let derived_wires = mdoc_zk_circuits::mso_attribute::allocate_derived(&bv, &mut pos);
-        verifier.assert_attribute(&given_wires, &derived_wires)
-    };
-
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
+        (
+            verifier.assert_attribute(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
 
     (circuit, stats, symbols)
 }
@@ -165,7 +164,7 @@ fn test_serialize_attribute_size() {
     let gf2_c = Gf2_128Field::new();
 
     let (circuit, stats, _) = compile_attribute_circuit::<2, _>(&gf2_c);
-    compile_compiler::top::dump_stats("mso_attribute", &circuit, &stats);
+    compile_compiler::dump_stats("mso_attribute", &circuit, &stats);
 }
 
 #[test]
@@ -238,6 +237,13 @@ fn test_compile_mso_attribute_tampering() {
             eval_res.is_err(),
             "Corruptor '{}' failed to cause compiled circuit evaluation error",
             c.name
+        );
+        let failed = eval_res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact compiled failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
         );
     }
 }

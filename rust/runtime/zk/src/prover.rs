@@ -21,8 +21,8 @@ use crate::{common::ZkContext, ZkProof};
 
 /// The Zero-Knowledge Prover.
 pub struct ZkProver<const W: usize, F: ZkField<W>> {
-    circuit: core_proto::circuit::Circuit<F>,
-    config: runtime_ligero::param::LigeroConfig,
+    pub circuit: core_proto::circuit::Circuit<F>,
+    pub config: runtime_ligero::param::LigeroConfig,
 }
 
 pub struct ZkCommitResult<const W: usize, F: ZkField<W>> {
@@ -53,6 +53,13 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         rng: &mut R,
         sf: &SF,
     ) -> (ZkCommitResult<W, F>, runtime_proto::ZkProofGeometry) {
+        assert!(
+            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
+            "npublic_input ({}) exceeds ninput ({})",
+            self.circuit.raw.npublic_input,
+            self.circuit.raw.ninput
+        );
+
         let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
         assert_eq!(witness_only.len(), n_witness, "witness length mismatch");
 
@@ -72,7 +79,7 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         let ligero_param = runtime_ligero::param::LigeroParam::new(
             witness.len(),
             self.circuit.raw.layers.len(),
-            self.config.clone(),
+            self.config,
             ctx.make_interpolator,
         );
 
@@ -112,6 +119,13 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         tsp: &mut Transcript,
         ctx: &ZkContext<'_, W, F, IF>,
     ) -> Result<ZkProof<W, F>, String> {
+        assert!(
+            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
+            "npublic_input ({}) exceeds ninput ({})",
+            self.circuit.raw.npublic_input,
+            self.circuit.raw.ninput
+        );
+
         let n_public = self.circuit.raw.npublic_input;
         let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
         assert_eq!(

@@ -12,20 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fmt::Debug, hash::Hash};
-
-pub trait FieldElement: Sized + Clone + Debug + Eq + Hash {}
-
 pub use core_algebra::AlgebraicField;
 
-pub trait RuntimeSerializableField<const W: usize>: core_algebra::SerializableField {
+pub trait RuntimeSerializableField<const W: usize>:
+    RuntimeField<W> + core_algebra::SerializableField
+{
     fn to_words64(&self, e: &Self::E) -> [u64; W];
     fn words64_to_element(&self, words: &[u64; W]) -> Result<Self::E, String>;
 }
 
-pub trait RuntimeField<const W: usize>:
-    core_algebra::AlgebraicField + RuntimeSerializableField<W>
-{
+pub trait RuntimeField<const W: usize>: core_algebra::AlgebraicField {
     type Accum: Clone + std::fmt::Debug;
 
     // Arithmetic operations
@@ -38,22 +34,6 @@ pub trait RuntimeField<const W: usize>:
     }
 
     #[inline]
-    fn fms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = a.clone();
-        self.mul(&mut prod, b);
-        self.sub(&mut prod, e1);
-        *e1 = prod;
-    }
-
-    #[inline]
-    fn fnma(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = a.clone();
-        self.mul(&mut prod, b);
-        self.add(&mut prod, e1);
-        *e1 = self.neg(&prod);
-    }
-
-    #[inline]
     fn fnms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
         let mut prod = a.clone();
         self.mul(&mut prod, b);
@@ -62,17 +42,7 @@ pub trait RuntimeField<const W: usize>:
 
     fn zero_accum(&self) -> Self::Accum;
     fn mac(&self, acc: &mut Self::Accum, x: &Self::E, y: &Self::E);
-    fn add_accum(&self, a: &mut Self::Accum, b: &Self::Accum);
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E;
-
-    fn pseudo_basis(&self, i: usize) -> Self::E;
-    fn pseudo_dimension(&self) -> usize;
-    fn pseudo_basis_unsafe(&self, i: usize) -> Self::E;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FieldError {
-    OutOfBounds,
 }
 
 pub use core_algebra::{SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions};
@@ -83,6 +53,11 @@ pub trait SupportsSampling<const W: usize>: RuntimeField<W> {
 
 pub trait RuntimeBinaryField<const W: usize>: RuntimeField<W> {}
 
+/// Marker for base fields that support [`crate::fp2::Fp2Field`].
+///
+/// `Fp2Field` uses the fixed polynomial `x^2 + 1`, so implementors must ensure
+/// that `-1` is not a square in the base field. This property depends on the
+/// concrete modulus and cannot be inferred from a generic prime-field type.
 pub trait SupportsQuadraticExtension<const W: usize>: RuntimeField<W> {}
 
 pub trait SupportsFFT<const W: usize>: RuntimeField<W> {

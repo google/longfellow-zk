@@ -30,10 +30,27 @@ where NEXT: RewriteT<'a, F>
     }
 
     fn flatten_sum(&self, l: &[ExprNode<'a, F>]) -> Vec<ExprNode<'a, F>> {
+        let ordinary_sums: rustc_hash::FxHashSet<&[ExprNode<'a, F>]> = l
+            .iter()
+            .filter_map(|x| match &x.v {
+                Expr::Sum(inner_list, false) => Some(*inner_list),
+                _ => None,
+            })
+            .collect();
+
         let mut result = Vec::new();
         for x in l {
             match &x.v {
                 Expr::Sum(inner_list, false) => result.extend(inner_list.iter().copied()),
+                // `precious` normally protects a sum from flattening. If this
+                // parent also contains the identical ordinary sum, however,
+                // that occurrence is already being flattened. Flatten the
+                // precious alias as well so coefficient folding below sees
+                // both copies before the copy pass introduces depth-alignment
+                // gates.
+                Expr::Sum(inner_list, true) if ordinary_sums.contains(*inner_list) => {
+                    result.extend(inner_list.iter().copied());
+                }
                 _ => result.push(*x),
             }
         }
@@ -90,9 +107,9 @@ where NEXT: RewriteT<'a, F>
         match &a.v {
             _ if f.is_zero(e) => self.constant(e),
             _ if e == &f.one() => a,
-            Expr::Constant(ref e1) => self.constant(&f.mulf(e, e1)),
-            Expr::Linear(ref e1, ref x) => self.linear0(&f.mulf(e, e1), x),
-            Expr::Quadratic(ref e1, ref x, ref y) => self.ground_quadratic(&f.mulf(e, e1), x, y),
+            Expr::Constant(e1) => self.constant(&f.mulf(e, e1)),
+            Expr::Linear(e1, ref x) => self.linear0(&f.mulf(e, e1), x),
+            Expr::Quadratic(e1, ref x, ref y) => self.ground_quadratic(&f.mulf(e, e1), x, y),
             _ => self.ground_linear(e, a),
         }
     }
@@ -112,9 +129,9 @@ where NEXT: RewriteT<'a, F>
     fn assert0(&self, x: &ExprNode<'a, F>) -> crate::ir::RawAssertions<'a, F> {
         let f = &self.f;
         match &x.v {
-            Expr::Constant(ref e) if f.is_zero(e) => self.ok(),
+            Expr::Constant(e) if f.is_zero(e) => self.ok(),
             Expr::Constant(_) => panic!("AssertionFailure"),
-            Expr::Linear(ref e, ref inner_node) => {
+            Expr::Linear(e, ref inner_node) => {
                 assert!(!f.is_zero(e));
                 self.assert0(inner_node)
             }
@@ -132,11 +149,11 @@ where NEXT: RewriteT<'a, F>
 
     fn with_assertions(
         &self,
-        assertions: &crate::ir::RawAssertions<'a, F>,
+        assertions: &crate::ir::Assertions<'a, F>,
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         if assertions.is_empty() {
-            *x
+            x
         } else {
             self.next.with_assertions(assertions, x)
         }
@@ -183,7 +200,7 @@ where NEXT: RewriteT<'a, F>
             .partition(|x| matches!(&x.v, Expr::Constant(_)));
 
         let const_sum = constants.iter().fold(f.zero(), |acc, x| {
-            if let Expr::Constant(ref e) = &x.v {
+            if let Expr::Constant(e) = &x.v {
                 f.addf(&acc, e)
             } else {
                 acc
@@ -226,10 +243,10 @@ where NEXT: RewriteT<'a, F>
         let f = &self.f;
         match (&a.v, &b.v) {
             _ if f.is_zero(e) => self.constant(e),
-            (Expr::Constant(ref e1), _) => self.linear(&f.mulf(e, e1), b),
-            (_, Expr::Constant(ref e1)) => self.linear(&f.mulf(e, e1), a),
-            (Expr::Linear(ref e1, ref x1), _) => self.quadratic(&f.mulf(e, e1), x1, b),
-            (_, Expr::Linear(ref e1, ref x1)) => self.quadratic(&f.mulf(e, e1), x1, a),
+            (Expr::Constant(e1), _) => self.linear(&f.mulf(e, e1), b),
+            (_, Expr::Constant(e1)) => self.linear(&f.mulf(e, e1), a),
+            (Expr::Linear(e1, ref x1), _) => self.quadratic(&f.mulf(e, e1), x1, b),
+            (_, Expr::Linear(e1, ref x1)) => self.quadratic(&f.mulf(e, e1), x1, a),
             (Expr::Sum(_, _), Expr::Sum(_, _)) => self.ground_quadratic(e, a, b),
             (_, Expr::Sum(l, false)) if l.iter().all(|x| self.low_degree(x)) => {
                 let mapped: Vec<ExprNode<'a, F>> =
@@ -243,13 +260,5 @@ where NEXT: RewriteT<'a, F>
             }
             _ => self.ground_quadratic(e, a, b),
         }
-    }
-
-    fn empty_scope(&self) -> crate::ir::ScopeRef<'a> {
-        self.next.empty_scope()
-    }
-
-    fn push(&self, name: &'a str, parent: crate::ir::ScopeRef<'a>) -> crate::ir::ScopeRef<'a> {
-        self.next.push(name, parent)
     }
 }

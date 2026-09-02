@@ -21,7 +21,7 @@ use runtime_algebra::{
 
 fn bench_reed_solomon_p256(c: &mut Criterion) {
     let p256 = P256Field::new();
-    let fp2: Fp2Field<'_, 4, 8, _> = Fp2Field::new(&p256);
+    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
     let omega = fp2.omega();
     let omega_order = fp2.omega_order();
     let factory = FftInterpolatorFactory::new(&p256, &fp2, omega, omega_order);

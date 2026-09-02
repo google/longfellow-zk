@@ -22,8 +22,8 @@ use runtime_algebra::{
 
 fn get_test_field_and_omega(
     p256: &P256Field,
-) -> (Fp2Field<'_, 4, 8, P256Field>, Fp2Element<4, P256Field>, u64) {
-    let f: Fp2Field<'_, 4, 8, _> = Fp2Field::new(p256);
+) -> (Fp2Field<'_, 4, P256Field>, Fp2Element<4, P256Field>, u64) {
+    let f: Fp2Field<'_, 4, _> = Fp2Field::new(p256);
     let re_bytes = [
         98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
         133, 252, 92, 102, 245, 132, 189, 142, 51, 13, 249,
@@ -240,5 +240,22 @@ fn test_fft_impulse_addition() {
             let expected = f.addf(&x[i], &f.one());
             assert_eq!(y[i], expected, "Impulse addition mismatch at index {i}");
         }
+    }
+}
+
+#[test]
+fn test_fft_rejects_invalid_orders() {
+    let p256 = P256Field::new();
+    let (f, omega, _) = get_test_field_and_omega(&p256);
+
+    for (len, root_order) in [(0, 8), (3, 8), (4, 3), (4, 2)] {
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut values = vec![f.zero(); len];
+                fftb(&mut values, &omega, root_order, &f);
+            }))
+            .is_err(),
+            "accepted FFT length {len} with root order {root_order}"
+        );
     }
 }

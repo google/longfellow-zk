@@ -16,11 +16,15 @@ use compile_algebra::{
     field::{CompileField, SupportsU64Conversions},
     gf2_128::Gf2_128Field,
 };
-use compile_logic::{eval::EvalLogic, Logic};
+use compile_logic::{
+    eval::{EvalContext, EvalLogic, EvalWire},
+    Logic,
+};
 
 fn run_test_eval_logic<F: CompileField + SupportsU64Conversions>(field: &F) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = L::new(field, &tracker);
     let z = l.zero();
     let o = l.one();
     assert_eq!(z.value, field.zero());
@@ -39,7 +43,8 @@ fn run_test_eval_logic<F: CompileField + SupportsU64Conversions>(field: &F) {
     let neg_one = field.mone();
     assert_eq!(neg_one, field.one());
 
-    assert!(l.assert0("assert_z", &z).is_ok());
+    let assert_z = l.assert0("assert_z", &z);
+    assert!(tracker.is_ok(&assert_z.all_items()));
 }
 
 #[test]
@@ -50,9 +55,11 @@ fn test_eval_logic() {
 
 fn run_test_eval_assert0_panic<F: CompileField>(field: &F) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = L::new(field, &tracker);
     let o = l.one();
-    assert!(l.assert0("assert_o", &o).is_err());
+    let assert_o = l.assert0("assert_o", &o);
+    assert!(tracker.is_err(&assert_o.all_items()));
 }
 
 #[test]
@@ -63,7 +70,8 @@ fn test_eval_assert0_panic() {
 
 fn run_test_eval_with_assertions_propagation<F: CompileField>(field: &F) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = L::new(field, &tracker);
 
     let one = l.one();
     let zero = l.zero();
@@ -71,53 +79,46 @@ fn run_test_eval_with_assertions_propagation<F: CompileField>(field: &F) {
     // 1. A valid assertion (zero == zero) should propagate Ok
     let ok_assertion = l.assert0("assert_zero", &zero);
     let val_ok = l.with_assertions(ok_assertion, &one);
-    assert!(val_ok.error.is_ok());
+    assert!(tracker.is_ok(&val_ok.assertions));
 
-    // 2. An invalid assertion (one == zero) should propagate Err
+    // 2. An invalid attached assertion marks the wire invalid, while its
+    // provenance remains distinct from computation errors.
     let err_assertion = l.assert0("assert_one", &one);
     let val_err = l.with_assertions(err_assertion, &one);
-    assert!(val_err.error.is_err());
+    assert!(tracker.is_err(&val_err.assertions));
 
-    // 3. Test propagation through all logic operations
-    // precious
-    assert!(l.precious(&val_err).error.is_err());
+    // 3. Test exact assertion propagation through all logic operations.
+    let assert_propagated = |wire: EvalWire<F>| {
+        assert!(tracker.is_err(&wire.assertions));
+        let result = l.assert0("consumer", &wire);
+        tracker.assert_any_failed_at("assert_one", &result.all_items());
+    };
 
-    // neg
-    assert!(l.neg(&val_err).error.is_err());
+    assert_propagated(l.precious(&val_err));
+    assert_propagated(l.neg(&val_err));
 
-    // add
-    assert!(l.add(&val_err, &zero).error.is_err());
-    assert!(l.add(&zero, &val_err).error.is_err());
+    assert_propagated(l.add(&val_err, &zero));
+    assert_propagated(l.add(&zero, &val_err));
 
-    // sub
-    assert!(l.sub(&val_err, &zero).error.is_err());
-    assert!(l.sub(&zero, &val_err).error.is_err());
+    assert_propagated(l.sub(&val_err, &zero));
+    assert_propagated(l.sub(&zero, &val_err));
 
-    // mul
-    assert!(l.mul(&val_err, &zero).error.is_err());
-    assert!(l.mul(&zero, &val_err).error.is_err());
+    assert_propagated(l.mul(&val_err, &zero));
+    assert_propagated(l.mul(&zero, &val_err));
 
-    // mulk
-    assert!(l.mulk(&field.one(), &val_err).error.is_err());
+    assert_propagated(l.mulk(&field.one(), &val_err));
 
-    // quadratic
-    assert!(l.quadratic(&field.one(), &val_err, &zero).error.is_err());
-    assert!(l.quadratic(&field.one(), &zero, &val_err).error.is_err());
+    assert_propagated(l.quadratic(&field.one(), &val_err, &zero));
+    assert_propagated(l.quadratic(&field.one(), &zero, &val_err));
 
-    // sum
-    assert!(l
-        .sum(&[zero.clone(), val_err.clone(), zero.clone()])
-        .error
-        .is_err());
+    assert_propagated(l.sum(&[zero.clone(), val_err.clone(), zero.clone()]));
 
-    // with_assertions (propagation of existing error inside x)
-    assert!(l.with_assertions(l.ok(), &val_err).error.is_err());
+    assert_propagated(l.with_assertions(l.ok(), &val_err));
 
-    // with_assertions (propagation of new error into valid x)
-    assert!(l
-        .with_assertions(l.assert0("check_one", &one), &zero)
-        .error
-        .is_err());
+    let newly_attached = l.with_assertions(l.assert0("check_one", &one), &zero);
+    let result = l.assert0("consumer", &newly_attached);
+    assert_eq!(tracker.failed_paths(&result.all_items()), vec!["check_one"]);
+    assert_eq!(tracker.passed_paths(&result.all_items()), vec!["consumer"]);
 }
 
 #[test]
@@ -130,7 +131,8 @@ fn test_eval_with_assertions_propagation() {
 fn test_eval_assertion_dag_paths() {
     let field = Gf2_128Field::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(&field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = L::new(&field, &tracker);
 
     let z = l.zero();
     let o = l.one();
@@ -142,7 +144,7 @@ fn test_eval_assertion_dag_paths() {
     let inner = l.assert_all("inner_block", &[leaf1, leaf2]);
     let outer = l.assert_all("outer_block", &[inner, leaf3]);
 
-    let path_strings = outer.all_paths();
+    let path_strings = tracker.all_paths(&outer.all_items());
     assert_eq!(
         path_strings,
         vec![
@@ -157,11 +159,12 @@ fn test_eval_assertion_dag_paths() {
 fn test_eval_assert_mapi() {
     let field = Gf2_128Field::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(&field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = L::new(&field, &tracker);
     let z = l.zero();
 
     let mapi_assertion = l.assert_mapi("loop_check", 0..3, |_i| l.assert0("check", &z));
-    let mapi_paths = mapi_assertion.all_paths();
+    let mapi_paths = tracker.all_paths(&mapi_assertion.all_items());
     assert_eq!(
         mapi_paths,
         vec![
@@ -176,7 +179,8 @@ fn test_eval_assert_mapi() {
 fn test_eval_assertion_status_tracking() {
     let field = Gf2_128Field::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::new(&field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = L::new(&field, &tracker);
     let z = l.zero();
     let o = l.one();
 
@@ -185,10 +189,100 @@ fn test_eval_assertion_status_tracking() {
 
     let combined = l.assert_all("top", &[pass_a, fail_a]);
 
-    assert!(combined.is_err());
-    assert_eq!(combined.passed_paths(), vec!["top/good_zero"]);
-    assert_eq!(combined.failed_paths(), vec!["top/bad_zero"]);
+    assert!(tracker.is_err(&combined.all_items()));
+    assert_eq!(
+        tracker.passed_paths(&combined.all_items()),
+        vec!["top/good_zero"]
+    );
+    assert_eq!(
+        tracker.failed_paths(&combined.all_items()),
+        vec!["top/bad_zero"]
+    );
 
-    combined.assert_any_failed_at("top/bad_zero");
-    combined.assert_all_passed_at("top/good_zero");
+    tracker.assert_any_failed_at("top/bad_zero", &combined.all_items());
+    tracker.assert_all_passed_at("top/good_zero", &combined.all_items());
+}
+
+#[test]
+fn test_eval_attached_assertion_keeps_exact_scoped_path() {
+    let field = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = EvalLogic::new(&field, &tracker);
+    let computed = l.one();
+    let witness = l.zero();
+
+    let sliced = l.slicing("slice", &witness, &computed);
+    let consumer = l.assert0("consumer", &sliced);
+    let root = l.assert_all("root", &[consumer]);
+
+    assert_eq!(
+        tracker.all_paths(&root.all_items()),
+        vec!["slice", "root/consumer"]
+    );
+    assert_eq!(tracker.failed_paths(&root.all_items()), vec!["slice"]);
+    assert_eq!(
+        tracker.passed_paths(&root.all_items()),
+        vec!["root/consumer"]
+    );
+}
+
+#[test]
+fn test_eval_shared_attached_assertion_is_reported_once() {
+    let field = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = EvalLogic::new(&field, &tracker);
+    let bad = l.assert0("attached", &l.one());
+    let wire = l.with_assertions(bad, &l.zero());
+
+    let diamond = l.add(&wire, &wire);
+    let result = l.assert0("consumer", &diamond);
+
+    assert_eq!(tracker.failed_paths(&result.all_items()), vec!["attached"]);
+    assert_eq!(tracker.passed_paths(&result.all_items()), vec!["consumer"]);
+}
+
+#[test]
+fn test_eval_distinct_assertions_with_the_same_path_remain_distinct() {
+    let field = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = EvalLogic::new(&field, &tracker);
+    let left = l.with_assertions(l.assert0("same", &l.one()), &l.zero());
+    let right = l.with_assertions(l.assert0("same", &l.one()), &l.zero());
+
+    let result = l.assert0("consumer", &l.add(&left, &right));
+
+    assert_eq!(
+        tracker.failed_paths(&result.all_items()),
+        vec!["same", "same"]
+    );
+    assert_eq!(tracker.passed_paths(&result.all_items()), vec!["consumer"]);
+}
+
+#[test]
+fn test_eval_union_reports_failure_from_any_alias() {
+    let field = Gf2_128Field::new();
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l = EvalLogic::new(&field, &tracker);
+    let passed = l.assert0("passed", &l.zero());
+    let failed = l.assert0("failed", &l.one());
+    let passed_id = *passed.all_items().keys().next().unwrap();
+    let failed_id = *failed.all_items().keys().next().unwrap();
+    tracker.union(passed_id, failed_id);
+
+    let mut fates = passed.all_items().clone();
+    fates.extend(failed.all_items());
+
+    assert!(tracker
+        .failed_paths(&fates)
+        .iter()
+        .all(|p| p == "passed" || p == "failed"));
+    assert!(!tracker.is_ok(&fates));
+}
+
+#[test]
+fn test_eval_context_owns_tracker() {
+    let field = Gf2_128Field::new();
+    let context = EvalContext::new(&field);
+    let result = context.run(|logic| logic.assert0("zero", &logic.zero()));
+    result.assert_all_passed();
 }

@@ -37,6 +37,6 @@ impl Default for Q256Field {
 impl Q256Field {
     #[must_use]
     pub fn new() -> Self {
-        Self::new_generic(Q256_MODULUS, 2, "Q256Field")
+        Self::new_generic(Q256_MODULUS)
     }
 }

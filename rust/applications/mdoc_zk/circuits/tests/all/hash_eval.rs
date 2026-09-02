@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use circuits_bitvec::{Bitvec, BitvecLogic};
 use circuits_boolean::Boolean;
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field, CompileNat};
@@ -21,8 +35,8 @@ fn test_eval_mdoc_hash_independent() {
         parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
-    type L<'a, FC> = EvalLogic<'a, FC>;
-    let l = L::new(&fc);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&fc, &tracker);
 
     let mac_input = HashMac {
         mac_av: 0,
@@ -91,14 +105,16 @@ where FC: CompileField + circuits_analog_adder::FieldWrappingSum {
 #[test]
 fn test_eval_mdoc_hash() {
     let f = Gf2_128Field::new();
-    let l = EvalLogic::new(&f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
     test_eval_mdoc_hash_generic::<2, _>(&l);
 }
 
 #[test]
 fn test_eval_mdoc_hash_with_mac() {
     let f = Gf2_128Field::new();
-    let l = EvalLogic::new(&f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
     test_eval_mdoc_hash_with_mac_generic::<2, _>(&l);
 }
 
@@ -260,7 +276,8 @@ where FC: CompileField + circuits_analog_adder::FieldWrappingSum {
 #[test]
 fn test_all_mdoc_cases() {
     let f = Gf2_128Field::new();
-    let l = EvalLogic::new(&f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
     test_all_mdoc_cases_generic::<2, _>(&l);
 }
 
@@ -282,7 +299,8 @@ fn test_namespace_mixup_exploit() {
 
     hash_input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&sha_result);
 
-    let l = EvalLogic::new(&f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
 
     let mac_input = HashMac {
         mac_av: 0,
@@ -304,14 +322,14 @@ fn test_namespace_mixup_exploit() {
         res.is_err(),
         "Expected tampered namespace/docType to fail circuit evaluation"
     );
-    res.assert_any_failed_at("assert_mso_doc_type");
+    res.assert_any_failed_at(
+        "assert_valid_presentation/assert_mso_doc_type/cbor_header/cbor_header.0/header_byte",
+    );
 }
 
 #[test]
 fn test_eval_mdoc_hash_shared_corruptors() {
     let f = Gf2_128Field::new();
-    let l = EvalLogic::new(&f);
-    let bv = BitvecLogic::new(&l);
 
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
@@ -336,6 +354,9 @@ fn test_eval_mdoc_hash_shared_corruptors() {
 
     let corruptors = mdoc_hash_corruptors::all_mdoc_hash_corruptors();
     for c in corruptors {
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let l = EvalLogic::new_with_tracker(&f, &tracker);
+        let bv = BitvecLogic::new(&l);
         let base_given = given::<4, _>(base_hash_input.clone(), base_mac_input.clone());
         let derived_val = derived::<4, _>(&base_given);
 
@@ -352,14 +373,22 @@ fn test_eval_mdoc_hash_shared_corruptors() {
             "Corruptor '{}' failed to cause assertion error",
             c.name
         );
-        res.assert_any_failed_at(c.expected_path);
+        let failed = res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
+        res.assert_any_failed_at(&c.expected_path);
     }
 }
 
 #[test]
 fn test_check_doc_type_suppression() {
     let f = Gf2_128Field::new();
-    let l = EvalLogic::new(&f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
     let bv = BitvecLogic::new(&l);
 
     let (_, parsed, now) =
@@ -386,10 +415,23 @@ fn test_check_doc_type_suppression() {
     let mut wrong_hash_input = hash_input.clone();
     wrong_hash_input.expected_doc_type = b"wrong.doc.type.foo.bar".to_vec();
     let given_wrong = given::<4, _>(wrong_hash_input, mac_input.clone());
-    let wire_given_wrong = evaluate_given(&l, &bv, &given_wrong);
-    let res_wrong = mdoc.assert_valid_presentation(&wire_given_wrong, &wire_derived);
+
+    let tracker2 = compile_logic::tracker::AssertionTracker::new();
+    let l2 = EvalLogic::new_with_tracker(&f, &tracker2);
+    let bv2 = BitvecLogic::new(&l2);
+
+    let wire_given_wrong = evaluate_given(&l2, &bv2, &given_wrong);
+    let wire_derived_wrong = evaluate_derived(&l2, &bv2, &derived_val);
+
+    let mdoc2 = MdocHash::new(&l2, given_wrong.hash_input.attrs.len());
+    let res_wrong =
+        mdoc2.assert_valid_presentation_and_macs(&wire_given_wrong, &wire_derived_wrong);
     assert!(res_wrong.is_err());
-    res_wrong.assert_any_failed_at("assert_mso_doc_type");
+    let failed_all = res_wrong.failed_paths();
+    println!("ALL FAILED PATHS: {:?}", failed_all);
+    res_wrong.assert_any_failed_at(
+        "assert_valid_presentation_and_macs/assert_valid_presentation/assert_mso_doc_type/value_bytes/value_bytes.0/doc_type_byte"
+    );
 
     // 3. When suppress_doc_type_check is true, even with wrong expected_doc_type, evaluation
     //    succeeds (check suppressed).
@@ -397,7 +439,14 @@ fn test_check_doc_type_suppression() {
     suppressed_hash_input.suppress_doc_type_check = true;
     suppressed_hash_input.expected_doc_type = b"wrong.doc.type.foo.bar".to_vec();
     let given_suppressed = given::<4, _>(suppressed_hash_input, mac_input);
-    let wire_given_suppressed = evaluate_given(&l, &bv, &given_suppressed);
-    let res_suppressed = mdoc.assert_valid_presentation(&wire_given_suppressed, &wire_derived);
+    let tracker3 = compile_logic::tracker::AssertionTracker::new();
+    let l3 = EvalLogic::new_with_tracker(&f, &tracker3);
+    let bv3 = BitvecLogic::new(&l3);
+
+    let wire_given_suppressed = evaluate_given(&l3, &bv3, &given_suppressed);
+    let wire_derived_suppressed = evaluate_derived(&l3, &bv3, &derived_val);
+    let mdoc3 = MdocHash::new(&l3, given_suppressed.hash_input.attrs.len());
+    let res_suppressed =
+        mdoc3.assert_valid_presentation(&wire_given_suppressed, &wire_derived_suppressed);
     res_suppressed.unwrap();
 }

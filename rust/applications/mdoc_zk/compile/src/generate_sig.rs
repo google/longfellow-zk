@@ -13,13 +13,10 @@
 // limitations under the License.
 
 use compile_algebra::p256::P256Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 use core_algebra::SerializableField;
 use core_proto::circuit::Circuit;
 use mdoc_zk_circuits::{
-    config::{K_NREQ, K_RATEINV, K_SIG_MAC_BIT_PLUCKER},
-    signature::circuit::MdocSignature,
-    MdocSigCompileField,
+    config::K_SIG_MAC_BIT_PLUCKER, signature::circuit::MdocSignature, MdocSigCompileField,
 };
 use runtime_algebra::SupportsFFT;
 
@@ -32,10 +29,10 @@ pub fn mdoc_zk_circuits_signature<FC>(
     core_proto::circuit::CircuitGeometry,
     compile_compiler::debug::CircuitDebugSymbols,
 )
-where FC: MdocSigCompileField {
-    let arena = CompilerArena::new();
-    let (assertion, pub_inputs_count, subfield_boundary_val) = {
-        let iologic = CompilerLogic::new(&arena, fc);
+where
+    FC: MdocSigCompileField,
+{
+    compile_compiler::compile(fc, |iologic| {
         let bv = circuits_bitvec::BitvecLogic::new(&iologic);
         let bitvec_io = circuits_bitvec::BitvecIO::new(&bv);
         let plucker =
@@ -51,22 +48,12 @@ where FC: MdocSigCompileField {
         let mdoc_sig = MdocSignature::new(&iologic, &curve);
         let assertion = mdoc_sig.assert_signatures_and_macs(&given, &derived);
         (assertion, pub_inputs_count, subfield_boundary_val)
-    };
-
-    let (circuit, stats, symbols) = compile_compiler::top::compile(
-        &arena,
-        fc,
-        assertion,
-        pub_inputs_count,
-        subfield_boundary_val,
-    );
-
-    (circuit, stats, symbols)
+    })
 }
 
 pub fn generate_sig_circuit(
-    _arena: &CompilerArena<'_, P256Field>,
     p256_compile: &P256Field,
+    profile: crate::LigeroProfile,
 ) -> Result<(Circuit<P256Field>, runtime_ligero::param::LigeroConfig), String> {
     use std::fmt::Write;
 
@@ -89,15 +76,15 @@ pub fn generate_sig_circuit(
     let best_block_enc = runtime_ligero::optimize_geometry(
         num_witness,
         num_quadratic_constraints,
-        K_RATEINV,
-        K_NREQ,
+        profile.rateinv,
+        profile.nreq,
         p256_compile.serialized_size_bytes(),
         p256_compile.serialized_size_bytes(),
         &make_interpolator,
     );
     let config = runtime_ligero::param::LigeroConfig {
-        rateinv: K_RATEINV,
-        nreq: K_NREQ,
+        rateinv: profile.rateinv,
+        nreq: profile.nreq,
         block_enc: best_block_enc,
     };
 

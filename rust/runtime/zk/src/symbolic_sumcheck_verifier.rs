@@ -55,6 +55,7 @@ pub(crate) fn symbolic_sumcheck_round<const W: usize, F: ZkField<W>>(
     (claim, challenge_val)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn verify_layer<const W: usize, F: ZkField<W>>(
     ly: usize,
     a: &mut Vec<LigeroLinearConstraint<W, F>>,
@@ -124,6 +125,7 @@ fn verify_layer<const W: usize, F: ZkField<W>>(
     };
 }
 
+#[allow(clippy::too_many_arguments)]
 fn input_constraint<const W: usize, F: ZkField<W>>(
     a: &mut Vec<LigeroLinearConstraint<W, F>>,
     b: &mut Vec<ElementOf<F>>,
@@ -195,6 +197,19 @@ pub fn symbolic_sumcheck_verifier_core<const W: usize, F: ZkField<W>>(
 
     let num_inputs = circuit.raw.ninput;
     let num_public_inputs = circuit.raw.npublic_input;
+
+    assert!(
+        num_inputs >= num_public_inputs,
+        "npublic_input ({}) exceeds ninput ({})",
+        num_public_inputs,
+        num_inputs
+    );
+    assert!(
+        pub_inputs.len() >= num_public_inputs,
+        "public_inputs length too short: expected at least npublic_input ({}) entries, got {}",
+        num_public_inputs,
+        pub_inputs.len()
+    );
 
     let logv_output = circuit.raw.logv;
     let (_cc, hc) = transcript.begin_circuit(f);

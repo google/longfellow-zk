@@ -233,8 +233,22 @@ mod tests {
 
     #[test]
     fn test_shr_1() {
-        let a: [Limb; 2] = [0b10, 0b1]; // 2^64 + 2
+        let a: [Limb; 2] = [0b10, 0b1];
         let shifted = shr_1(&a);
-        assert_eq!(shifted, [(1u64 << (LIMB_BITS - 1)) | 1, 0]);
+        assert_eq!(shifted, [((1 as Limb) << (LIMB_BITS - 1)) | 1, 0]);
+    }
+
+    #[test]
+    fn test_conditional_move() {
+        let original = [1 as Limb, 2, 3, 4];
+        let replacement = [5 as Limb, 6, 7, 8];
+
+        let mut equal = original;
+        crate::arch::cmovne(&mut equal, 9, 9, &replacement);
+        assert_eq!(equal, original);
+
+        let mut not_equal = original;
+        crate::arch::cmovne(&mut not_equal, 9, 0, &replacement);
+        assert_eq!(not_equal, replacement);
     }
 }

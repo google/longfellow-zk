@@ -62,7 +62,6 @@ pub struct TermDelta {
     pub k_index: u32,
 }
 
-#[derive(Clone)]
 pub struct Layer<F: SerializableField> {
     pub(crate) nw: usize,
     pub(crate) logw: usize,

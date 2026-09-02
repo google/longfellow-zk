@@ -27,7 +27,6 @@ pub(crate) fn new_f65537_field() -> F65537Field {
     FpField::new_field(FpParameters {
         length_bytes: 3,
         modulo: compile_algebra::CompileNat::<4>::from(65537),
-        id: 999,
     })
 }
 

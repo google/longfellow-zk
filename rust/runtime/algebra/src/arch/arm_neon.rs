@@ -203,13 +203,6 @@ pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
 }
 
 #[inline(always)]
-pub fn gf2_128_add_accum(a: &mut Gf2_128Accum, b: &Gf2_128Accum) {
-    a.0[0].0 ^= b.0[0].0;
-    a.0[1].0 ^= b.0[1].0;
-    a.0[2].0 ^= b.0[2].0;
-}
-
-#[inline(always)]
 pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     unsafe { reduce_128(acc.0[0].0, acc.0[1].0, acc.0[2].0) }
 }
@@ -253,4 +246,3 @@ pub use cmovnz as cmovzn;
 pub fn zero_but_you_dont_know_it() -> crate::limb::Limb {
     0 as crate::limb::Limb
 }
-

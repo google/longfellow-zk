@@ -39,7 +39,7 @@ pub struct ZkProof<const W: usize, F: SerializableField> {
     pub com_proof: LigeroProof<W, F>,
 }
 
-impl<const W: usize, F: RuntimeField<W>> ZkProof<W, F> {
+impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
     pub fn write_to_buf<SF: Subfield<E = ElementOf<F>>>(
         &self,
         buf: &mut Vec<u8>,
@@ -92,6 +92,13 @@ impl<const W: usize, F: RuntimeField<W>> ZkProof<W, F> {
 pub fn witness_and_constraint_count<F: SerializableField>(
     circuit: &core_proto::circuit::Circuit<F>,
 ) -> (usize, usize) {
+    assert!(
+        circuit.raw.ninput >= circuit.raw.npublic_input,
+        "npublic_input ({}) exceeds ninput ({})",
+        circuit.raw.npublic_input,
+        circuit.raw.ninput
+    );
+
     let n_witness = circuit.raw.ninput - circuit.raw.npublic_input;
     let mut pad_witness_len = 0;
     for clr in &circuit.raw.layers {

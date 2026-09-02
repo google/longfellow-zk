@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field as UnoptField};
+use compile_algebra::gf2_128::Gf2_128Field as UnoptField;
 use core_algebra::{AlgebraicField, SerializableField, SupportsU128Conversions};
-use runtime_algebra::{field::RuntimeField, gf2_128::*, poly::InterpolationField, Subfield};
+use runtime_algebra::{gf2_128::*, poly::InterpolationField, Subfield, SupportsSampling};
 
 #[test]
 fn test_gf2_128_optimized_vs_unoptimized() {
@@ -108,15 +108,7 @@ fn test_precomputed_agrees_with_algebra() {
     let field_unopt = UnoptField::new();
     let field_opt = Gf2_128RuntimeField::new();
 
-    // 1. Check basis
-    for i in 0..128 {
-        assert_eq!(
-            field_unopt.to_bytes(&field_unopt.pseudo_basis(i)),
-            field_opt.to_bytes(&field_opt.pseudo_basis(i))
-        );
-    }
-
-    // 3. Check poly_evaluation_points
+    // Check poly_evaluation_points
     let mut expected_points = [field_unopt.zero(); 6];
     expected_points[0] = field_unopt.zero();
     let mut gi = field_unopt.one();
@@ -132,7 +124,7 @@ fn test_precomputed_agrees_with_algebra() {
         );
     }
 
-    // 4. Check newton_denominators
+    // Check newton_denominators
     let mut expected_denoms = [[field_unopt.zero(); 6]; 6];
     for i in 1..6 {
         for k in (i..6).rev() {
@@ -160,4 +152,18 @@ fn test_serialization() {
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
     let sub_bytes = sf.to_bytes(&one);
     assert_eq!(sub_bytes.len(), sf.serialized_size_bytes());
+}
+
+#[test]
+#[should_panic(expected = "cannot invert zero")]
+fn test_invert_zero_panics() {
+    let field = Gf2_128RuntimeField::new();
+    field.invert(&field.zero());
+}
+
+#[test]
+#[should_panic(expected = "sampling callback returned an unexpected number of bytes")]
+fn test_sampling_rejects_wrong_byte_count() {
+    let field = Gf2_128RuntimeField::new();
+    field.sample(|requested| vec![0; requested + 1]);
 }

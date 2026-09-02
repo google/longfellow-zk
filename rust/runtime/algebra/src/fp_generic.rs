@@ -24,10 +24,7 @@ use core_algebra::{
 };
 
 use crate::{
-    field::{
-        FieldElement, RuntimeField, RuntimeSerializableField, SupportsQuadraticExtension,
-        SupportsSampling,
-    },
+    field::{RuntimeField, RuntimeSerializableField, SupportsSampling},
     limb::{accum, accum_modular, lt, maybe_minus_m, maybe_plus_m, mul_accum, sub_limb},
     poly::InterpolationField,
     Limb, RuntimeNat,
@@ -114,8 +111,6 @@ impl<const L: usize, Tag> Hash for FpGenericElement<L, Tag> {
     }
 }
 
-impl<const L: usize, Tag> FieldElement for FpGenericElement<L, Tag> {}
-
 /// A prime finite field implementation parameterized by word width `W`, limb width `L`, and a
 /// branding `Tag`. Elements are stored and manipulated in Montgomery form with $R = 2^{64W} \pmod
 /// M$.
@@ -129,8 +124,6 @@ pub struct FpGenericField<
 > {
     modulo: [Limb; L],
     neg_modulo: [Limb; L],
-    id: usize,
-    name: String,
     m_prime: Limb,
     r2: [Limb; L],
     r: [Limb; L],
@@ -142,9 +135,43 @@ pub struct FpGenericField<
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
     FpGenericField<W, L, ACCUM_L, Tag, S>
 {
+    /// Constructs a Montgomery field for a caller-supplied prime modulus.
+    ///
+    /// This validates the representation invariants needed by the arithmetic
+    /// and serialization code. The caller remains responsible for supplying a
+    /// prime modulus; primality testing is intentionally outside this runtime
+    /// constructor.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the word, limb, accumulator, or modulus representation is
+    /// incompatible with this implementation.
     #[must_use]
-    pub fn new_generic(modulo_words: [u64; W], id: usize, name: &str) -> Self {
+    pub fn new_generic(modulo_words: [u64; W]) -> Self {
+        assert!(W > 0, "field width must contain at least one word");
+        assert_eq!(
+            L,
+            W.checked_mul(crate::LIMBS_PER_U64)
+                .expect("field limb count overflow"),
+            "field limb count must match its serialized word width"
+        );
+        assert!(
+            ACCUM_L
+                >= L.checked_mul(2)
+                    .and_then(|n| n.checked_add(1))
+                    .expect("field accumulator size overflow"),
+            "accumulator must contain at least twice the field limbs plus one"
+        );
+        assert!(
+            ACCUM_L.checked_add(L).is_some_and(|n| n < 64),
+            "field and accumulator exceed the reduction scratch space"
+        );
+
         let modulo = crate::words64_to_limbs(&modulo_words);
+        assert!(
+            modulo[0] & 1 == 1 && !crate::limb::is_one_slice(&modulo),
+            "Montgomery modulus must be odd and greater than one"
+        );
         let mut neg_modulo = [0 as Limb; L];
         crate::limb::sub_limb(&mut neg_modulo, &modulo);
         let m_prime = compute_m_prime(modulo[0]);
@@ -164,8 +191,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
         Self {
             modulo,
             neg_modulo,
-            id,
-            name: name.to_string(),
             m_prime,
             r2,
             r,
@@ -344,6 +369,7 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     }
 
     fn invert(&self, a: &Self::E) -> Self::E {
+        assert!(!self.is_zero(a), "cannot invert zero");
         let mut a_limbs = self.to_standard(a);
         let mut b_limbs = self.modulo;
         let mut u = self.one();
@@ -387,14 +413,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
     SerializableField for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn id(&self) -> usize {
-        self.id
-    }
-
     fn is_binary(&self) -> bool {
         false
     }
@@ -480,8 +498,19 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 {
     type N = RuntimeNat<W>;
 
-    fn nat_to_element(&self, n: &Self::N) -> Self::E {
-        self.words64_to_element(n.limbs()).unwrap()
+    fn reduce_nat(&self, n: &Self::N) -> Self::E {
+        let limbs = crate::words64_to_limbs(n.limbs());
+        if lt(&limbs, &self.modulo) {
+            return self.to_montgomery(&limbs);
+        }
+
+        // `accum_reduce` converts a raw product to Montgomery form by removing one factor of R.
+        // Multiplying the standard representation by R² first therefore yields nR mod p.
+        let standard = FpGenericElement(limbs, PhantomData);
+        let r2 = FpGenericElement(self.r2, PhantomData);
+        let mut acc = self.zero_accum();
+        self.mac(&mut acc, &standard, &r2);
+        self.accum_reduce(&acc)
     }
 
     fn to_nat(&self, e: &Self::E) -> Self::N {
@@ -502,22 +531,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     }
 
     #[inline(always)]
-    fn fms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = *a;
-        self.mul(&mut prod, b);
-        self.sub(&mut prod, e1);
-        *e1 = prod;
-    }
-
-    #[inline(always)]
-    fn fnma(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = *a;
-        self.mul(&mut prod, b);
-        self.add(&mut prod, e1);
-        *e1 = self.neg(&prod);
-    }
-
-    #[inline(always)]
     fn fnms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
         let mut prod = *a;
         self.mul(&mut prod, b);
@@ -535,11 +548,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
             let window = &mut acc.0[i..i + L + 2];
             mul_accum(window, 0, x.0[i], &y.0);
         }
-    }
-
-    #[inline(always)]
-    fn add_accum(&self, a: &mut Self::Accum, b: &Self::Accum) {
-        accum(&mut a.0, 0, &b.0);
     }
 
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E {
@@ -563,25 +571,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
         res.copy_from_slice(&a[ACCUM_L..ACCUM_L + L]);
         maybe_minus_m(&mut res, a[ACCUM_L + L], &self.neg_modulo);
         self.mulf(&FpGenericElement(res, PhantomData), &self.accum_scale)
-    }
-
-    fn pseudo_basis(&self, i: usize) -> Self::E {
-        assert!(i < W * 64);
-        let mut standard = [0 as Limb; L];
-        let limb_idx = i / crate::LIMB_BITS;
-        let bit_idx = i % crate::LIMB_BITS;
-        if limb_idx < L {
-            standard[limb_idx] = (1 as Limb) << bit_idx;
-        }
-        self.to_montgomery(&standard)
-    }
-
-    fn pseudo_dimension(&self) -> usize {
-        W * 64
-    }
-
-    fn pseudo_basis_unsafe(&self, i: usize) -> Self::E {
-        self.pseudo_basis(i)
     }
 }
 
@@ -610,11 +599,14 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         loop {
             let buf = rng(W * 8);
+            assert_eq!(
+                buf.len(),
+                W * 8,
+                "sampling callback returned an unexpected number of bytes"
+            );
             let mut words = [0u64; W];
-            for (i, chunk) in buf.chunks_exact(8).enumerate() {
-                if i < W {
-                    words[i] = u64::from_le_bytes(chunk.try_into().unwrap());
-                }
+            for (word, chunk) in words.iter_mut().zip(buf.chunks_exact(8)) {
+                *word = u64::from_le_bytes(chunk.try_into().unwrap());
             }
             let res = crate::words64_to_limbs(&words);
             if lt(&res, &self.modulo) {
@@ -622,11 +614,6 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
             }
         }
     }
-}
-
-impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
-    SupportsQuadraticExtension<W> for FpGenericField<W, L, ACCUM_L, Tag, S>
-{
 }
 
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>

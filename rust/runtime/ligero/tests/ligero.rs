@@ -22,7 +22,7 @@ use runtime_ligero::{
     LigeroCommitment, LigeroConfig, LigeroError, LigeroLinearConstraint, LigeroParam, LigeroProof,
     LigeroProver, LigeroQuadraticConstraint, LigeroVerifier,
 };
-use runtime_merkle::Digest;
+use runtime_merkle::{Digest, MerkleError};
 use runtime_random::{RandomEngine, Transcript};
 
 struct SimpleRng {
@@ -93,17 +93,17 @@ impl<
         self.real.can_encode(ylen, block_enc)
     }
 }
-struct SlowConvolver<'a, const W: usize, F: RuntimeField<W>> {
+struct SlowMiddleProduct<'a, const W: usize, F: RuntimeField<W>> {
     f: &'a F,
     y: Vec<F::E>,
 }
 
-impl<const W: usize, F: RuntimeField<W>> runtime_algebra::convolution::Convolver<W, F>
-    for SlowConvolver<'_, W, F>
+impl<const W: usize, F: RuntimeField<W>> runtime_algebra::middle_product::MiddleProduct<W, F>
+    for SlowMiddleProduct<'_, W, F>
 {
-    fn convolution(&self, x: &[F::E], z: &mut [F::E]) {
+    fn middle_product(&self, x: &[F::E], z: &mut [F::E]) {
         let n = x.len();
-        for (k, z_val) in z.iter_mut().enumerate() {
+        for (k, z_val) in z.iter_mut().enumerate().skip(n - 1) {
             let s = (0..n).fold(self.f.zero(), |acc, i| {
                 if k >= i && (k - i) < self.y.len() {
                     let term = self.f.mulf(&x[i], &self.y[k - i]);
@@ -122,7 +122,7 @@ struct SlowInterpolator<
     const W: usize,
     F: RuntimeField<W> + core_algebra::SupportsU64Conversions,
 > {
-    rs: runtime_algebra::reed_solomon::ReedSolomon<'a, W, F, SlowConvolver<'a, W, F>>,
+    rs: runtime_algebra::reed_solomon::ReedSolomon<'a, W, F, SlowMiddleProduct<'a, W, F>>,
 }
 
 impl<const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversions> Interpolator<W, F>
@@ -147,7 +147,7 @@ impl<'a, const W: usize, F: RuntimeField<W> + core_algebra::SupportsU64Conversio
 
     fn make(&self, n: usize, m: usize) -> Self::Interpolator {
         let rs = runtime_algebra::reed_solomon::ReedSolomon::new(n, m, self.f, |inverses| {
-            SlowConvolver {
+            SlowMiddleProduct {
                 f: self.f,
                 y: inverses.to_vec(),
             }
@@ -398,7 +398,23 @@ fn test_ligero_verifier_failures_generic<
             &make_interpolator,
             f,
         );
-        assert!(matches!(verify_res, Err(LigeroError::MerkleCheckFailed(_))));
+        match (W, verify_res) {
+            (
+                2,
+                Err(LigeroError::MerkleCheckFailed(MerkleError::ProofLengthMismatch {
+                    expected: 46,
+                    found: 45,
+                })),
+            ) => {}
+            (
+                4,
+                Err(LigeroError::MerkleCheckFailed(MerkleError::RootMismatch { expected, found })),
+            ) => {
+                assert_eq!(expected, bad_comm.root);
+                assert_ne!(found, bad_comm.root);
+            }
+            (_, other) => panic!("wrong error for corrupted Merkle commitment: {other:?}"),
+        }
     }
 
     // 2. wrong dot product
@@ -504,7 +520,12 @@ fn test_ligero_verifier_failures_generic<
             make_interpolator,
             f,
         );
-        assert!(matches!(verify_res, Err(LigeroError::InvalidProof(_))));
+        assert_eq!(
+            verify_res,
+            Err(LigeroError::InvalidProof(
+                "linear constraint index out of bounds".to_string()
+            ))
+        );
     }
 
     // 7. out of bounds quadratic constraint fails cleanly without panicking
@@ -524,7 +545,12 @@ fn test_ligero_verifier_failures_generic<
             make_interpolator,
             f,
         );
-        assert!(matches!(verify_res, Err(LigeroError::InvalidProof(_))));
+        assert_eq!(
+            verify_res,
+            Err(LigeroError::InvalidProof(
+                "quadratic constraint index out of bounds".to_string()
+            ))
+        );
     }
 }
 

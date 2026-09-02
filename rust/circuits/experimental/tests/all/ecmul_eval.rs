@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use circuits_experimental::ecmul::{
     derived,
     evaluate::{evaluate_derived, evaluate_given},
@@ -25,10 +39,10 @@ fn run_ecmul_eval_tests<
     let n = 256;
     let tv = testvec::get_testvec();
 
-    let ax_fp = f.nat_to_element(&F::N::from_bytes_le(&tv.ax.to_bytes_le()));
-    let ay_fp = f.nat_to_element(&F::N::from_bytes_le(&tv.ay.to_bytes_le()));
-    let bx_fp = f.nat_to_element(&F::N::from_bytes_le(&tv.bx.to_bytes_le()));
-    let by_fp = f.nat_to_element(&F::N::from_bytes_le(&tv.by.to_bytes_le()));
+    let ax_fp = f.reduce_nat(&F::N::from_bytes_le(&tv.ax.to_bytes_le()));
+    let ay_fp = f.reduce_nat(&F::N::from_bytes_le(&tv.ay.to_bytes_le()));
+    let bx_fp = f.reduce_nat(&F::N::from_bytes_le(&tv.bx.to_bytes_le()));
+    let by_fp = f.reduce_nat(&F::N::from_bytes_le(&tv.by.to_bytes_le()));
 
     let concrete_given = ConcreteGiven {
         exp: tv.exp.clone(),
@@ -37,8 +51,9 @@ fn run_ecmul_eval_tests<
     };
     let concrete_derived = derived(curve, n, &concrete_given, f);
 
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let l = L::<F>::new(f);
+    let l = L::<F>::new(f, &tracker);
     let circuit = EcmulCircuit::new(&l, curve, n);
 
     let wire_given = evaluate_given(&concrete_given, &l, n);

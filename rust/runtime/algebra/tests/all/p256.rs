@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use compile_algebra::{field::CompileField, p256::P256Field as P256CompileField};
-use core_algebra::{AlgebraicField, Curve, SerializableField, SupportsU64Conversions};
-use runtime_algebra::{
-    field::{RuntimeField, RuntimeSerializableField},
-    p256::*,
-    poly::InterpolationField,
+use compile_algebra::p256::P256Field as P256CompileField;
+use core_algebra::{
+    AlgebraicField, Curve, Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions,
 };
+use num_bigint::BigUint;
+use runtime_algebra::{field::RuntimeSerializableField, p256::*, poly::InterpolationField};
 
 #[test]
 fn test_specific_mul() {
@@ -143,19 +142,58 @@ fn test_p256_optimized_vs_unoptimized() {
 }
 
 #[test]
+fn test_p256_reduce_nat() {
+    let field = P256Field::new();
+    let modulus = BigUint::parse_bytes(
+        b"ffffffff00000001000000000000000000000000ffffffffffffffffffffffff",
+        16,
+    )
+    .unwrap();
+    let limit = BigUint::from(1u32) << 256;
+    let mut values = vec![
+        BigUint::from(0u32),
+        BigUint::from(1u32),
+        &modulus - 1u32,
+        modulus.clone(),
+        &modulus + 1u32,
+        &limit - 1u32,
+    ];
+
+    let mut state = 0xbb67_ae85_84ca_a73bu64;
+    for _ in 0..512 {
+        let mut words = [0u64; 4];
+        for word in &mut words {
+            state = state
+                .wrapping_mul(2_862_933_555_777_941_757)
+                .wrapping_add(3_037_000_493);
+            *word = state;
+        }
+        let mut bytes = Vec::with_capacity(32);
+        for word in words {
+            bytes.extend_from_slice(&word.to_le_bytes());
+        }
+        values.push(BigUint::from_bytes_le(&bytes));
+    }
+
+    for value in values {
+        let mut bytes = value.to_bytes_le();
+        bytes.resize(32, 0);
+        let nat = runtime_algebra::RuntimeNat::<4>::from_bytes_le(&bytes);
+        let reduced = field.reduce_nat(&nat);
+        assert_eq!(
+            BigUint::from_bytes_le(&field.to_bytes(&reduced)),
+            &value % &modulus,
+            "incorrect P-256 reduction for {value}"
+        );
+    }
+}
+
+#[test]
 fn test_precomputed_agrees_with_algebra() {
     let field_unopt = P256CompileField::new();
     let field_opt = P256Field::new();
 
-    // 1. Check basis
-    for i in 0..255 {
-        assert_eq!(
-            field_unopt.to_bytes(&field_unopt.pseudo_basis(i)),
-            field_opt.to_bytes(&field_opt.pseudo_basis(i))
-        );
-    }
-
-    // 3. Check poly_evaluation_points
+    // Check poly_evaluation_points
     for i in 0..6 {
         let expected = field_unopt.u64_to_element(i as u64);
         assert_eq!(
@@ -164,7 +202,7 @@ fn test_precomputed_agrees_with_algebra() {
         );
     }
 
-    // 4. Check newton_denominators
+    // Check newton_denominators
     for i in 1..6 {
         let val = field_unopt.u64_to_element(i as u64);
         let expected_denom = field_unopt.invert(&val);

@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use compile_algebra::{
     gf2_128::Gf2_128Field, p256::P256Field, q256::Q256Field, secp256r1::Secp256r1, CompileNat,
 };
@@ -14,6 +28,7 @@ use mdoc_zk_circuits::{
     },
 };
 
+#[allow(clippy::too_many_arguments)]
 fn run_two_circuit_setup_generic<'a>(
     f: &P256Field,
     fn_field: &Q256Field,
@@ -92,8 +107,10 @@ fn test_all_two_circuit_setups() {
     let fn_field = Q256Field::new();
     let f128_compile = Gf2_128Field::new();
     let curve = Secp256r1::new(&p256);
-    let lp256 = EvalLogic::new(&p256);
-    let l128 = EvalLogic::new(&f128_compile);
+    let p256_tracker = compile_logic::tracker::AssertionTracker::new();
+    let lp256 = EvalLogic::new_with_tracker(&p256, &p256_tracker);
+    let f128_tracker = compile_logic::tracker::AssertionTracker::new();
+    let l128 = EvalLogic::new_with_tracker(&f128_compile, &f128_tracker);
     let mdoc_sig_circuit = MdocSignature::new(&lp256, &curve);
     let mdoc_hashes = [
         MdocHash::new(&l128, 1),

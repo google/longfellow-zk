@@ -14,7 +14,7 @@
 
 use core_algebra::{Curve, ElementOf};
 
-use crate::field::RuntimeField;
+use crate::field::RuntimeSerializableField;
 
 const SECP256R1_A: [u64; 4] = [
     0xfffffffffffffffc,
@@ -47,14 +47,14 @@ const SECP256R1_ORDER: [u64; 4] = [
     0xffffffff00000000,
 ];
 
-pub struct Secp256r1<F: RuntimeField<4> + core_algebra::SerializableField> {
+pub struct Secp256r1<F: RuntimeSerializableField<4>> {
     a: ElementOf<F>,
     b: ElementOf<F>,
     g: (ElementOf<F>, ElementOf<F>),
     order: [u64; 4],
 }
 
-impl<F: RuntimeField<4> + core_algebra::SerializableField> Clone for Secp256r1<F> {
+impl<F: RuntimeSerializableField<4>> Clone for Secp256r1<F> {
     fn clone(&self) -> Self {
         Self {
             a: self.a.clone(),
@@ -65,7 +65,7 @@ impl<F: RuntimeField<4> + core_algebra::SerializableField> Clone for Secp256r1<F
     }
 }
 
-impl<F: RuntimeField<4> + core_algebra::SerializableField> std::fmt::Debug for Secp256r1<F> {
+impl<F: RuntimeSerializableField<4>> std::fmt::Debug for Secp256r1<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Secp256r1")
             .field("a", &self.a)
@@ -76,15 +76,15 @@ impl<F: RuntimeField<4> + core_algebra::SerializableField> std::fmt::Debug for S
     }
 }
 
-impl<F: RuntimeField<4> + core_algebra::SerializableField> PartialEq for Secp256r1<F> {
+impl<F: RuntimeSerializableField<4>> PartialEq for Secp256r1<F> {
     fn eq(&self, other: &Self) -> bool {
         self.a == other.a && self.b == other.b && self.g == other.g && self.order == other.order
     }
 }
 
-impl<F: RuntimeField<4> + core_algebra::SerializableField> Eq for Secp256r1<F> {}
+impl<F: RuntimeSerializableField<4>> Eq for Secp256r1<F> {}
 
-impl<F: RuntimeField<4> + core_algebra::SerializableField> Secp256r1<F> {
+impl<F: RuntimeSerializableField<4>> Secp256r1<F> {
     pub fn new(f: &F) -> Self {
         Self {
             a: f.words64_to_element(&SECP256R1_A).unwrap(),
@@ -98,7 +98,7 @@ impl<F: RuntimeField<4> + core_algebra::SerializableField> Secp256r1<F> {
     }
 }
 
-impl<F: RuntimeField<4> + core_algebra::SerializableField> Curve<4> for Secp256r1<F> {
+impl<F: RuntimeSerializableField<4>> Curve<4> for Secp256r1<F> {
     type F = F;
     type N = crate::RuntimeNat<4>;
 

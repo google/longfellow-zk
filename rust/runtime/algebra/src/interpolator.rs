@@ -29,9 +29,10 @@ pub trait InterpolatorFactory<const W: usize, F: RuntimeField<W>> {
     /// - **Additive/Subspace FFTs (LCH14)**: Evaluate over an additive subspace directly, so we
     ///   only require the total evaluation domain size `block_enc` to fit in the subfield
     ///   (`block_enc <= 1 << subfield_dim`).
-    /// - **Multiplicative/Convolutive FFTs**: Perform polynomial convolution to interpolate. To
-    ///   prevent aliasing, the FFT size must be at least `(ylen + block_enc -
-    ///   1).next_power_of_two()`, requiring a root of unity subgroup of at least that order.
+    /// - **Multiplicative FFTs**: Perform a polynomial middle product using a cyclic FFT. Because
+    ///   wraparound affects only coefficients below the range consumed by interpolation, the FFT
+    ///   size is `block_enc.next_power_of_two()`. The root-of-unity subgroup must have at least
+    ///   that order.
     fn can_encode(&self, ylen: usize, block_enc: usize) -> bool;
 }
 

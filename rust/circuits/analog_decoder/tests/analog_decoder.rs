@@ -18,48 +18,43 @@ use compile_algebra::{
     field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
     p256::P256Field,
 };
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{eval::EvalLogic, Logic, LogicIO};
 
 #[test]
 fn test_compile_analog_decoder() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &f);
-    let ad = AnalogDecoder::new(&iologic);
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
+        let ad = AnalogDecoder::new(&iologic);
 
-    let n = 5;
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let x = iologic.next(&mut pos);
+        let n = 5;
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let x = iologic.next(&mut pos);
 
-    let decoder = ad.unary(n);
-    let (exactly_one, _decoded) = decoder.decode(&x);
-    let assertion = exactly_one;
-
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
-    compile_compiler::top::dump_stats("analog_decoder_compile", &circuit, &stats);
+        let decoder = ad.unary(n);
+        let (exactly_one, _decoded) = decoder.decode(&x);
+        (exactly_one, 1, 0)
+    });
+    compile_compiler::dump_stats("analog_decoder_compile", &circuit, &stats);
 }
 
 #[test]
 fn test_compile_analog_decoder_binary() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &f);
-    let ad = AnalogDecoder::new(&iologic);
-    let boolean = Boolean::new(&iologic);
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
+        let ad = AnalogDecoder::new(&iologic);
+        let boolean = Boolean::new(&iologic);
 
-    let width = 3;
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let x = iologic.next(&mut pos);
+        let width = 3;
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let x = iologic.next(&mut pos);
 
-    let decoder = ad.binary(width);
-    let decoded = decoder.decode(&x);
+        let decoder = ad.binary(width);
+        let decoded = decoder.decode(&x);
 
-    let assertion = boolean.assert_true("assert_decoded0", &decoded[0]);
+        (boolean.assert_true("assert_decoded0", &decoded[0]), 1, 0)
+    });
 
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
-
-    compile_compiler::top::dump_stats("analog_decoder_binary_compile", &circuit, &stats);
+    compile_compiler::dump_stats("analog_decoder_binary_compile", &circuit, &stats);
 }
 
 fn test_analog_decoder_unary_generic<
@@ -68,7 +63,8 @@ fn test_analog_decoder_unary_generic<
 >(
     f: &F,
 ) {
-    let iologic = EvalLogic::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
 
@@ -109,7 +105,8 @@ fn test_analog_decoder_binary_generic<
 >(
     f: &F,
 ) {
-    let iologic = EvalLogic::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
 
@@ -142,7 +139,6 @@ fn new_f1009_field() -> F1009Field {
     compile_algebra::fp::FpField::new_field(compile_algebra::fp::FpParameters {
         length_bytes: 2,
         modulo: compile_algebra::CompileNat::<4>::from(1009),
-        id: 1009,
     })
 }
 
@@ -152,7 +148,8 @@ fn test_analog_decoder_exhaustive_field_1009_generic<
 >(
     f: &F,
 ) {
-    let iologic = EvalLogic::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
 
@@ -215,16 +212,18 @@ fn test_analog_decoder_exhaustive_field_1009_generic<
             let got = decoder.decode(&pt_wire);
 
             // Collect internal bit assertions for the decoded bits
-            let mut bit_assertions = Ok(());
-            for bit in &got {
-                let eltw = boolean.as_eltw(bit);
-                bit_assertions = bit_assertions.and(eltw.error);
-            }
+            let is_ok = got.iter().all(|bit| {
+                boolean
+                    .as_eltw(bit)
+                    .assertions
+                    .values()
+                    .all(|s| matches!(s, compile_logic::scope::AssertionStatus::Passed))
+            });
 
             if let Some(i) = valid_points.iter().position(|vp| vp == &pt) {
                 // It is a valid point: bit assertions must succeed
                 assert!(
-                    bit_assertions.is_ok(),
+                    is_ok,
                     "Binary(w={width}) assertions failed for valid point val = {val} (index {i})"
                 );
                 // Result must match bit representation of index i
@@ -242,7 +241,7 @@ fn test_analog_decoder_exhaustive_field_1009_generic<
                 // It is an invalid point: at least one bit assertion must fail
                 // (since the values will not be 0 or 1)
                 assert!(
-                    bit_assertions.is_err(),
+                    !is_ok,
                     "Binary(w={width}) assertions succeeded for invalid point val = {val}"
                 );
             }

@@ -16,7 +16,11 @@ use compile_algebra::{
     field::{CompileField, SupportsNatConversions},
     p256::P256Field,
 };
-use compile_compiler::{cse::Cse, ir::RewriteT, CompilerArena};
+use compile_compiler::{
+    arena::CompilerArena,
+    cse::Cse,
+    ir::{AssertionItem, RewriteT},
+};
 
 fn run_test_cse<const W: usize, F: CompileField + SupportsNatConversions<W>>(f: &F) {
     let arena = CompilerArena::<F>::new();
@@ -53,6 +57,9 @@ fn test_cse() {
 }
 
 fn run_test_cse_assertions<const W: usize, F: CompileField + SupportsNatConversions<W>>(f: &F) {
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let aid1 = tracker.new_leaf("assert_input");
+    let _aid2 = tracker.new_leaf("assert_one");
     let arena = CompilerArena::<F>::new();
     let cse = Cse::new(&arena);
     let input_node = cse.input(1);
@@ -65,10 +72,20 @@ fn run_test_cse_assertions<const W: usize, F: CompileField + SupportsNatConversi
     // Union them in different orders
     let assertions1 = cse.assertions(&[assert_input, assert_one]);
     let assertions2 = cse.assertions(&[assert_one, assert_input]);
+    let raw_items1: Vec<_> = assertions1
+        .iter()
+        .map(|&expr| AssertionItem { id: aid1, expr })
+        .collect();
+    let raw_items2: Vec<_> = assertions2
+        .iter()
+        .map(|&expr| AssertionItem { id: aid1, expr })
+        .collect();
+    let assertion_items1 = arena.alloc_slice(&raw_items1);
+    let assertion_items2 = arena.alloc_slice(&raw_items2);
 
     // Construct expressions with assertions in different orders
-    let expr1 = cse.with_assertions(&assertions1, &input_node);
-    let expr2 = cse.with_assertions(&assertions2, &input_node);
+    let expr1 = cse.with_assertions(&assertion_items1, &input_node);
+    let expr2 = cse.with_assertions(&assertion_items2, &input_node);
 
     // Assert that they are collapsed into the same node
     assert_eq!(expr1, expr2);

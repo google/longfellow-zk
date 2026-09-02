@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core_algebra::{AlgebraicField, Comparable, SupportsU128Conversions};
+use core_algebra::{AlgebraicField, SupportsU128Conversions};
 use runtime_algebra::{gf2_128::Gf2_128RuntimeField, subfield::BinarySubfield, Subfield};
 
 struct SimpleRng(u64);
@@ -51,10 +51,8 @@ fn test_runtime_subfield_gf2_16() {
     }
 
     // 2. Check distinct
-    let mut sorted = elements.clone();
-    sorted.sort_by(|a, b| f.compare(a, b));
-    sorted.dedup();
-    assert_eq!(sorted.len(), n, "All elements must be distinct");
+    let distinct: std::collections::HashSet<_> = elements.iter().collect();
+    assert_eq!(distinct.len(), n, "All elements must be distinct");
 
     // 3. Check 0 and 1 are there
     let zero = f.zero();
@@ -112,6 +110,19 @@ fn test_subfield_gf2_128() {
 }
 
 #[test]
+#[should_panic(expected = "BinarySubfield dimension must be byte-aligned")]
+fn test_binary_subfield_requires_byte_aligned_dimension() {
+    let _ = BinarySubfield::new(&[1]);
+}
+
+#[test]
+#[should_panic(expected = "sampling callback returned an unexpected number of bytes")]
+fn test_subfield_sampling_rejects_wrong_byte_count() {
+    let subfield = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
+    subfield.sample(|requested| vec![0; requested + 1]);
+}
+
+#[test]
 fn test_gf2_16_basis_v1_properties() {
     let sf_basis = core_algebra::proto::GF2_16_BASIS_V1;
 
@@ -162,7 +173,10 @@ fn test_subfield_closed_under_multiplication() {
     let f = Gf2_128RuntimeField::new();
     let sf = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
 
-    // 1. Check all pairs of basis elements
+    assert!(sf.contains(&f.one()), "subfield must contain one");
+
+    // Multiplication is bilinear, so checking every pair of basis elements proves that the
+    // entire span is closed under multiplication.
     for &a in sf.basis() {
         for &b in sf.basis() {
             let prod = f.mulf(&a, &b);
@@ -170,13 +184,13 @@ fn test_subfield_closed_under_multiplication() {
         }
     }
 
+    // Exercise the conclusion directly on a deterministic sample of elements.
     let mut rng_state = 12345u64;
     let mut next_rng = || {
         rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1);
         rng_state
     };
 
-    // 2. Check 1000 random pairs
     for _ in 0..1000 {
         let a_val = next_rng() % 65536;
         let b_val = next_rng() % 65536;

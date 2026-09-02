@@ -26,7 +26,6 @@ fn p256_params() -> FpParameters<4> {
             )
             .unwrap(),
         ),
-        id: 1,
     }
 }
 

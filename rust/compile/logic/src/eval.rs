@@ -12,49 +12,84 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Direct evaluation of circuit logic with exact assertion provenance.
+
+use std::{collections::HashMap, ops::Deref, sync::Arc};
+
 use compile_algebra::field::CompileField;
 use core_algebra::ElementOf;
 
-use crate::Logic;
+use crate::{
+    scope::{AssertionId, AssertionScope, AssertionStatus},
+    Logic,
+};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EvalError {
-    AssertionFailure(String),
+#[derive(Clone, Debug, Default)]
+pub struct AssertionMap(Arc<HashMap<AssertionId, AssertionStatus>>);
+
+impl Deref for AssertionMap {
+    type Target = HashMap<AssertionId, AssertionStatus>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AssertionMap {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn insert(&mut self, id: AssertionId, status: AssertionStatus) {
+        Arc::make_mut(&mut self.0).insert(id, status);
+    }
+}
+
+impl IntoIterator for AssertionMap {
+    type Item = (AssertionId, AssertionStatus);
+    type IntoIter = std::collections::hash_map::IntoIter<AssertionId, AssertionStatus>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match Arc::try_unwrap(self.0) {
+            Ok(map) => map.into_iter(),
+            Err(shared) => (*shared).clone().into_iter(),
+        }
+    }
+}
+
+impl Extend<(AssertionId, AssertionStatus)> for AssertionMap {
+    fn extend<T: IntoIterator<Item = (AssertionId, AssertionStatus)>>(&mut self, iter: T) {
+        Arc::make_mut(&mut self.0).extend(iter);
+    }
 }
 
 pub struct EvalWire<F: CompileField> {
     pub value: ElementOf<F>,
-    pub error: Result<(), EvalError>,
+    pub assertions: AssertionMap,
 }
 
 impl<F: CompileField> Clone for EvalWire<F> {
     fn clone(&self) -> Self {
         Self {
             value: self.value.clone(),
-            error: self.error.clone(),
+            assertions: self.assertions.clone(),
         }
     }
 }
 
 impl<F: CompileField> EvalWire<F> {
     pub fn ok(value: ElementOf<F>) -> Self {
-        Self {
-            value,
-            error: Ok(()),
-        }
+        Self::new(value, AssertionMap::new())
     }
 
-    pub fn err(value: ElementOf<F>, err: EvalError) -> Self {
-        Self {
-            value,
-            error: Err(err),
-        }
+    fn new(value: ElementOf<F>, assertions: AssertionMap) -> Self {
+        Self { value, assertions }
     }
 }
 
 impl<F: CompileField> PartialEq for EvalWire<F> {
     fn eq(&self, other: &Self) -> bool {
-        self.value.eq(&other.value) && self.error.eq(&other.error)
+        self.value.eq(&other.value)
     }
 }
 
@@ -64,155 +99,131 @@ impl<F: CompileField> std::fmt::Debug for EvalWire<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EvalWire")
             .field("value", &self.value)
-            .field("error", &self.error)
+            .field("has_attached_assertions", &!self.assertions.is_empty())
             .finish()
     }
 }
 
 pub struct EvalLogic<'a, F: CompileField> {
     f: &'a F,
+    tracker: &'a AssertionScope,
+}
+
+/// Owns the assertion scope for one direct-evaluation session.
+pub struct EvalContext<'a, F: CompileField> {
+    f: &'a F,
+    tracker: AssertionScope,
+}
+
+impl<'a, F: CompileField> EvalContext<'a, F> {
+    pub fn new(f: &'a F) -> Self {
+        Self {
+            f,
+            tracker: AssertionScope::new(),
+        }
+    }
+
+    pub fn run<'ctx>(
+        &'ctx self,
+        build: impl FnOnce(&EvalLogic<'ctx, F>) -> EvalAssertions<'ctx>,
+    ) -> EvalAssertions<'ctx> {
+        let logic = EvalLogic::new(self.f, &self.tracker);
+        build(&logic)
+    }
 }
 
 impl<'a, F: CompileField> EvalLogic<'a, F> {
-    pub fn new(f: &'a F) -> Self {
-        Self { f }
+    pub fn new(f: &'a F, tracker: &'a AssertionScope) -> Self {
+        Self { f, tracker }
+    }
+
+    pub fn new_with_tracker(f: &'a F, tracker: &'a AssertionScope) -> Self {
+        Self::new(f, tracker)
+    }
+
+    fn wire(&self, value: ElementOf<F>, assertions: AssertionMap) -> EvalWire<F> {
+        EvalWire::new(value, assertions)
+    }
+
+    fn combine(&self, x: &EvalWire<F>, y: &EvalWire<F>, value: ElementOf<F>) -> EvalWire<F> {
+        let assertions = merge_assertions(&x.assertions, &y.assertions);
+        self.wire(value, assertions)
+    }
+
+    fn result(&self, scoped: AssertionMap, unscoped: AssertionMap) -> EvalAssertions<'a> {
+        EvalAssertions {
+            scoped,
+            unscoped,
+            tracker: self.tracker,
+        }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AssertionStatus {
-    Passed,
-    Failed(String),
+#[derive(Debug, Clone)]
+pub struct EvalAssertions<'a> {
+    pub scoped: AssertionMap,
+    pub unscoped: AssertionMap,
+    pub tracker: &'a AssertionScope,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EvaluatedAssertion {
-    pub path: String,
-    pub status: AssertionStatus,
-}
+impl<'a> EvalAssertions<'a> {
+    pub fn all_items(&self) -> AssertionMap {
+        merge_assertions(&self.scoped, &self.unscoped)
+    }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EvalAssertions {
-    pub result: Result<(), EvalError>,
-    pub evaluations: Vec<EvaluatedAssertion>,
-}
-
-impl EvalAssertions {
     pub fn is_ok(&self) -> bool {
-        self.result.is_ok()
+        self.tracker.is_ok(&self.all_items())
     }
 
     pub fn is_err(&self) -> bool {
-        self.result.is_err()
+        self.tracker.is_err(&self.all_items())
     }
 
     pub fn unwrap(self) {
-        self.result.unwrap()
+        self.assert_all_passed();
     }
 
-    pub fn expect(self, msg: &str) {
-        self.result.expect(msg)
-    }
-
-    /// Returns path strings for all evaluated assertions.
-    pub fn all_paths(&self) -> Vec<String> {
-        self.evaluations.iter().map(|e| e.path.clone()).collect()
-    }
-
-    /// Returns path strings for all passing assertions.
-    pub fn passed_paths(&self) -> Vec<String> {
-        self.evaluations
-            .iter()
-            .filter(|e| matches!(e.status, AssertionStatus::Passed))
-            .map(|e| e.path.clone())
-            .collect()
-    }
-
-    /// Returns path strings for all failing assertions.
     pub fn failed_paths(&self) -> Vec<String> {
-        self.evaluations
-            .iter()
-            .filter(|e| matches!(e.status, AssertionStatus::Failed(_)))
-            .map(|e| e.path.clone())
-            .collect()
+        self.tracker.failed_paths(&self.all_items())
     }
 
-    /// Asserts that evaluation succeeded and all assertions passed.
+    pub fn all_paths(&self) -> Vec<String> {
+        self.tracker.all_paths(&self.all_items())
+    }
+
+    pub fn passed_paths(&self) -> Vec<String> {
+        self.tracker.passed_paths(&self.all_items())
+    }
+
     pub fn assert_all_passed(&self) {
-        let failed = self.failed_paths();
-        assert!(
-            self.is_ok() && failed.is_empty(),
-            "Expected all assertions to pass, but the following failed: {failed:?}"
-        );
+        self.tracker.assert_all_passed(&self.all_items());
     }
 
-    /// Asserts that all assertions matching or under `expected_path` passed (and none failed).
-    pub fn assert_all_passed_at(&self, expected_path: &str) {
-        let failed_under_path: Vec<_> = self
-            .failed_paths()
-            .into_iter()
-            .filter(|p| p == expected_path || p.contains(expected_path))
-            .collect();
-        assert!(
-            failed_under_path.is_empty(),
-            "Expected all assertions at '{expected_path}' to pass, but found failures: {failed_under_path:?}"
-        );
-
-        let passed_under_path: Vec<_> = self
-            .passed_paths()
-            .into_iter()
-            .filter(|p| p == expected_path || p.contains(expected_path))
-            .collect();
-        assert!(
-            !passed_under_path.is_empty(),
-            "Expected passing assertions at '{expected_path}', but no assertions matching '{expected_path}' were found!"
-        );
-    }
-
-    /// Asserts that evaluation failed and at least one failed assertion path matches or contains
-    /// `expected_path`.
     pub fn assert_any_failed_at(&self, expected_path: &str) {
-        let failed = self.failed_paths();
-        assert!(
-            self.is_err(),
-            "Expected assertion failure at '{expected_path}', but evaluation passed successfully!"
-        );
-        let matches = failed
-            .iter()
-            .any(|p| p == expected_path || p.contains(expected_path));
-        assert!(
-            matches,
-            "Expected assertion failure at '{expected_path}', but actual failed assertion paths were: {failed:?}"
-        );
+        self.tracker
+            .assert_any_failed_at(expected_path, &self.all_items());
     }
 }
 
-impl std::ops::Deref for EvalAssertions {
-    type Target = Result<(), EvalError>;
-    fn deref(&self) -> &Self::Target {
-        &self.result
-    }
-}
-
-impl<F: CompileField> Logic for EvalLogic<'_, F> {
+impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
     type F = F;
     type Wire = EvalWire<F>;
-    type Assertions = EvalAssertions;
+    type Assertions = EvalAssertions<'a>;
 
     fn field(&self) -> &Self::F {
         self.f
     }
 
     fn zero(&self) -> Self::Wire {
-        EvalWire::ok(self.f.zero())
+        self.wire(self.f.zero(), AssertionMap::new())
     }
 
     fn one(&self) -> Self::Wire {
-        EvalWire::ok(self.f.one())
+        self.wire(self.f.one(), AssertionMap::new())
     }
 
     fn konst(&self, x: &ElementOf<F>) -> Self::Wire {
-        EvalWire::ok(x.clone())
+        self.wire(x.clone(), AssertionMap::new())
     }
 
     fn precious(&self, x: &Self::Wire) -> Self::Wire {
@@ -220,135 +231,92 @@ impl<F: CompileField> Logic for EvalLogic<'_, F> {
     }
 
     fn sum(&self, xs: &[Self::Wire]) -> Self::Wire {
-        let mut accu_val = self.f.zero();
-        let mut accu_err = Ok(());
+        let mut val = self.f.zero();
+        let mut assertions = AssertionMap::new();
         for x in xs {
-            accu_val = self.f.addf(&accu_val, &x.value);
-            accu_err = accu_err.and(x.error.clone());
+            val = self.f.addf(&val, &x.value);
+            assertions = merge_assertions(&assertions, &x.assertions);
         }
-        EvalWire {
-            value: accu_val,
-            error: accu_err,
-        }
+        self.wire(val, assertions)
     }
 
     fn neg(&self, x: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: self.f.neg(&x.value),
-            error: x.error.clone(),
-        }
+        self.wire(self.f.neg(&x.value), x.assertions.clone())
     }
 
     fn add(&self, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: self.f.addf(&x.value, &y.value),
-            error: x.error.clone().and(y.error.clone()),
-        }
+        self.combine(x, y, self.f.addf(&x.value, &y.value))
     }
 
     fn sub(&self, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: self.f.subf(&x.value, &y.value),
-            error: x.error.clone().and(y.error.clone()),
-        }
+        self.combine(x, y, self.f.subf(&x.value, &y.value))
     }
 
     fn mul(&self, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: self.f.mulf(&x.value, &y.value),
-            error: x.error.clone().and(y.error.clone()),
-        }
+        self.combine(x, y, self.f.mulf(&x.value, &y.value))
     }
 
     fn mulk(&self, e: &ElementOf<F>, y: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: self.f.mulf(e, &y.value),
-            error: y.error.clone(),
-        }
+        self.wire(self.f.mulf(e, &y.value), y.assertions.clone())
     }
 
     fn quadratic(&self, e: &ElementOf<F>, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: self.f.mulf(e, &self.f.mulf(&x.value, &y.value)),
-            error: x.error.clone().and(y.error.clone()),
-        }
+        self.combine(x, y, self.f.mulf(e, &self.f.mulf(&x.value, &y.value)))
     }
 
     fn ok(&self) -> Self::Assertions {
-        EvalAssertions {
-            result: Ok(()),
-            evaluations: Vec::new(),
-        }
+        self.result(AssertionMap::new(), AssertionMap::new())
     }
 
     fn assert0(&self, name: &str, x: &Self::Wire) -> Self::Assertions {
-        let res = x.error.clone().and_then(|()| {
-            if x.value.eq(&self.f.zero()) {
-                Ok(())
-            } else {
-                let msg = format!("expected zero, got {:?}", x.value);
-                Err(EvalError::AssertionFailure(msg))
-            }
-        });
-
-        let status = match &res {
-            Ok(()) => AssertionStatus::Passed,
-            Err(EvalError::AssertionFailure(msg)) => AssertionStatus::Failed(msg.clone()),
-        };
-
         assert!(!name.is_empty(), "assert0 requires a non-empty name");
-        let evaluations = vec![EvaluatedAssertion {
-            path: name.to_string(),
-            status,
-        }];
-
-        EvalAssertions {
-            result: res,
-            evaluations,
-        }
+        let status = if x.value.eq(&self.f.zero()) {
+            AssertionStatus::Passed
+        } else {
+            AssertionStatus::Failed(format!("expected zero, got {:?}", x.value))
+        };
+        let id = self.tracker.new_leaf(name);
+        let mut scoped = AssertionMap::new();
+        scoped.insert(id, status);
+        self.result(scoped, x.assertions.clone())
     }
 
     fn assert_all(&self, name: &str, assertions: &[Self::Assertions]) -> Self::Assertions {
         assert!(!name.is_empty(), "assert_all requires a non-empty name");
-        let mut res = Ok(());
-        let mut evaluations = Vec::new();
-
+        let mut scoped = AssertionMap::new();
+        let mut unscoped = AssertionMap::new();
         for a in assertions {
-            if res.is_ok() {
-                if let Err(e) = &a.result {
-                    res = Err(e.clone());
-                }
-            }
-
-            for eval in &a.evaluations {
-                let new_path = if eval.path.is_empty() {
-                    name.to_string()
-                } else {
-                    format!("{name}/{}", eval.path)
-                };
-                evaluations.push(EvaluatedAssertion {
-                    path: new_path,
-                    status: eval.status.clone(),
-                });
-            }
+            scoped = merge_assertions(&scoped, &a.scoped);
+            unscoped = merge_assertions(&unscoped, &a.unscoped);
         }
-
-        EvalAssertions {
-            result: res,
-            evaluations,
+        for &id in scoped.keys() {
+            self.tracker.prepend_scope(id, name);
         }
+        self.result(scoped, unscoped)
     }
 
     fn with_assertions(&self, assertions: Self::Assertions, x: &Self::Wire) -> Self::Wire {
-        EvalWire {
-            value: x.value.clone(),
-            error: x.error.clone().and(assertions.result),
-        }
+        let attached = merge_assertions(&assertions.scoped, &assertions.unscoped);
+        let new_unscoped = merge_assertions(&x.assertions, &attached);
+        self.wire(x.value.clone(), new_unscoped)
     }
 
     fn to_stringw_debug(&self, x: &Self::Wire) -> String {
         format!("{:?}", x.value)
     }
+}
+
+fn merge_assertions(left: &AssertionMap, right: &AssertionMap) -> AssertionMap {
+    if left.is_empty() {
+        return right.clone();
+    }
+    if right.is_empty() {
+        return left.clone();
+    }
+
+    let mut merged = left.clone();
+    Arc::make_mut(&mut merged.0).extend(right.iter().map(|(&id, status)| (id, status.clone())));
+    merged
 }
 
 impl<F: CompileField> crate::LogicIO for EvalLogic<'_, F> {

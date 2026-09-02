@@ -153,6 +153,12 @@ pub(super) fn validate_raw_circuit<F: SerializableField>(
     if raw.ninput > MAX_WIRES {
         return Err(format!("Excessive ninput: {}", raw.ninput));
     }
+    if raw.npublic_input > raw.ninput {
+        return Err(format!(
+            "Invalid public input count: npublic_input ({}) exceeds ninput ({})",
+            raw.npublic_input, raw.ninput
+        ));
+    }
     if raw.constants.len() > MAX_CONSTANTS {
         return Err(format!("Excessive constants: {}", raw.constants.len()));
     }

@@ -1,8 +1,22 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 pub use crate::arch::{
-    gf2_128_accum_reduce as arch_accum_reduce, gf2_128_add_accum as arch_add_accum,
-    gf2_128_mac as arch_mac, gf2_128_mul as arch_mul, Gf2_128, Gf2_128Accum,
+    gf2_128_accum_reduce as arch_accum_reduce, gf2_128_mac as arch_mac, gf2_128_mul as arch_mul,
+    Gf2_128, Gf2_128Accum,
 };
-use crate::field::{AlgebraicField, FieldElement, RuntimeBinaryField, RuntimeField};
+use crate::field::{AlgebraicField, RuntimeBinaryField, RuntimeField};
 
 impl Gf2_128 {
     #[inline(always)]
@@ -33,13 +47,12 @@ impl From<u128> for Gf2_128 {
     }
 }
 
-impl FieldElement for Gf2_128 {}
-
 const XINV: Gf2_128 = Gf2_128::new(0x8000_0000_0000_0000_0000_0000_0000_0043);
 
 #[inline(always)]
 fn invert(e: Gf2_128) -> Gf2_128 {
     let zero = Gf2_128::from_u128(0);
+    assert!(e != zero, "cannot invert zero");
     let one = Gf2_128::from_u128(1);
 
     let mut a_curr = e;
@@ -117,13 +130,6 @@ impl core_algebra::BareField for Gf2_128Field {
     type E = Gf2_128;
 }
 
-impl core_algebra::Comparable for Gf2_128Field {
-    #[inline(always)]
-    fn compare(&self, a: &Self::E, b: &Self::E) -> std::cmp::Ordering {
-        a.to_u128().cmp(&b.to_u128())
-    }
-}
-
 impl core_algebra::AlgebraicField for Gf2_128Field {
     #[inline(always)]
     fn zero(&self) -> Self::E {
@@ -182,16 +188,6 @@ impl RuntimeField<2> for Gf2_128Field {
     }
 
     #[inline(always)]
-    fn fms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        self.fma(e1, a, b);
-    }
-
-    #[inline(always)]
-    fn fnma(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        self.fma(e1, a, b);
-    }
-
-    #[inline(always)]
     fn fnms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
         self.fma(e1, a, b);
     }
@@ -207,35 +203,19 @@ impl RuntimeField<2> for Gf2_128Field {
     }
 
     #[inline(always)]
-    fn add_accum(&self, a: &mut Self::Accum, b: &Self::Accum) {
-        arch_add_accum(a, b);
-    }
-
-    #[inline(always)]
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E {
         arch_accum_reduce(acc)
-    }
-
-    #[inline(always)]
-    fn pseudo_basis(&self, i: usize) -> Self::E {
-        assert!(i < 128, "i < dimension");
-        Gf2_128::from(1u128 << i)
-    }
-
-    #[inline(always)]
-    fn pseudo_dimension(&self) -> usize {
-        128
-    }
-
-    #[inline(always)]
-    fn pseudo_basis_unsafe(&self, i: usize) -> Self::E {
-        self.pseudo_basis(i)
     }
 }
 
 impl crate::field::SupportsSampling<2> for Gf2_128Field {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let buf = rng(16);
+        assert_eq!(
+            buf.len(),
+            16,
+            "sampling callback returned an unexpected number of bytes"
+        );
         let val = u128::from_le_bytes(buf.try_into().unwrap());
         Gf2_128::from(val)
     }
@@ -256,14 +236,6 @@ impl crate::poly::InterpolationField<2> for Gf2_128Field {
 }
 
 impl core_algebra::SerializableField for Gf2_128Field {
-    fn name(&self) -> String {
-        "GF2_128".to_string()
-    }
-
-    fn id(&self) -> usize {
-        4
-    }
-
     fn is_binary(&self) -> bool {
         true
     }
@@ -316,7 +288,7 @@ impl core_algebra::SupportsNatConversions<2> for Gf2_128Field {
     type N = crate::RuntimeNat<2>;
 
     #[inline(always)]
-    fn nat_to_element(&self, n: &Self::N) -> Self::E {
+    fn reduce_nat(&self, n: &Self::N) -> Self::E {
         let limbs = n.limbs();
         Gf2_128::from(u128::from(limbs[0]) | (u128::from(limbs[1]) << 64))
     }

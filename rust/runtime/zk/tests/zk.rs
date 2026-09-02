@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use core_proto::{
     circuit::{compare_term, Circuit, Layer, RawCircuit, Term, TermDelta},
     reader::CircuitReader,
@@ -144,9 +158,9 @@ fn test_zk_prover_verifier_end_to_end() {
     };
 
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
-    let prover_inst = ZkProver::new(circ.clone(), config);
+    let prover_inst = ZkProver::new(circ, config);
     let (prover, geom) = prover_inst.commit(
-        &w0[circ.raw.npublic_input..],
+        &w0[prover_inst.circuit.raw.npublic_input..],
         &runtime_zk::common::ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
@@ -159,8 +173,8 @@ fn test_zk_prover_verifier_end_to_end() {
     // 4. Prover prove
     let zkp = prover_inst
         .prove(
-            w0[..circ.raw.npublic_input].to_vec(),
-            w0[circ.raw.npublic_input..].to_vec(),
+            w0[..prover_inst.circuit.raw.npublic_input].to_vec(),
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &prover,
             &mut ts_prover,
             &runtime_zk::common::ZkContext {
@@ -173,7 +187,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let serialized = zkp
         .write(&geom, &f, &sf)
         .expect("Failed to serialize ZkProof");
-    let verifier = ZkVerifier::new(circ.clone(), config);
+    let verifier = ZkVerifier::new(prover_inst.circuit, config);
     let v_geom = verifier.geometry(&runtime_zk::common::ZkContext {
         f: &f,
         make_interpolator: &make_interpolator,
@@ -199,7 +213,7 @@ fn test_zk_prover_verifier_end_to_end() {
     );
 
     let verify_res = verifier.verify(
-        w0[..circ.raw.npublic_input].to_vec(),
+        w0[..verifier.circuit.raw.npublic_input].to_vec(),
         &deserialized,
         &mut ts_verifier,
         &runtime_zk::common::ZkContext {
@@ -280,9 +294,9 @@ fn test_zk_rfc_testvector1() {
         block_enc: 128,
     };
 
-    let prover_inst = ZkProver::new(circuit.clone(), config);
+    let prover_inst = ZkProver::new(circuit, config);
     let (commit_res, geom) = prover_inst.commit(
-        &w0[circuit.raw.npublic_input..],
+        &w0[prover_inst.circuit.raw.npublic_input..],
         &runtime_zk::common::ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
@@ -295,8 +309,8 @@ fn test_zk_rfc_testvector1() {
     // 4. Prover prove
     let zkp = prover_inst
         .prove(
-            w0[..circuit.raw.npublic_input].to_vec(),
-            w0[circuit.raw.npublic_input..].to_vec(),
+            w0[..prover_inst.circuit.raw.npublic_input].to_vec(),
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &commit_res,
             &mut ts_prover,
             &runtime_zk::common::ZkContext {
@@ -545,7 +559,7 @@ fn test_zk_rfc_testvector1() {
     );
 
     // 6. Verifier verify
-    let verifier = ZkVerifier::new(circuit.clone(), config);
+    let verifier = ZkVerifier::new(prover_inst.circuit, config);
     let mut ts_verifier = Transcript::new(b"test");
     verifier.recv_commitment(
         &zkp,
@@ -557,7 +571,7 @@ fn test_zk_rfc_testvector1() {
     );
 
     let verify_res = verifier.verify(
-        w0[..circuit.raw.npublic_input].to_vec(),
+        w0[..verifier.circuit.raw.npublic_input].to_vec(),
         &zkp,
         &mut ts_verifier,
         &runtime_zk::common::ZkContext {
@@ -600,9 +614,9 @@ fn test_zk_triple_zero_zero_zero() {
     };
 
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
-    let prover_inst = ZkProver::new(circ.clone(), config);
+    let prover_inst = ZkProver::new(circ, config);
     let (commit_res, _geom) = prover_inst.commit(
-        &w0[circ.raw.npublic_input..],
+        &w0[prover_inst.circuit.raw.npublic_input..],
         &runtime_zk::common::ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
@@ -614,8 +628,8 @@ fn test_zk_triple_zero_zero_zero() {
 
     let zkp = prover_inst
         .prove(
-            w0[..circ.raw.npublic_input].to_vec(),
-            w0[circ.raw.npublic_input..].to_vec(),
+            w0[..prover_inst.circuit.raw.npublic_input].to_vec(),
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &commit_res,
             &mut ts_prover,
             &runtime_zk::common::ZkContext {
@@ -625,7 +639,7 @@ fn test_zk_triple_zero_zero_zero() {
         )
         .expect("Failed to prove ZK with logv=0, logw=0");
 
-    let verifier = ZkVerifier::new(circ.clone(), config);
+    let verifier = ZkVerifier::new(prover_inst.circuit, config);
     let mut ts_verifier = Transcript::new(b"test_zk_zero");
     verifier.recv_commitment(
         &zkp,
@@ -637,7 +651,7 @@ fn test_zk_triple_zero_zero_zero() {
     );
 
     let verify_res = verifier.verify(
-        w0[..circ.raw.npublic_input].to_vec(),
+        w0[..verifier.circuit.raw.npublic_input].to_vec(),
         &zkp,
         &mut ts_verifier,
         &runtime_zk::common::ZkContext {
@@ -742,9 +756,9 @@ fn test_zk_intermediate_zero_logw() {
     };
 
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
-    let prover_inst = ZkProver::new(circ.clone(), config);
+    let prover_inst = ZkProver::new(circ, config);
     let (commit_res, _geom) = prover_inst.commit(
-        &w0[circ.raw.npublic_input..],
+        &w0[prover_inst.circuit.raw.npublic_input..],
         &runtime_zk::common::ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
@@ -756,8 +770,8 @@ fn test_zk_intermediate_zero_logw() {
 
     let zkp = prover_inst
         .prove(
-            w0[..circ.raw.npublic_input].to_vec(),
-            w0[circ.raw.npublic_input..].to_vec(),
+            w0[..prover_inst.circuit.raw.npublic_input].to_vec(),
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &commit_res,
             &mut ts_prover,
             &runtime_zk::common::ZkContext {
@@ -767,7 +781,7 @@ fn test_zk_intermediate_zero_logw() {
         )
         .expect("Failed to prove ZK with intermediate logw=0");
 
-    let verifier = ZkVerifier::new(circ.clone(), config);
+    let verifier = ZkVerifier::new(prover_inst.circuit, config);
     let mut ts_verifier = Transcript::new(b"test_zk_interm");
     verifier.recv_commitment(
         &zkp,
@@ -779,7 +793,7 @@ fn test_zk_intermediate_zero_logw() {
     );
 
     let verify_res = verifier.verify(
-        w0[..circ.raw.npublic_input].to_vec(),
+        w0[..verifier.circuit.raw.npublic_input].to_vec(),
         &zkp,
         &mut ts_verifier,
         &runtime_zk::common::ZkContext {
@@ -800,10 +814,6 @@ fn test_zk_zero_layers() {
     let f = Gf2_128Field::new();
     let subfield = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
 
-    // 4 inputs (2 public, 2 private), 4 outputs, 0 layers!
-    let raw = make_raw_circuit(&f, 4, 2, 4, 2, &[], &[], vec![]);
-    let circ = Circuit { raw, id: [0u8; 32] };
-
     let make_interpolator = Lch14InterpolatorFactory::new(&f, &subfield);
     let config = LigeroConfig {
         rateinv: 4,
@@ -813,7 +823,10 @@ fn test_zk_zero_layers() {
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
 
     // Try all 16 combinations of zero / non-zero across the 4 inputs
-    for mask in 0..16 {
+    for mask in 0u32..16 {
+        let raw = make_raw_circuit(&f, 4, 2, 4, 2, &[], &[], vec![]);
+        let circ = Circuit { raw, id: [0u8; 32] };
+
         let mut w0 = vec![f.zero(); 4];
         for (i, elem) in w0.iter_mut().enumerate().take(4) {
             if (mask & (1 << i)) != 0 {
@@ -828,7 +841,7 @@ fn test_zk_zero_layers() {
         };
         let mut ts_prover = Transcript::new(b"test_zk_zero_layers");
 
-        let prover_inst = ZkProver::new(circ.clone(), config);
+        let prover_inst = ZkProver::new(circ, config);
         let (commit_res, _geom) = prover_inst.commit(
             &w0[2..],
             &runtime_zk::common::ZkContext {
@@ -864,7 +877,7 @@ fn test_zk_zero_layers() {
             );
             let zkp = prove_res.unwrap();
 
-            let verifier = ZkVerifier::new(circ.clone(), config);
+            let verifier = ZkVerifier::new(prover_inst.circuit, config);
             let mut ts_verifier = Transcript::new(b"test_zk_zero_layers");
             verifier.recv_commitment(
                 &zkp,
@@ -890,13 +903,20 @@ fn test_zk_zero_layers() {
                 verify_res.err()
             );
         } else {
-            assert!(
-                eval_res.is_err(),
-                "eval_circuit should fail when input mask {mask} is non-zero"
+            let first_nonzero = mask.trailing_zeros() as usize;
+            let expected_eval_error = format!(
+                "Circuit output at index {first_nonzero} is not zero: {:?}",
+                f.one()
             );
-            assert!(
-                prove_res.is_err(),
-                "prove should fail when input mask {mask} is non-zero"
+            assert_eq!(
+                eval_res.unwrap_err(),
+                expected_eval_error,
+                "eval_circuit failed at the wrong check for input mask {mask}"
+            );
+            assert_eq!(
+                prove_res.unwrap_err(),
+                format!("eval_circuit failed: {expected_eval_error}"),
+                "prove failed at the wrong check for input mask {mask}"
             );
         }
     }

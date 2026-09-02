@@ -17,10 +17,10 @@ use compile_algebra::{
     p256::P256Field,
 };
 use compile_compiler::{
+    arena::CompilerArena,
     copy::CopyRewriter,
     cse::Cse,
     ir::{Expr, RewriteT},
-    CompilerArena,
 };
 use core_algebra::Nat;
 
@@ -38,7 +38,7 @@ fn run_test<
     // Constant folding to quadratic
     let c1 = copy_rewriter.constant(&f.u64_to_element(10));
     match &c1.v {
-        Expr::Quadratic(ref val, x, y) => {
+        Expr::Quadratic(val, x, y) => {
             assert_eq!(f.to_nat(val), F::N::from_u64(10));
             assert!(matches!(x.v, Expr::One));
             assert!(matches!(y.v, Expr::One));

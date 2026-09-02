@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use circuits_experimental::ecmul::{
     concrete::{self, ConcreteGiven},
     EcmulCircuit,
@@ -7,7 +21,6 @@ use compile_algebra::{
     p256::P256Field,
     secp256r1::Secp256r1,
 };
-use compile_compiler::CompilerArena;
 use compile_eval::FieldID;
 use core_algebra::{Nat, SerializableField};
 use runtime_algebra::field::RuntimeField;
@@ -26,27 +39,22 @@ fn test_compile_ecmul_generic<
     fc: &FC,
     fr: &FR,
 ) {
-    use compile_compiler::CompilerLogic;
-
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-
     let n = 256;
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+    let (compiled_circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
 
-    let circuit = EcmulCircuit::new(&iologic, curve_c, n);
-    let given = circuits_experimental::ecmul::allocate_given(&iologic, n, &mut pos);
-    let derived = circuits_experimental::ecmul::allocate_derived(&iologic, n, &mut pos);
+        let circuit = EcmulCircuit::new(&iologic, curve_c, n);
+        let given = circuits_experimental::ecmul::allocate_given(&iologic, n, &mut pos);
+        let derived = circuits_experimental::ecmul::allocate_derived(&iologic, n, &mut pos);
+        let assertion = circuit.assert_scalar_mul(&given, &derived);
 
-    let assertion = circuit.assert_scalar_mul(&given, &derived);
+        (assertion, 1, 0)
+    });
 
-    let (compiled_circuit, stats, symbols) =
-        compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
-
-    compile_compiler::top::dump_stats("ecmul", &compiled_circuit, &stats);
+    compile_compiler::dump_stats("ecmul", &compiled_circuit, &stats);
 
     assert_eq!(stats.ninput, 1030);
-    assert_eq!(stats.npublic_input, 0);
+    assert_eq!(stats.npublic_input, 1);
     assert_eq!(stats.noutput, 765);
     assert_eq!(stats.nlayers, 4);
     assert_eq!(stats.nwires, 11503);
@@ -54,10 +62,10 @@ fn test_compile_ecmul_generic<
 
     // Verify compiled circuit evaluation
     let tv = testvec::get_testvec();
-    let ax_val = fr.nat_to_element(&FR::N::from_bytes_le(&tv.ax.to_bytes_le()));
-    let ay_val = fr.nat_to_element(&FR::N::from_bytes_le(&tv.ay.to_bytes_le()));
-    let bx_val = fr.nat_to_element(&FR::N::from_bytes_le(&tv.bx.to_bytes_le()));
-    let by_val = fr.nat_to_element(&FR::N::from_bytes_le(&tv.by.to_bytes_le()));
+    let ax_val = fr.reduce_nat(&FR::N::from_bytes_le(&tv.ax.to_bytes_le()));
+    let ay_val = fr.reduce_nat(&FR::N::from_bytes_le(&tv.ay.to_bytes_le()));
+    let bx_val = fr.reduce_nat(&FR::N::from_bytes_le(&tv.bx.to_bytes_le()));
+    let by_val = fr.reduce_nat(&FR::N::from_bytes_le(&tv.by.to_bytes_le()));
 
     let concrete_given = ConcreteGiven {
         exp: tv.exp.clone(),

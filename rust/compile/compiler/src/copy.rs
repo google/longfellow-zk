@@ -16,9 +16,9 @@ use compile_algebra::field::CompileField;
 use util::memoize::Memoizer;
 
 use crate::{
+    arena::CompilerArena,
     cse::Cse,
     ir::{Assertions, Expr, ExprNode, RewriteT},
-    CompilerArena,
 };
 
 /// Introduce copy wires. Note that algsimp will remove
@@ -81,7 +81,7 @@ where NEXT: RewriteT<'a, F>
             // When creating a copy, take the opportunity to lift any
             // constants in the underlying term, in the hope of
             // creating common subexpressions in the lower layers
-            Expr::Quadratic(ref e1, ref x1, ref y1) => {
+            Expr::Quadratic(e1, ref x1, ref y1) => {
                 let sub_quad = self.ground_quadratic(&self.f.one(), x1, y1);
                 self.ground_quadratic(e1, &oo, &sub_quad)
             }
@@ -188,18 +188,10 @@ where NEXT: RewriteT<'a, F>
     }
     fn with_assertions(
         &self,
-        _assertions: &crate::ir::RawAssertions<'a, F>,
+        _assertions: &crate::ir::Assertions<'a, F>,
         _x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         panic!("UnexpectedWithAssertion")
-    }
-
-    fn empty_scope(&self) -> crate::ir::ScopeRef<'a> {
-        self.next.empty_scope()
-    }
-
-    fn push(&self, name: &'a str, parent: crate::ir::ScopeRef<'a>) -> crate::ir::ScopeRef<'a> {
-        self.next.push(name, parent)
     }
 }
 

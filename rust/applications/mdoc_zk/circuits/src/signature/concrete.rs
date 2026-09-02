@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use compile_algebra::CompileNat;
 use core_algebra::Nat;
 
@@ -133,8 +147,8 @@ pub fn given<
     };
 
     let issuer_pkxy = (
-        f.nat_to_element(&sig_input.issuer_pk.0),
-        f.nat_to_element(&sig_input.issuer_pk.1),
+        f.reduce_nat(&sig_input.issuer_pk.0),
+        f.reduce_nat(&sig_input.issuer_pk.1),
     );
     let issuer_sig_given = circuits_ecdsa2::concrete::given(
         curve,
@@ -147,8 +161,8 @@ pub fn given<
     );
 
     let device_pkxy = (
-        f.nat_to_element(&sig_input.device_pk.0),
-        f.nat_to_element(&sig_input.device_pk.1),
+        f.reduce_nat(&sig_input.device_pk.0),
+        f.reduce_nat(&sig_input.device_pk.1),
     );
     let device_sig_given = circuits_ecdsa2::concrete::given(
         curve,
@@ -185,8 +199,8 @@ pub fn derived<
     input: &ConcreteGiven<F, F::N>,
 ) -> Result<ConcreteDerived<F>, String> {
     let issuer_pkxy = (
-        f.nat_to_element(&input.sig_input.issuer_pk.0),
-        f.nat_to_element(&input.sig_input.issuer_pk.1),
+        f.reduce_nat(&input.sig_input.issuer_pk.0),
+        f.reduce_nat(&input.sig_input.issuer_pk.1),
     );
     let issuer_sig_derived = circuits_ecdsa2::concrete::derived(
         curve,
@@ -199,8 +213,8 @@ pub fn derived<
     );
 
     let device_pkxy = (
-        f.nat_to_element(&input.sig_input.device_pk.0),
-        f.nat_to_element(&input.sig_input.device_pk.1),
+        f.reduce_nat(&input.sig_input.device_pk.0),
+        f.reduce_nat(&input.sig_input.device_pk.1),
     );
     let device_sig_derived = circuits_ecdsa2::concrete::derived(
         curve,

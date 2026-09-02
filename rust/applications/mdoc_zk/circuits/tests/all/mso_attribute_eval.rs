@@ -26,8 +26,8 @@ use super::mso_attribute_corruptors;
 #[test]
 fn test_prefix_equal_boundary_bug() {
     let f = Gf2_128Field::new();
-    type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
 
     let bv = BitvecLogic::new(&l);
     let verifier = AttributeVerifier::new(&l);
@@ -57,8 +57,8 @@ fn test_prefix_equal_boundary_bug() {
 #[test]
 fn test_prefix_equal_vlen_boundary_bug() {
     let f = Gf2_128Field::new();
-    type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
 
     let bv = BitvecLogic::new(&l);
     let verifier = AttributeVerifier::new(&l);
@@ -85,8 +85,14 @@ fn test_prefix_equal_vlen_boundary_bug() {
     assert!(assertions_78.is_err());
 }
 
-fn run_attribute_test_mock<F>(mutate_f: F) -> compile_logic::eval::EvalAssertions
-where F: FnOnce(&mut MsoAttributeMockGiven) {
+fn run_attribute_test_mock<'a, F>(
+    f: &'a Gf2_128Field,
+    tracker: &'a compile_logic::tracker::AssertionTracker,
+    mutate_f: F,
+) -> compile_logic::eval::EvalAssertions<'a>
+where
+    F: FnOnce(&mut MsoAttributeMockGiven),
+{
     let mut mock = MsoAttributeMockGiven {
         raw_buf: vec![
             0xd8, 0x18, 0x58, 0x60, 0xa4, // headers
@@ -119,9 +125,8 @@ where F: FnOnce(&mut MsoAttributeMockGiven) {
 
     mutate_f(&mut mock);
 
-    let f = Gf2_128Field::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l = L::new(&f);
+    let l = EvalLogic::new_with_tracker(f, tracker);
     let bv = BitvecLogic::new(&l);
 
     use mdoc_zk_circuits::mso_attribute::constants::K_ATTR_PREIMAGE_LEN;
@@ -134,13 +139,13 @@ where F: FnOnce(&mut MsoAttributeMockGiven) {
     let zero_v8 = bv.of_u8(0);
 
     let mut oa_attr = std::array::from_fn(|_| zero_v8.clone());
-    for i in 0..mock.disclosed_name.len().min(32) {
-        oa_attr[i] = bv.of_u8(mock.disclosed_name[i]);
+    for (slot, &b) in oa_attr.iter_mut().zip(mock.disclosed_name.iter().take(32)) {
+        *slot = bv.of_u8(b);
     }
 
     let mut oa_v1 = std::array::from_fn(|_| zero_v8.clone());
-    for i in 0..mock.disclosed_value.len().min(64) {
-        oa_v1[i] = bv.of_u8(mock.disclosed_value[i]);
+    for (slot, &b) in oa_v1.iter_mut().zip(mock.disclosed_value.iter().take(64)) {
+        *slot = bv.of_u8(b);
     }
 
     let da = DisclosedAttribute {
@@ -204,14 +209,18 @@ where F: FnOnce(&mut MsoAttributeMockGiven) {
 
 #[test]
 fn test_attribute_success() {
-    run_attribute_test_mock(|_| {}).unwrap();
+    let f = Gf2_128Field::new();
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    run_attribute_test_mock(&f, &tracker, |_| {}).unwrap();
 }
 
 #[test]
 fn test_eval_mso_attribute_shared_corruptors() {
+    let f = Gf2_128Field::new();
     let corruptors = mso_attribute_corruptors::all_mso_attribute_corruptors();
     for c in corruptors {
-        let res = run_attribute_test_mock(|g| {
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let res = run_attribute_test_mock(&f, &tracker, |g| {
             (c.corrupt)(g);
         });
         assert!(
@@ -219,6 +228,12 @@ fn test_eval_mso_attribute_shared_corruptors() {
             "Corruptor '{}' failed to cause assertion failure",
             c.name
         );
-        res.assert_any_failed_at(c.expected_path);
+        let failed = res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }

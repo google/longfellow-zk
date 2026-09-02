@@ -70,9 +70,6 @@ pub trait AlgebraicField: BareField {
 }
 
 pub trait SerializableField: BareField {
-    // Metadata
-    fn name(&self) -> String;
-    fn id(&self) -> usize;
     fn is_binary(&self) -> bool;
 
     // Serialization
@@ -100,15 +97,19 @@ pub trait HasLookupPoints: BareField {
 pub trait SupportsNatConversions<const W: usize>: SerializableField {
     type N: crate::Nat<W>;
 
-    fn nat_to_element(&self, n: &Self::N) -> Self::E;
+    /// Maps a fixed-width natural number into the field using the field's native reduction.
+    ///
+    /// For prime fields this reduces modulo the field modulus. This is not a canonical decoding
+    /// operation; use field deserialization when noncanonical values must be rejected.
+    fn reduce_nat(&self, n: &Self::N) -> Self::E;
     fn to_nat(&self, e: &Self::E) -> Self::N;
 }
 
-pub trait SupportsU64Conversions: SerializableField {
+pub trait SupportsU64Conversions: BareField {
     fn u64_to_element(&self, n: u64) -> Self::E;
 }
 
-pub trait SupportsU128Conversions: SerializableField {
+pub trait SupportsU128Conversions: BareField {
     fn u128_to_element(&self, n: u128) -> Self::E;
 }
 

@@ -24,7 +24,7 @@ use runtime_algebra::{
 #[test]
 fn test_rfft_vs_fft() {
     let p256 = P256Field::new();
-    let fp2: Fp2Field<'_, 4, 8, _> = Fp2Field::new(&p256);
+    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
 
     let omega0 = fp2.omega();
     let omega_order = fp2.omega_order();
@@ -54,7 +54,7 @@ fn test_rfft_vs_fft() {
 
             // Compare RFFT (r2hc) against FFT (fftb)
             fftb(&mut ac, &omega, omega_order, &fp2);
-            r2hc::<4, 8, P256Field>(&mut ar0, &omega, omega_order, &fp2);
+            r2hc::<4, P256Field>(&mut ar0, &omega, omega_order, &fp2);
 
             for i in 0..n {
                 if i + i <= n {
@@ -71,7 +71,7 @@ fn test_rfft_vs_fft() {
             }
 
             // Invert and compare against original input scaled by n
-            hc2r::<4, 8, P256Field>(&mut ar0, &omega, omega_order, &fp2);
+            hc2r::<4, P256Field>(&mut ar0, &omega, omega_order, &fp2);
             let scale = p256.u64_to_element(n as u64);
             for i in 0..n {
                 assert_eq!(
@@ -88,4 +88,17 @@ fn test_rfft_vs_fft() {
         }
         omega = fp2.mulf(&omega, &omega0_pow4);
     }
+}
+
+#[test]
+fn test_rfft_rejects_non_power_of_two_length() {
+    let p256 = P256Field::new();
+    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
+    let omega = fp2.omega();
+    let mut values = vec![p256.zero(); 3];
+
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        r2hc(&mut values, &omega, fp2.omega_order(), &fp2);
+    }))
+    .is_err());
 }

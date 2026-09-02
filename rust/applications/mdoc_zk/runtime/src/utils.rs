@@ -85,12 +85,9 @@ pub fn parse_pk_coordinate(
 #[must_use]
 pub fn circuit_supports(data: &[u8]) -> bool {
     let mut parser = mdoc_zk_circuits::cbor::parse::CborParser::new(data);
-    let Ok(el) = parser.parse_val() else {
+    let Ok(el) = parser.parse_exact() else {
         return false;
     };
-    if parser.parse_val().is_ok() {
-        return false;
-    }
     match &el.value {
         mdoc_zk_circuits::cbor::parse::CborValue::Text(_)
         | mdoc_zk_circuits::cbor::parse::CborValue::Bytes(_)
@@ -118,5 +115,15 @@ pub fn circuit_supports(data: &[u8]) -> bool {
             _ => false,
         },
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::circuit_supports;
+
+    #[test]
+    fn circuit_supports_rejects_malformed_trailing_data() {
+        assert!(!circuit_supports(&[0x01, 0xff]));
     }
 }

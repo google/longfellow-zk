@@ -19,10 +19,7 @@ use compile_algebra::{
     secp256r1::Secp256r1,
     Curve,
 };
-use compile_compiler::{
-    top::{compile, dump_stats},
-    CompilerArena, CompilerLogic,
-};
+use compile_compiler::{compile, dump_stats};
 use compile_eval::FieldID;
 use compile_logic::K_FIRST_WIRE_POSITION;
 use core_algebra::{Nat, SerializableField};
@@ -104,11 +101,6 @@ fn test_compile_ecdsa_generic<
     fr: &FR,
     fn_field: &Fn,
 ) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-
-    let mut pos = K_FIRST_WIRE_POSITION;
-
     let pkx_str = "0x88903e4e1339bde78dd5b3d7baf3efdd72eb5bf5aaaf686c8f9ff5e7c6368d9c";
     let pky_str = "0xeb8341fc38bb802138498d5f4c03733f457ebbafd0b2fe38e6f58626767f9e75";
     let e_str = "0x2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae";
@@ -121,17 +113,23 @@ fn test_compile_ecdsa_generic<
     let r_val = parse_hex::<W, FR::N>(r_str);
     let s_val = parse_hex::<W, FR::N>(s_str);
 
-    let pkxy_val_r = (fr.nat_to_element(&pkx_val), fr.nat_to_element(&pky_val));
+    let pkxy_val_r = (fr.reduce_nat(&pkx_val), fr.reduce_nat(&pky_val));
     let concrete_given_r = given(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
     let concrete_derived_r = derived(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
 
-    let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
-    let circuit_given = circuits_ecdsa2::allocate_given_wires(&iologic, &mut pos);
-    let circuit_derived = circuits_ecdsa2::allocate_derived_wires(&iologic, &mut pos);
+    let (circuit, stats, symbols) = compile(fc, |iologic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
 
-    let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
+        let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
+        let circuit_given = circuits_ecdsa2::allocate_given_wires(&iologic, &mut pos);
+        let circuit_derived = circuits_ecdsa2::allocate_derived_wires(&iologic, &mut pos);
 
-    let (circuit, stats, symbols) = compile(&arena, fc, assertion, 0, 0);
+        (
+            ecdsa.assert_signature(&circuit_given, &circuit_derived),
+            1,
+            0,
+        )
+    });
 
     dump_stats("ecdsa2", &circuit, &stats);
 
@@ -176,7 +174,6 @@ fn test_compile_ecdsa_signature_tampering_generic<
     fn_field: &FnR,
 ) where
     FR::E: Clone,
-    FR: Clone,
 {
     let d = CR::N::from_u64(123456789u64);
     let k = CR::N::from_u64(987654321u64);
@@ -187,18 +184,19 @@ fn test_compile_ecdsa_signature_tampering_generic<
             curve_r, fr, fn_field, &d, &k, &e,
         );
 
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
+    let (circuit, _stats, symbols) = compile(fc, |iologic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
 
-    let mut pos = K_FIRST_WIRE_POSITION;
+        let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
+        let circuit_given = circuits_ecdsa2::allocate_given_wires(&iologic, &mut pos);
+        let circuit_derived = circuits_ecdsa2::allocate_derived_wires(&iologic, &mut pos);
 
-    let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
-    let circuit_given = circuits_ecdsa2::allocate_given_wires(&iologic, &mut pos);
-    let circuit_derived = circuits_ecdsa2::allocate_derived_wires(&iologic, &mut pos);
-
-    let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
-
-    let (circuit, _stats, symbols) = compile(&arena, fc, assertion, 0, 0);
+        (
+            ecdsa.assert_signature(&circuit_given, &circuit_derived),
+            1,
+            0,
+        )
+    });
 
     // Verify valid inputs pass
     {
@@ -213,9 +211,9 @@ fn test_compile_ecdsa_signature_tampering_generic<
 
     for c in corruptors {
         let mut g = concrete_given.clone();
-        let mut d = concrete_derived.clone();
-        (c.corrupt)(&mut g, &mut d);
-        let inputs = make_inputs(&g, &d, fr);
+        let mut cd = concrete_derived.clone();
+        (c.corrupt)(&mut g, &mut cd);
+        let inputs = make_inputs(&g, &cd, fr);
         let eval_res =
             compile_eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, FieldID::P256)
                 .unwrap();
@@ -223,6 +221,13 @@ fn test_compile_ecdsa_signature_tampering_generic<
             eval_res.is_err(),
             "Corruptor '{}' failed to cause circuit evaluation error",
             c.name
+        );
+        let failed = eval_res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == c.expected_path),
+            "Corruptor '{}' expected exact compiled failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
         );
     }
 }

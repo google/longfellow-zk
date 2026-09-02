@@ -59,10 +59,10 @@ pub fn given<
     f: &F,
     fn_field: &Fn,
 ) -> ConcreteGiven<F> {
-    let s_fn = fn_field.nat_to_element(s);
+    let s_fn = fn_field.reduce_nat(s);
     let s_inv = fn_field.invert(&s_fn);
-    let e_fn = fn_field.nat_to_element(e);
-    let r_fn = fn_field.nat_to_element(r);
+    let e_fn = fn_field.reduce_nat(e);
+    let r_fn = fn_field.reduce_nat(r);
     let te_s = fn_field.mulf(&e_fn, &s_inv);
     let tr_s = fn_field.mulf(&r_fn, &s_inv);
     let nes = fn_field.to_nat(&te_s);
@@ -76,7 +76,7 @@ pub fn given<
 
     let r_proj = ec_concrete::add(curve, f, &nes_g, &nrs_pk);
 
-    let rx = f.nat_to_element(r);
+    let rx = f.reduce_nat(r);
     let ry = f.mulf(&r_proj.1, &f.invert(&r_proj.2));
 
     let order_neg_s = fn_field.neg(&s_fn);
@@ -94,7 +94,7 @@ pub fn given<
 
     ConcreteGiven {
         pkxy: pkxy.clone(),
-        e: f.nat_to_element(e),
+        e: f.reduce_nat(e),
         rxy: (rx, ry),
         ers,
     }
@@ -114,10 +114,10 @@ pub fn derived<
     f: &F,
     fn_field: &Fn,
 ) -> ConcreteDerived<F> {
-    let s_fn = fn_field.nat_to_element(s);
+    let s_fn = fn_field.reduce_nat(s);
     let s_inv = fn_field.invert(&s_fn);
-    let e_fn = fn_field.nat_to_element(e);
-    let r_fn = fn_field.nat_to_element(r);
+    let e_fn = fn_field.reduce_nat(e);
+    let r_fn = fn_field.reduce_nat(r);
     let te_s = fn_field.mulf(&e_fn, &s_inv);
     let tr_s = fn_field.mulf(&r_fn, &s_inv);
     let nes = fn_field.to_nat(&te_s);
@@ -131,7 +131,7 @@ pub fn derived<
 
     let r_proj = ec_concrete::add(curve, f, &nes_g, &nrs_pk);
 
-    let rx = f.nat_to_element(r);
+    let rx = f.reduce_nat(r);
     let ry = f.mulf(&r_proj.1, &f.invert(&r_proj.2));
 
     let r_pt = (rx.clone(), ry.clone(), f.one());
@@ -179,7 +179,7 @@ pub fn derived<
 
     let pkxinv = f.invert(&pkxy.0);
     let rxinv = f.invert(&rx);
-    let nms_val = f.nat_to_element(&nms_nat);
+    let nms_val = f.reduce_nat(&nms_nat);
     let nmsinv = f.invert(&nms_val);
     let yinv = f.invert(&p.1);
 

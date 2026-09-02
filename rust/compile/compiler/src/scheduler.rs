@@ -314,7 +314,19 @@ fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<u
     for (i, node) in nodes.iter().enumerate() {
         assert_layering(f, &depth, i, node);
     }
-    let max_depth = depth.iter().max().copied().unwrap_or(0);
+    let raw_max_depth = depth.iter().max().copied().unwrap_or(0);
+    // Final-layer assertions normally reuse their asserted wires as circuit
+    // outputs. A depth-zero circuit has no layer whose wires can serve as
+    // outputs, so materialize its assertions in a single assertion layer.
+    let max_depth = if raw_max_depth == 0 {
+        assert!(
+            nodes.iter().any(|node| matches!(node, WExpr::Assert0(_))),
+            "circuit with no depth makes no sense"
+        );
+        1
+    } else {
+        raw_max_depth
+    };
     materialize_assertions(f, nodes, &mut depth, max_depth);
     (depth, max_depth)
 }
@@ -339,13 +351,18 @@ fn validate_and_count_inputs<F: CompileField>(nodes: &[WExpr<F>]) -> usize {
     }
 }
 
+use compile_logic::scope::AssertionId;
+
 fn extract_debug_symbols<F: CompileField>(
     nodes: &[WExpr<F>],
-    quad_asserts: &[(usize, Vec<String>)],
+    quad_asserts: &[(usize, AssertionId)],
     wire_ids: &[WireId],
+    depth: &[usize],
+    max_depth: usize,
+    tracker: compile_logic::scope::AssertionScope,
 ) -> crate::debug::CircuitDebugSymbols {
     let mut sym_list = Vec::new();
-    for &(quad_idx, ref path) in quad_asserts {
+    for &(quad_idx, id) in quad_asserts {
         if quad_idx < nodes.len() {
             let target_idx = match nodes[quad_idx] {
                 WExpr::Assert0(w) => w,
@@ -354,34 +371,45 @@ fn extract_debug_symbols<F: CompileField>(
             if target_idx < wire_ids.len() {
                 let wid = wire_ids[target_idx].id_within_layer;
                 if wid != usize::MAX {
-                    let wire = crate::debug::WireRef::new(0, wid);
-                    sym_list.push(crate::debug::AssertionSymbol::new(wire, path.clone()));
+                    let layer = max_depth
+                        .checked_sub(depth[target_idx])
+                        .expect("assertion target is deeper than the circuit");
+                    let wire = crate::debug::WireRef::new(layer, wid);
+                    sym_list.push(crate::debug::AssertionSymbol::new(wire, id));
                 }
             }
         }
     }
-    sym_list.sort_by_key(|s| s.wire.index);
-    sym_list.dedup_by_key(|s| s.wire.index);
-    crate::debug::CircuitDebugSymbols::new(sym_list)
+    sym_list.sort_by_key(|s| (s.wire.layer, s.wire.index));
+    crate::debug::CircuitDebugSymbols::new(sym_list, tracker)
 }
 
 /// Transform the Quad circuit into a structured multi-layered Circuit with debug symbol extraction.
-pub fn schedule<F: CompileField + core_algebra::SerializableField>(
+pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
     f: &F,
     c: QuadCircuit<F>,
-    quad_asserts: &[(usize, Vec<String>)],
+    quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
     subfield_boundary: usize,
+    tracker: compile_logic::scope::AssertionScope,
 ) -> (
     Circuit<F>,
     CircuitGeometry,
     crate::debug::CircuitDebugSymbols,
 ) {
     let mut nodes = c.nodes;
+    let nassertions = nodes
+        .iter()
+        .filter(|node| matches!(node, WExpr::Assert0(_)))
+        .count();
+    assert_eq!(
+        quad_asserts.len(),
+        nassertions,
+        "debug assertion records do not cover all circuit assertions"
+    );
     assert_all_needed(&nodes);
 
     let (depth, max_depth) = compute_node_depths(f, &mut nodes);
-    assert!(max_depth > 0, "circuit with no depth makes no sense");
 
     let mut nodes_by_depth = vec![Vec::new(); max_depth + 1];
     for (i, &d) in depth.iter().enumerate() {
@@ -390,12 +418,30 @@ pub fn schedule<F: CompileField + core_algebra::SerializableField>(
 
     let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth);
 
-    let symbols = extract_debug_symbols(&nodes, quad_asserts, &wire_ids);
+    let symbols =
+        extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth, tracker);
+    assert_eq!(
+        symbols.assertion_count(),
+        nassertions,
+        "debug symbols do not cover all circuit assertions"
+    );
 
     let (terms_in_layer, nwires_in_layer) =
         collect_quads(&nodes, &nodes_by_depth, max_depth, &wire_ids);
 
     let ninput = validate_and_count_inputs(&nodes);
+    assert!(
+        npublic_input >= 1,
+        "npublic_input must include the reserved constant One"
+    );
+    assert!(
+        npublic_input <= ninput,
+        "npublic_input ({npublic_input}) exceeds ninput ({ninput})"
+    );
+    assert!(
+        subfield_boundary <= ninput,
+        "subfield_boundary ({subfield_boundary}) exceeds ninput ({ninput})"
+    );
     let noutput = nwires_in_layer[max_depth - 1];
 
     check_connectivity(f, ninput, noutput, &terms_in_layer, &nwires_in_layer);
@@ -430,7 +476,7 @@ pub fn schedule<F: CompileField + core_algebra::SerializableField>(
         nlayers: c_layers.len(),
         nwires,
         nterms: total_terms,
-        nassertions: symbols.symbols.len(),
+        nassertions,
     };
 
     let layers: Vec<Layer<F>> = c_layers.into_iter().rev().collect();

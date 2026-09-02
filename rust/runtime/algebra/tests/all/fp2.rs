@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use runtime_algebra::{
-    field::{RuntimeField, SupportsU64Conversions},
+    field::SupportsU64Conversions,
     fp2::{Fp2Element, Fp2Field},
     p256::P256Field,
     AlgebraicField,
@@ -22,10 +22,14 @@ use runtime_algebra::{
 #[test]
 fn test_fp2_algebraic_properties() {
     let base = P256Field::new();
-    let field: Fp2Field<'_, 4, 8, _> = Fp2Field::new(&base);
+    let field: Fp2Field<'_, 4, _> = Fp2Field::new(&base);
 
     let zero = field.zero();
     let one = field.one();
+    let imaginary_unit = field.i();
+
+    // P-256 explicitly supports the x^2 + 1 extension.
+    assert_eq!(field.mulf(&imaginary_unit, &imaginary_unit), field.mone());
 
     let a = Fp2Element {
         re: field.base_field().u64_to_element(1234567890u64),
@@ -69,12 +73,4 @@ fn test_fp2_algebraic_properties() {
     assert_eq!(s_sum.im, field.base_field().zero());
     assert_eq!(s_prod.re, field.base_field().u64_to_element(4200));
     assert_eq!(s_prod.im, field.base_field().zero());
-
-    // 7. Basis verification
-    let d = field.pseudo_dimension();
-    for i in 0..d {
-        let b_i = field.pseudo_basis(i);
-        assert_eq!(b_i.re, field.base_field().pseudo_basis(i));
-        assert_eq!(b_i.im, field.base_field().zero());
-    }
 }

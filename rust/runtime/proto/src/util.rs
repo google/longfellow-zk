@@ -1,3 +1,17 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use std::io::{Error, ErrorKind, Result};
 
 use core_algebra::{ElementOf, SerializableField};
@@ -73,11 +87,20 @@ pub fn read_subfield_elt<SF: Subfield>(bytes: &mut &[u8], sf: &SF) -> Result<SF:
             format!("Failed to parse subfield element: {e:?}"),
         )
     })?;
+    let mut canonical = vec![0u8; size];
+    sf.to_bytes_into(&elt, &mut canonical);
+    if canonical.as_slice() != chunk {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            "Non-canonical subfield element encoding",
+        ));
+    }
     Ok(elt)
 }
 
 /// Helper to write size (4 bytes).
 pub fn write_size_4bytes(bytes: &mut Vec<u8>, val: usize) {
+    assert!(val <= u32::MAX as usize, "size does not fit in u32");
     bytes.extend_from_slice(&(val as u32).to_le_bytes());
 }
 

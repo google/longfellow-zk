@@ -15,132 +15,121 @@
 use circuits_arithmetic::Arithmetic;
 use circuits_boolean::{Bitw, Boolean, BooleanIO};
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::{eval::EvalLogic, Eltw, Logic};
 use core_algebra::SerializableField;
 
 fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, f);
-    let boolean = Boolean::new(&iologic);
-    let boolean_io = BooleanIO::new(&iologic);
-    let arith = Arithmetic::new(&iologic);
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let boolean_io = BooleanIO::new(&iologic);
+        let arith = Arithmetic::new(&iologic);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let mut a = Vec::with_capacity(64);
-    for _ in 0..64 {
-        a.push(boolean_io.next(&mut pos));
-    }
-    let mut b = Vec::with_capacity(64);
-    for _ in 0..64 {
-        b.push(boolean_io.next(&mut pos));
-    }
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let mut a = Vec::with_capacity(64);
+        for _ in 0..64 {
+            a.push(boolean_io.next(&mut pos));
+        }
+        let mut b = Vec::with_capacity(64);
+        for _ in 0..64 {
+            b.push(boolean_io.next(&mut pos));
+        }
 
-    let (sum, carry) = arith.unchecked_add(&a, &b);
-    let a1 = arith.assert_false("sum_zero", &sum);
-    let a2 = boolean.assert_false("no_carry", &carry);
-    let assertion = iologic.assert_all("test_add", &[a1, a2]);
-
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+        let (sum, carry) = arith.unchecked_add(&a, &b);
+        let a1 = arith.assert_false("sum_zero", &sum);
+        let a2 = boolean.assert_false("no_carry", &carry);
+        (iologic.assert_all("test_add", &[a1, a2]), 1, 0)
+    });
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, f);
-    let boolean = Boolean::new(&iologic);
-    let boolean_io = BooleanIO::new(&iologic);
-    let arith = Arithmetic::new(&iologic);
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let boolean_io = BooleanIO::new(&iologic);
+        let arith = Arithmetic::new(&iologic);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let mut a = Vec::with_capacity(64);
-    for _ in 0..64 {
-        a.push(boolean_io.next(&mut pos));
-    }
-    let mut b = Vec::with_capacity(64);
-    for _ in 0..64 {
-        b.push(boolean_io.next(&mut pos));
-    }
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let mut a = Vec::with_capacity(64);
+        for _ in 0..64 {
+            a.push(boolean_io.next(&mut pos));
+        }
+        let mut b = Vec::with_capacity(64);
+        for _ in 0..64 {
+            b.push(boolean_io.next(&mut pos));
+        }
 
-    let (diff, carry) = arith.unchecked_sub(&a, &b);
-    let a1 = arith.assert_false("diff_zero", &diff);
-    let a2 = boolean.assert_false("no_carry", &carry);
-    let assertion = iologic.assert_all("test_sub", &[a1, a2]);
-
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+        let (diff, carry) = arith.unchecked_sub(&a, &b);
+        let a1 = arith.assert_false("diff_zero", &diff);
+        let a2 = boolean.assert_false("no_carry", &carry);
+        (iologic.assert_all("test_sub", &[a1, a2]), 1, 0)
+    });
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, f);
-    let boolean = Boolean::new(&iologic);
-    let boolean_io = BooleanIO::new(&iologic);
-    let arith = Arithmetic::new(&iologic);
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let boolean_io = BooleanIO::new(&iologic);
+        let arith = Arithmetic::new(&iologic);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let mut a = Vec::with_capacity(256);
-    for _ in 0..256 {
-        a.push(boolean_io.next(&mut pos));
-    }
-    let mut b = Vec::with_capacity(256);
-    for _ in 0..256 {
-        b.push(boolean_io.next(&mut pos));
-    }
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let mut a = Vec::with_capacity(256);
+        for _ in 0..256 {
+            a.push(boolean_io.next(&mut pos));
+        }
+        let mut b = Vec::with_capacity(256);
+        for _ in 0..256 {
+            b.push(boolean_io.next(&mut pos));
+        }
 
-    let res = arith.lt(&a, &b);
-    let assertion = boolean.assert_false("lt_false", &res);
-
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+        let res = arith.lt(&a, &b);
+        (boolean.assert_false("lt_false", &res), 1, 0)
+    });
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, f);
-    let boolean = Boolean::new(&iologic);
-    let boolean_io = BooleanIO::new(&iologic);
-    let arith = Arithmetic::new(&iologic);
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let boolean_io = BooleanIO::new(&iologic);
+        let arith = Arithmetic::new(&iologic);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let mut a = Vec::with_capacity(256);
-    for _ in 0..256 {
-        a.push(boolean_io.next(&mut pos));
-    }
-    let mut b = Vec::with_capacity(256);
-    for _ in 0..256 {
-        b.push(boolean_io.next(&mut pos));
-    }
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let mut a = Vec::with_capacity(256);
+        for _ in 0..256 {
+            a.push(boolean_io.next(&mut pos));
+        }
+        let mut b = Vec::with_capacity(256);
+        for _ in 0..256 {
+            b.push(boolean_io.next(&mut pos));
+        }
 
-    let res = arith.leq(&a, &b);
-    let assertion = boolean.assert_false("leq_false", &res);
-
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+        let res = arith.leq(&a, &b);
+        (boolean.assert_false("leq_false", &res), 1, 0)
+    });
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, f);
-    let boolean = Boolean::new(&iologic);
-    let boolean_io = BooleanIO::new(&iologic);
-    let arith = Arithmetic::new(&iologic);
+    let (circuit, stats, _symbols) = compile_compiler::compile(f, |iologic| {
+        let boolean = Boolean::new(&iologic);
+        let boolean_io = BooleanIO::new(&iologic);
+        let arith = Arithmetic::new(&iologic);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let mut a = Vec::with_capacity(256);
-    for _ in 0..256 {
-        a.push(boolean_io.next(&mut pos));
-    }
-    let mut b = Vec::with_capacity(256);
-    for _ in 0..256 {
-        b.push(boolean_io.next(&mut pos));
-    }
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let mut a = Vec::with_capacity(256);
+        for _ in 0..256 {
+            a.push(boolean_io.next(&mut pos));
+        }
+        let mut b = Vec::with_capacity(256);
+        for _ in 0..256 {
+            b.push(boolean_io.next(&mut pos));
+        }
 
-    let res = arith.eqb(&a, &b);
-    let assertion = boolean.assert_false("eq_false", &res);
-
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, f, assertion, 0, 0);
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+        let res = arith.eqb(&a, &b);
+        (boolean.assert_false("eq_false", &res), 1, 0)
+    });
+    compile_compiler::dump_stats(name, &circuit, &stats);
 }
 
 #[test]
@@ -313,8 +302,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 #[test]
 fn test_arithmetic_evaluation() {
     let f_prime = P256Field::new();
+    let tracker_prime = compile_logic::scope::AssertionScope::new();
     type LPrime<'a> = EvalLogic<'a, P256Field>;
-    let l_prime = LPrime::new(&f_prime);
+    let l_prime = LPrime::new(&f_prime, &tracker_prime);
     test_add_eval_for_logic(&l_prime);
     test_sub_eval_for_logic(&l_prime);
     test_lt_eval_for_logic(&l_prime);
@@ -324,8 +314,9 @@ fn test_arithmetic_evaluation() {
     test_empty_vectors_relations_for_logic(&l_prime);
 
     let f_bin = Gf2_128Field::new();
+    let tracker_bin = compile_logic::scope::AssertionScope::new();
     type LBin<'a> = EvalLogic<'a, Gf2_128Field>;
-    let l_binary = LBin::new(&f_bin);
+    let l_binary = LBin::new(&f_bin, &tracker_bin);
     test_add_eval_for_logic(&l_binary);
     test_sub_eval_for_logic(&l_binary);
     test_lt_eval_for_logic(&l_binary);
@@ -338,7 +329,8 @@ fn test_arithmetic_evaluation() {
 #[test]
 fn test_as_eltw_no_overflow_prime() {
     let f = P256Field::new();
-    let logic = EvalLogic::new(&f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
     let bits = vec![boolean.falseb(); 255];
@@ -349,7 +341,8 @@ fn test_as_eltw_no_overflow_prime() {
 #[should_panic(expected = "Bitvector length 256 exceeds field capacity 255")]
 fn test_as_eltw_overflow_prime() {
     let f = P256Field::new();
-    let logic = EvalLogic::new(&f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
     let bits = vec![boolean.falseb(); 256];
@@ -359,7 +352,8 @@ fn test_as_eltw_overflow_prime() {
 #[test]
 fn test_as_eltw_no_overflow_binary() {
     let f = Gf2_128Field::new();
-    let logic = EvalLogic::new(&f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
     let serialized_size_bits = vec![boolean.falseb(); 128];
@@ -370,7 +364,8 @@ fn test_as_eltw_no_overflow_binary() {
 #[should_panic(expected = "Bitvector length 129 exceeds field capacity 128")]
 fn test_as_eltw_overflow_binary() {
     let f = Gf2_128Field::new();
-    let logic = EvalLogic::new(&f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
     let bits = vec![boolean.falseb(); 129];
@@ -381,7 +376,8 @@ fn test_as_eltw_overflow_binary() {
 #[should_panic(expected = "unchecked_add: slice lengths must match")]
 fn test_unchecked_add_length_mismatch() {
     let f = Gf2_128Field::new();
-    let logic = EvalLogic::new(&f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
     let a = vec![boolean.falseb(); 4];
@@ -393,7 +389,8 @@ fn test_unchecked_add_length_mismatch() {
 #[should_panic(expected = "fold2: slice lengths must match")]
 fn test_fold2_empty_a_nonempty_b_length_mismatch() {
     let f = Gf2_128Field::new();
-    let logic = EvalLogic::new(&f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
     let a = vec![];
@@ -411,7 +408,8 @@ fn test_fold2_empty_a_nonempty_b_length_mismatch() {
 #[should_panic(expected = "eqb: slice lengths must match")]
 fn test_eqb_length_mismatch() {
     let f = Gf2_128Field::new();
-    let logic = EvalLogic::new(&f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
     let a = vec![boolean.falseb(); 2];
@@ -423,7 +421,8 @@ fn test_eqb_length_mismatch() {
 #[should_panic(expected = "muxb: condition and iftrue lengths must match")]
 fn test_muxb_length_mismatch() {
     let f = Gf2_128Field::new();
-    let logic = EvalLogic::new(&f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
     let cond = vec![boolean.falseb(); 2];

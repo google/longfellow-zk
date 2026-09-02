@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use runtime_merkle::{commit, open, verify, verify_proof, Digest, MerkleHeap};
+use runtime_merkle::{commit, open, verify, verify_proof, Digest, MerkleError, MerkleHeap};
 use runtime_random::RandomEngine;
 use sha2::Digest as ShaDigest;
 
@@ -28,6 +28,16 @@ impl RandomEngine for FakeRng {
             self.counter = self.counter.wrapping_add(1);
         }
         buf
+    }
+}
+
+fn assert_root_mismatch(result: Result<(), MerkleError>, expected_root: Digest) {
+    match result {
+        Err(MerkleError::RootMismatch { expected, found }) => {
+            assert_eq!(expected, expected_root);
+            assert_ne!(found, expected_root);
+        }
+        other => panic!("expected a root mismatch, got {other:?}"),
     }
 }
 
@@ -125,27 +135,48 @@ fn test_merkle_heap_invalid_proofs() {
     // Verify valid proof passes
     assert!(verify_proof(n, &root, &proof_path, &opened_leaves).is_ok());
 
+    // A multiproof must consume every supplied authentication node.  Trailing
+    // nodes are a distinct, non-canonical encoding of the same opening.
+    let mut proof_with_trailing_node = proof_path.clone();
+    proof_with_trailing_node.push(Digest::default());
+    assert_eq!(
+        verify_proof(n, &root, &proof_with_trailing_node, &opened_leaves),
+        Err(MerkleError::ProofLengthMismatch {
+            expected: proof_path.len(),
+            found: proof_path.len() + 1,
+        })
+    );
+
     // 1. Modifying a proof element should fail verification
     if !proof_path.is_empty() {
         let mut tampered_proof = proof_path.clone();
         tampered_proof[0].data[0] ^= 1;
-        assert!(verify_proof(n, &root, &tampered_proof, &opened_leaves).is_err());
+        assert_root_mismatch(
+            verify_proof(n, &root, &tampered_proof, &opened_leaves),
+            root,
+        );
     }
 
     // 2. Modifying one of the opened leaf values should fail verification
     let mut tampered_leaves = opened_leaves.clone();
     tampered_leaves[0].1.data[0] ^= 1;
-    assert!(verify_proof(n, &root, &proof_path, &tampered_leaves).is_err());
+    assert_root_mismatch(verify_proof(n, &root, &proof_path, &tampered_leaves), root);
 
     // 3. Modifying one of the opened leaf indices should fail verification
     let mut tampered_leaves_idx = opened_leaves.clone();
     tampered_leaves_idx[0].0 = 0; // change index from 2 to 0
-    assert!(verify_proof(n, &root, &proof_path, &tampered_leaves_idx).is_err());
+    assert_root_mismatch(
+        verify_proof(n, &root, &proof_path, &tampered_leaves_idx),
+        root,
+    );
 
     // 4. Modifying the root should fail verification
     let mut tampered_root = root;
     tampered_root.data[0] ^= 1;
-    assert!(verify_proof(n, &tampered_root, &proof_path, &opened_leaves).is_err());
+    assert_root_mismatch(
+        verify_proof(n, &tampered_root, &proof_path, &opened_leaves),
+        tampered_root,
+    );
 }
 
 #[test]
@@ -172,15 +203,15 @@ fn test_merkle_commitment_tampering() {
     );
 
     // Verification fails if data is modified
-    assert!(
+    assert_root_mismatch(
         verify(num_cols, &root, &opened_indices, &proof, |r, idx, sha| {
             if r == 1 {
                 sha.update([0, 0, 0]); // tampered column data
             } else {
                 sha.update(&data[idx]);
             }
-        })
-        .is_err()
+        }),
+        root,
     );
 }
 

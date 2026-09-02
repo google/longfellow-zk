@@ -72,12 +72,13 @@ fn test_ecdsa_secp256r1_generic<
     let r_val = parse_hex::<W, F::N>(r_str);
     let s_val = parse_hex::<W, F::N>(s_str);
 
-    let pkxy_r = (f.nat_to_element(&pkx_val), f.nat_to_element(&pky_val));
+    let pkxy_r = (f.reduce_nat(&pkx_val), f.reduce_nat(&pky_val));
     let concrete_given = given(curve, &pkxy_r, &e_val, &r_val, &s_val, f, fn_field);
     let concrete_derived = derived(curve, &pkxy_r, &e_val, &r_val, &s_val, f, fn_field);
 
     type L<'a, F> = EvalLogic<'a, F>;
-    let logic = L::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = L::new(f, &tracker);
 
     let circuit_given = evaluate_given(&concrete_given, &logic);
     let circuit_derived = evaluate_derived(&concrete_derived, &logic);
@@ -85,7 +86,7 @@ fn test_ecdsa_secp256r1_generic<
     let ecdsa = EcdsaCircuit::new(&logic, curve);
 
     let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
-    assertion.unwrap();
+    assertion.assert_all_passed();
 }
 
 #[test]
@@ -118,20 +119,26 @@ fn test_ecdsa_signature_tampering_generic<
     let (concrete_given, concrete_derived) =
         test_support::sign_and_generate_given_derived::<W, _, _, _>(curve, f, fn_field, &d, &k, &e);
 
-    type L<'a, F> = EvalLogic<'a, F>;
-    let logic = L::new(f);
-    let ecdsa = EcdsaCircuit::new(&logic, curve);
-
     let corruptors = test_support::all_ecdsa_corruptors::<W, _>(f);
 
     for c in corruptors {
+        type L<'a, F> = EvalLogic<'a, F>;
+        let tracker = compile_logic::scope::AssertionScope::new();
+        let logic = L::new(f, &tracker);
+        let ecdsa = EcdsaCircuit::new(&logic, curve);
         let mut g = concrete_given.clone();
-        let mut d = concrete_derived.clone();
-        (c.corrupt)(&mut g, &mut d);
+        let mut cd = concrete_derived.clone();
+        (c.corrupt)(&mut g, &mut cd);
         let circuit_given = evaluate_given(&g, &logic);
-        let circuit_derived = evaluate_derived(&d, &logic);
+        let circuit_derived = evaluate_derived(&cd, &logic);
         let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
-        assertion.assert_any_failed_at(c.expected_path);
+        let failed = assertion.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }
 
@@ -157,7 +164,8 @@ fn test_sign_and_verify_ecdsa_generic<
     fn_field: &FnR,
 ) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let logic = L::new(f);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let logic = L::new(f, &tracker);
 
     // Private key and nonce
     let d = C::N::from_u64(123456789u64);
@@ -172,7 +180,7 @@ fn test_sign_and_verify_ecdsa_generic<
 
     let ecdsa = EcdsaCircuit::new(&logic, curve);
     let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
-    assertion.unwrap();
+    assertion.assert_all_passed();
 }
 
 #[test]

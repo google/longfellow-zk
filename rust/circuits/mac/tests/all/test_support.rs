@@ -16,8 +16,8 @@ use circuits_mac::concrete::ConcreteGiven;
 
 #[allow(dead_code)]
 pub struct MacCorruptor {
-    pub name: &'static str,
-    pub expected_path: &'static str,
+    pub name: String,
+    pub expected_path: String,
     pub corrupt: Box<dyn Fn(&mut ConcreteGiven)>,
 }
 
@@ -26,13 +26,13 @@ pub fn all_mac_corruptors() -> Vec<MacCorruptor> {
         .flat_map(|byte_idx| {
             (0..8).map(move |bit_idx| {
                 let path = if byte_idx < 16 {
-                    "assert_mac/msg0_eq"
+                    "assert_mac/msg0_eq/msg0_eq.0/chunk_eq"
                 } else {
-                    "assert_mac/msg1_eq"
+                    "assert_mac/msg1_eq/msg1_eq.0/chunk_eq"
                 };
                 MacCorruptor {
-                    name: "message_bitflip",
-                    expected_path: path,
+                    name: format!("message[{byte_idx}].bit[{bit_idx}]"),
+                    expected_path: path.into(),
                     corrupt: Box::new(move |g| {
                         g.message[byte_idx] ^= 1 << bit_idx;
                     }),
@@ -40,21 +40,21 @@ pub fn all_mac_corruptors() -> Vec<MacCorruptor> {
             })
         })
         .chain((0..128).map(|bit_idx| MacCorruptor {
-            name: "mac_av_bitflip",
-            expected_path: "assert_mac",
+            name: format!("mac_av.bit[{bit_idx}]"),
+            expected_path: "assert_mac/msg0_eq/msg0_eq.0/chunk_eq".into(),
             corrupt: Box::new(move |g| {
                 g.mac_av ^= 1 << bit_idx;
             }),
         }))
         .chain((0..2).flat_map(|idx| {
             let path = if idx == 0 {
-                "assert_mac/msg0_eq"
+                "assert_mac/msg0_eq/msg0_eq.0/chunk_eq"
             } else {
-                "assert_mac/msg1_eq"
+                "assert_mac/msg1_eq/msg1_eq.0/chunk_eq"
             };
             (0..128).map(move |bit_idx| MacCorruptor {
-                name: "mac_ap_bitflip",
-                expected_path: path,
+                name: format!("mac_ap[{idx}].bit[{bit_idx}]"),
+                expected_path: path.into(),
                 corrupt: Box::new(move |g| {
                     g.mac_ap[idx] ^= 1 << bit_idx;
                 }),
@@ -62,13 +62,13 @@ pub fn all_mac_corruptors() -> Vec<MacCorruptor> {
         }))
         .chain((0..2).flat_map(|idx| {
             let path = if idx == 0 {
-                "assert_mac/msg0_eq"
+                "assert_mac/msg0_eq/msg0_eq.0/chunk_eq"
             } else {
-                "assert_mac/msg1_eq"
+                "assert_mac/msg1_eq/msg1_eq.0/chunk_eq"
             };
             (0..128).map(move |bit_idx| MacCorruptor {
-                name: "tag_bitflip",
-                expected_path: path,
+                name: format!("tag[{idx}].bit[{bit_idx}]"),
+                expected_path: path.into(),
                 corrupt: Box::new(move |g| {
                     g.tag[idx] ^= 1 << bit_idx;
                 }),

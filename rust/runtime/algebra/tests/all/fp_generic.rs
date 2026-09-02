@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core_algebra::{AlgebraicField, SerializableField, SupportsU64Conversions};
+use core_algebra::{
+    AlgebraicField, Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions,
+};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use runtime_algebra::{
     fp_generic::{FpGenericElement, FpGenericField, MontgomeryStrategy},
-    RuntimeField,
+    RuntimeField, SupportsSampling,
 };
 
 fn to_biguint_field<
@@ -54,7 +56,7 @@ fn test_generic_ops_helper<const N: usize, const L: usize, const ACCUM_L: usize>
 ) {
     let modulo = BigUint::from_bytes_le(&vec_of_limbs(&modulo_words));
     println!("Testing N = {N}, modulo = {modulo}");
-    let field = FpGenericField::<N, L, ACCUM_L, ()>::new_generic(modulo_words, 0, "TestField");
+    let field = FpGenericField::<N, L, ACCUM_L, ()>::new_generic(modulo_words);
 
     let a_bi = BigUint::from(a_val) % &modulo;
     let b_bi = BigUint::from(b_val) % &modulo;
@@ -95,9 +97,7 @@ fn test_generic_ops_helper<const N: usize, const L: usize, const ACCUM_L: usize>
 
     let mut acc = field.zero_accum();
     field.mac(&mut acc, &a, &b);
-    let mut acc2 = field.zero_accum();
-    field.mac(&mut acc2, &b, &a);
-    field.add_accum(&mut acc, &acc2);
+    field.mac(&mut acc, &b, &a);
     let accum_res = field.accum_reduce(&acc);
     let expected_accum_res = field.addf(&prod, &prod);
     assert_eq!(
@@ -253,7 +253,7 @@ fn test_accum_reduce_scaling_bug() {
         { 4 * runtime_algebra::LIMBS_PER_U64 },
         { 9 * runtime_algebra::LIMBS_PER_U64 },
         (),
-    >::new_generic(modulo_words, 0, "P256TestField");
+    >::new_generic(modulo_words);
 
     let a = field.u64_to_element(123456789);
     let b = field.u64_to_element(987654321);
@@ -271,4 +271,125 @@ fn test_accum_reduce_scaling_bug() {
         res, expected,
         "accum_reduce did not match mul + add! Likely accum_scale scaling bug."
     );
+}
+
+#[test]
+#[should_panic(expected = "field limb count must match its serialized word width")]
+fn test_rejects_mismatched_limb_count() {
+    let _ = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 + 1 },
+        { 2 * (runtime_algebra::LIMBS_PER_U64 + 1) + 1 },
+    >::new_generic([0xffff_ffff_ffff_ffc5]);
+}
+
+#[test]
+#[should_panic(expected = "accumulator must contain at least twice the field limbs plus one")]
+fn test_rejects_undersized_accumulator() {
+    let _ = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 },
+        { 2 * runtime_algebra::LIMBS_PER_U64 },
+    >::new_generic([0xffff_ffff_ffff_ffc5]);
+}
+
+#[test]
+#[should_panic(expected = "Montgomery modulus must be odd and greater than one")]
+fn test_rejects_invalid_montgomery_modulus() {
+    let _ = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 },
+        { 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
+    >::new_generic([16]);
+}
+
+#[test]
+#[should_panic(expected = "cannot invert zero")]
+fn test_invert_zero_panics() {
+    let field = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 },
+        { 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
+        (),
+    >::new_generic([0xffff_ffff_ffff_ffc5]);
+    field.invert(&field.zero());
+}
+
+#[test]
+#[should_panic(expected = "sampling callback returned an unexpected number of bytes")]
+fn test_sampling_rejects_wrong_byte_count() {
+    let field = FpGenericField::<
+        1,
+        { runtime_algebra::LIMBS_PER_U64 },
+        { 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
+        (),
+    >::new_generic([0xffff_ffff_ffff_ffc5]);
+    field.sample(|requested| vec![0; requested - 1]);
+}
+
+#[test]
+fn test_reduce_nat() {
+    test_reduce_nat_for_field::<
+        2,
+        { 2 * runtime_algebra::LIMBS_PER_U64 },
+        { 2 * 2 * runtime_algebra::LIMBS_PER_U64 + 1 },
+    >([0xffff_ffff_ffff_ff61, 0xffff_ffff_ffff_ffff]);
+
+    // Use the same 128-bit prime in a three-word representation. This makes the input range
+    // roughly 2^64 times larger than the modulus and exercises reductions with large quotients.
+    test_reduce_nat_for_field::<
+        3,
+        { 3 * runtime_algebra::LIMBS_PER_U64 },
+        { 2 * 3 * runtime_algebra::LIMBS_PER_U64 + 1 },
+    >([0xffff_ffff_ffff_ff61, 0xffff_ffff_ffff_ffff, 0]);
+}
+
+fn test_reduce_nat_for_field<const N: usize, const L: usize, const ACCUM_L: usize>(
+    modulo_words: [u64; N],
+) {
+    let field = FpGenericField::<N, L, ACCUM_L, ()>::new_generic(modulo_words);
+    let modulus = BigUint::from_bytes_le(&vec_of_limbs(&modulo_words));
+    let limit = BigUint::one() << (64 * N);
+
+    let mut values = vec![
+        BigUint::zero(),
+        BigUint::one(),
+        &modulus - 1u32,
+        modulus.clone(),
+        &modulus + 1u32,
+        &limit - 1u32,
+    ];
+    for multiplier in [2u32, 3, 17, 257, 65_537] {
+        let multiple = &modulus * multiplier;
+        for offset in [0u32, 1, 2, 17] {
+            let value = &multiple + offset;
+            if value < limit {
+                values.push(value);
+            }
+        }
+    }
+
+    let mut state = 0x6a09_e667_f3bc_c909u64;
+    for _ in 0..512 {
+        let mut words = [0u64; N];
+        for word in &mut words {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            *word = state;
+        }
+        values.push(BigUint::from_bytes_le(&vec_of_limbs(&words)));
+    }
+
+    for value in values {
+        let mut bytes = value.to_bytes_le();
+        bytes.resize(N * 8, 0);
+        let nat = runtime_algebra::RuntimeNat::<N>::from_bytes_le(&bytes);
+        let reduced = field.reduce_nat(&nat);
+        assert_eq!(
+            to_biguint_field(&field, &reduced),
+            &value % &modulus,
+            "incorrect reduction for {value} modulo {modulus}"
+        );
+    }
 }

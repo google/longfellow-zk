@@ -13,17 +13,17 @@
 // limitations under the License.
 
 use runtime_algebra::{
-    convolution::{choose_padding, Convolver, FFTConvolution, FFTExtConvolution},
     field::RuntimeField,
     fp2::{Fp2Element, Fp2Field},
+    middle_product::{FFTExtMiddleProduct, FFTMiddleProduct, MiddleProduct},
     p256::P256Field,
     AlgebraicField,
 };
 
 fn get_test_field_and_omega(
     p256: &P256Field,
-) -> (Fp2Field<'_, 4, 8, P256Field>, Fp2Element<4, P256Field>, u64) {
-    let f: Fp2Field<'_, 4, 8, _> = Fp2Field::new(p256);
+) -> (Fp2Field<'_, 4, P256Field>, Fp2Element<4, P256Field>, u64) {
+    let f: Fp2Field<'_, 4, _> = Fp2Field::new(p256);
     let re_bytes = [
         98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
         133, 252, 92, 102, 245, 132, 189, 142, 51, 13, 249,
@@ -58,7 +58,7 @@ impl SimplePrg {
 }
 
 #[test]
-fn test_convolution_fft() {
+fn test_fft_middle_product() {
     let p256 = P256Field::new();
     let (f, omega, omega_order) = get_test_field_and_omega(&p256);
 
@@ -75,9 +75,9 @@ fn test_convolution_fft() {
         y.push(prg.next(&f));
     }
 
-    // Slow reference convolution
+    // Slow reference middle product
     let mut expected = vec![f.zero(); m];
-    for k in 0..m {
+    for k in (n - 1)..m {
         let mut s = f.zero();
         for i in 0..n {
             if k >= i && (k - i) < m {
@@ -88,22 +88,17 @@ fn test_convolution_fft() {
         expected[k] = s;
     }
 
-    // FFTConvolution
-    let padding = choose_padding(n + m - 1);
-    let mut y_padded = vec![f.zero(); padding];
-    y_padded[..m].clone_from_slice(&y);
+    let product = FFTMiddleProduct::<4, _>::new(n, m, &omega, omega_order, &y, &f);
+    let mut got = vec![f.zero(); m];
+    product.middle_product(&x, &mut got);
 
-    let convolver = FFTConvolution::<8, _>::new(n, padding, &omega, omega_order, &y_padded, &f);
-    let mut got = vec![f.zero(); padding];
-    convolver.convolution(&x, &mut got);
-
-    assert_eq!(&got[..m], &expected[..m]);
+    assert_eq!(&got[n - 1..m], &expected[n - 1..m]);
 }
 
 #[test]
-fn test_convolution_ext() {
+fn test_fft_ext_middle_product() {
     let p256 = P256Field::new();
-    let fp2: Fp2Field<'_, 4, 8, _> = Fp2Field::new(&p256);
+    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
 
     let re_bytes = [
         98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
@@ -134,9 +129,9 @@ fn test_convolution_ext() {
         y.push(prg.next(&p256));
     }
 
-    // Slow reference convolution
+    // Slow reference middle product
     let mut expected = vec![p256.zero(); m];
-    for k in 0..m {
+    for k in (n - 1)..m {
         let mut s = p256.zero();
         for i in 0..n {
             if k >= i && (k - i) < m {
@@ -147,15 +142,35 @@ fn test_convolution_ext() {
         expected[k] = s;
     }
 
-    // FFTExtConvolution
-    let padding = choose_padding(n + m - 1);
-    let mut y_padded = vec![p256.zero(); padding];
-    y_padded[..m].clone_from_slice(&y);
+    let product = FFTExtMiddleProduct::<4, _>::new(n, m, &omega, omega_order, &y, &p256, &fp2);
+    let mut got = vec![p256.zero(); m];
+    product.middle_product(&x, &mut got);
 
-    let convolver =
-        FFTExtConvolution::<4, 8, _>::new(n, padding, &omega, omega_order, &y_padded, &p256, &fp2);
-    let mut got = vec![p256.zero(); padding];
-    convolver.convolution(&x, &mut got);
+    assert_eq!(&got[n - 1..m], &expected[n - 1..m]);
+}
 
-    assert_eq!(&got[..m], &expected[..m]);
+#[test]
+fn test_middle_product_rejects_invalid_dimensions() {
+    let p256 = P256Field::new();
+    let (fp2, omega, omega_order) = get_test_field_and_omega(&p256);
+
+    for (n, m, y_len) in [(0, 1, 1), (2, 1, 1), (1, 2, 1)] {
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let y = vec![fp2.zero(); y_len];
+                FFTMiddleProduct::new(n, m, &omega, omega_order, &y, &fp2);
+            }))
+            .is_err(),
+            "accepted middle-product dimensions n={n}, m={m}, y_len={y_len}"
+        );
+    }
+
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let y = vec![p256.zero()];
+            FFTExtMiddleProduct::new(1, 1, &omega, omega_order, &y, &p256, &fp2);
+        }))
+        .is_err(),
+        "accepted a one-element real FFT middle product"
+    );
 }

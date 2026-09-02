@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core_algebra::Nat;
-
-use crate::field::{
-    AlgebraicField, FieldElement, RuntimeField, RuntimeSerializableField,
-    SupportsQuadraticExtension,
-};
+use crate::field::{AlgebraicField, RuntimeField, SupportsQuadraticExtension};
 
 pub struct Fp2Element<const W: usize, F: SupportsQuadraticExtension<W>> {
     pub re: F::E,
@@ -59,31 +54,25 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> std::hash::Hash for Fp2El
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> FieldElement for Fp2Element<W, F> {}
-
+/// Arithmetic in the quadratic extension `F[i] / (i² + 1)`.
+///
+/// This field deliberately does not implement serialization. Protocol values
+/// must remain in the base field, which has a canonical encoding.
 #[derive(Clone, Debug)]
-pub struct Fp2Field<'a, const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>> {
+pub struct Fp2Field<'a, const W: usize, F: SupportsQuadraticExtension<W>> {
     base: &'a F,
-    basis: Vec<Fp2Element<W, F>>,
     mone: Fp2Element<W, F>,
 }
 
-impl<'a, const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>> Fp2Field<'a, W, W2, F> {
+impl<'a, const W: usize, F: SupportsQuadraticExtension<W>> Fp2Field<'a, W, F> {
+    /// Constructs the non-serializable quadratic extension of `base`.
     pub fn new(base: &'a F) -> Self {
-        let d = base.pseudo_dimension();
-        let mut basis = Vec::with_capacity(d);
-        for i in 0..d {
-            basis.push(Fp2Element {
-                re: base.pseudo_basis(i),
-                im: base.zero(),
-            });
-        }
         let mone = Fp2Element {
             re: base.mone(),
             im: base.zero(),
         };
 
-        Self { base, basis, mone }
+        Self { base, mone }
     }
 
     pub fn base_field(&self) -> &F {
@@ -98,14 +87,14 @@ impl<'a, const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>> Fp2F
     }
 }
 
-impl<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>> core_algebra::BareField
-    for Fp2Field<'_, W, W2, F>
+impl<const W: usize, F: SupportsQuadraticExtension<W>> core_algebra::BareField
+    for Fp2Field<'_, W, F>
 {
     type E = Fp2Element<W, F>;
 }
 
-impl<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>> core_algebra::AlgebraicField
-    for Fp2Field<'_, W, W2, F>
+impl<const W: usize, F: SupportsQuadraticExtension<W>> core_algebra::AlgebraicField
+    for Fp2Field<'_, W, F>
 {
     fn zero(&self) -> Self::E {
         Fp2Element {
@@ -182,9 +171,7 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> std::fmt::Debug for Fp2Ac
     }
 }
 
-impl<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>> RuntimeField<W2>
-    for Fp2Field<'_, W, W2, F>
-{
+impl<const W: usize, F: SupportsQuadraticExtension<W>> RuntimeField<W> for Fp2Field<'_, W, F> {
     type Accum = Fp2Accum<W, F>;
 
     fn zero_accum(&self) -> Self::Accum {
@@ -197,162 +184,13 @@ impl<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>> RuntimeF
         self.add(&mut acc.0, &p);
     }
 
-    fn add_accum(&self, a: &mut Self::Accum, b: &Self::Accum) {
-        a.0 = self.addf(&a.0, &b.0);
-    }
-
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E {
         acc.0.clone()
     }
-
-    fn pseudo_basis(&self, i: usize) -> Self::E {
-        assert!(i < self.base.pseudo_dimension(), "i < dimension");
-        self.basis[i].clone()
-    }
-
-    fn pseudo_dimension(&self) -> usize {
-        self.base.pseudo_dimension()
-    }
-
-    fn pseudo_basis_unsafe(&self, i: usize) -> Self::E {
-        Fp2Element {
-            re: self.base.pseudo_basis_unsafe(i),
-            im: self.base.zero(),
-        }
-    }
 }
 
-impl<
-        const W: usize,
-        const W2: usize,
-        F: SupportsQuadraticExtension<W> + crate::field::SupportsSampling<W>,
-    > crate::field::SupportsSampling<W2> for Fp2Field<'_, W, W2, F>
-{
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
-        let mut rng_ref = &mut rng;
-        let re = self.base.sample(&mut rng_ref);
-        let im = self.base.sample(&mut rng_ref);
-        Fp2Element { re, im }
-    }
-}
-
-impl<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>>
-    core_algebra::SerializableField for Fp2Field<'_, W, W2, F>
-{
-    fn name(&self) -> String {
-        format!("{}^2", self.base.name())
-    }
-
-    fn id(&self) -> usize {
-        self.base.id() + 100
-    }
-
-    fn is_binary(&self) -> bool {
-        self.base.is_binary()
-    }
-
-    fn serialized_size_bytes(&self) -> usize {
-        W2 * 8
-    }
-
-    fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]) {
-        let len = self.base.serialized_size_bytes();
-        assert_eq!(
-            dst.len(),
-            2 * len,
-            "destination slice length mismatch: {} != {}",
-            dst.len(),
-            2 * len
-        );
-        self.base.to_bytes_into(&e.re, &mut dst[0..len]);
-        self.base.to_bytes_into(&e.im, &mut dst[len..2 * len]);
-    }
-
-    fn bytes_to_element(&self, bytes: &[u8]) -> Result<Self::E, String> {
-        if bytes.len() != W2 * 8 {
-            return Err("Invalid size".to_string());
-        }
-        let mut limbs = [0u64; W2];
-        for i in 0..W2 {
-            let chunk: &[u8; 8] = (&bytes[i * 8..(i + 1) * 8]).try_into().unwrap();
-            limbs[i] = u64::from_le_bytes(*chunk);
-        }
-        self.words64_to_element(&limbs)
-    }
-
-    fn serialized_mone(&self) -> Vec<u8> {
-        let mone = self.mone();
-        self.to_bytes(&mone)
-    }
-}
-
-impl<const W: usize, const W2: usize, F: SupportsQuadraticExtension<W>>
-    crate::field::RuntimeSerializableField<W2> for Fp2Field<'_, W, W2, F>
-{
-    fn to_words64(&self, e: &Self::E) -> [u64; W2] {
-        let re_words = self.base.to_words64(&e.re);
-        let im_words = self.base.to_words64(&e.im);
-        let mut words = [0u64; W2];
-        for i in 0..W {
-            if i < W2 {
-                words[i] = re_words[i];
-            }
-            if W + i < W2 {
-                words[W + i] = im_words[i];
-            }
-        }
-        words
-    }
-
-    fn words64_to_element(&self, words: &[u64; W2]) -> Result<Self::E, String> {
-        let mut re_words = [0u64; W];
-        let mut im_words = [0u64; W];
-        for i in 0..W {
-            if i < W2 {
-                re_words[i] = words[i];
-            }
-            if W + i < W2 {
-                im_words[i] = words[W + i];
-            }
-        }
-        let re = self.base.words64_to_element(&re_words)?;
-        let im = self.base.words64_to_element(&im_words)?;
-        Ok(Fp2Element { re, im })
-    }
-}
-
-impl<
-        const W: usize,
-        const W2: usize,
-        F: SupportsQuadraticExtension<W> + core_algebra::SupportsNatConversions<W>,
-    > core_algebra::SupportsNatConversions<W2> for Fp2Field<'_, W, W2, F>
-{
-    type N = crate::RuntimeNat<W2>;
-
-    fn nat_to_element(&self, n: &Self::N) -> Self::E {
-        let mut limbs = [0u64; W];
-        limbs.copy_from_slice(&n.limbs()[..W]);
-        let base_nat = F::N::from_limbs(&limbs);
-        Fp2Element {
-            re: self.base.nat_to_element(&base_nat),
-            im: self.base.zero(),
-        }
-    }
-
-    fn to_nat(&self, e: &Self::E) -> Self::N {
-        let base_nat = self.base.to_nat(&e.re);
-        let mut limbs = [0u64; W2];
-        let base_limbs = base_nat.to_limbs();
-        limbs[..W].copy_from_slice(&base_limbs[..W]);
-        crate::RuntimeNat::from_limbs(limbs)
-    }
-}
-
-impl<
-        const W: usize,
-        const W2: usize,
-        F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions,
-    > core_algebra::SupportsU64Conversions for Fp2Field<'_, W, W2, F>
+impl<const W: usize, F: SupportsQuadraticExtension<W> + core_algebra::SupportsU64Conversions>
+    core_algebra::SupportsU64Conversions for Fp2Field<'_, W, F>
 {
     fn u64_to_element(&self, n: u64) -> Self::E {
         Fp2Element {

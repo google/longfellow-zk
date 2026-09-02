@@ -13,19 +13,18 @@
 // limitations under the License.
 
 use compile_algebra::field::CompileField;
-use compile_logic::{Logic, LogicIO};
+use compile_logic::{scope::AssertionScope, Logic, LogicIO};
 
 use crate::{
     algsimp::AlgebraicRewriter,
+    arena::CompilerArena,
     cse::Cse,
-    ir::{position_in_input_array, AssertionItemRef, ExprNode, RewriteT},
-    CompilerArena,
+    ir::{position_in_input_array, AssertionItem, ExprNode, RewriteT},
 };
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompilerAssertions<'a, F: CompileField> {
-    pub item_refs: &'a [AssertionItemRef<'a, F>],
-    pub raw: crate::ir::RawAssertions<'a, F>,
+    pub items: &'a [AssertionItem<'a, F>],
 }
 
 impl<'a, F: CompileField> Clone for CompilerAssertions<'a, F> {
@@ -36,13 +35,6 @@ impl<'a, F: CompileField> Clone for CompilerAssertions<'a, F> {
 
 impl<'a, F: CompileField> Copy for CompilerAssertions<'a, F> {}
 
-impl<'a, F: CompileField> std::ops::Deref for CompilerAssertions<'a, F> {
-    type Target = crate::ir::RawAssertions<'a, F>;
-    fn deref(&self) -> &Self::Target {
-        &self.raw
-    }
-}
-
 pub struct CompilerLogic<
     'a,
     F: CompileField,
@@ -50,14 +42,20 @@ pub struct CompilerLogic<
 > {
     arena: &'a CompilerArena<'a, F>,
     f: &'a F,
+    tracker: &'a AssertionScope,
     next: NEXT,
 }
 
 impl<'a, F: CompileField> CompilerLogic<'a, F> {
-    pub fn new(arena: &'a CompilerArena<'a, F>, f: &'a F) -> Self {
+    pub fn new(arena: &'a CompilerArena<'a, F>, f: &'a F, tracker: &'a AssertionScope) -> Self {
         let cse = Cse::new(arena);
         let next = AlgebraicRewriter::new(f, cse);
-        Self { arena, f, next }
+        Self {
+            arena,
+            f,
+            tracker,
+            next,
+        }
     }
 }
 
@@ -118,53 +116,48 @@ where NEXT: RewriteT<'a, F>
 
     fn ok(&self) -> Self::Assertions {
         CompilerAssertions {
-            item_refs: self.arena.alloc_slice(&[]),
-            raw: self.arena.alloc_slice(&[]),
+            items: self.arena.alloc_slice(&[]),
         }
     }
 
     fn assert0(&self, name: &str, x: &Self::Wire) -> Self::Assertions {
         assert!(!name.is_empty(), "assert0 requires a non-empty name");
-        let raw = self.next.assert0(x);
-        let root_scope = self.next.empty_scope();
-        let name_str = self.arena.alloc_str(name);
-        let scope = self.next.push(name_str, root_scope);
-        let items: Vec<AssertionItemRef<'a, F>> = raw
-            .iter()
-            .map(|&expr| AssertionItemRef { expr, scope })
-            .collect();
+        let id = self.tracker.new_leaf(name);
+        let own_raw = self.next.assert0(x);
+
+        let mut items = Vec::with_capacity(own_raw.len());
+        for &expr in own_raw {
+            items.push(AssertionItem { expr, id });
+        }
+
         CompilerAssertions {
-            item_refs: self.arena.alloc_slice(&items),
-            raw,
+            items: self.arena.alloc_slice(&items),
         }
     }
 
     fn assert_all(&self, name: &str, assertions: &[Self::Assertions]) -> Self::Assertions {
         assert!(!name.is_empty(), "assert_all requires a non-empty name");
-        let raw_list: Vec<crate::ir::RawAssertions<'a, F>> =
-            assertions.iter().map(|a| a.raw).collect();
-        let raw = self.next.assertions(&raw_list);
-
-        let name_str = self.arena.alloc_str(name);
-
         let mut items = Vec::new();
+        let mut seen = rustc_hash::FxHashSet::default();
+        let mut seen_roots = rustc_hash::FxHashSet::default();
         for child_group in assertions {
-            for item in child_group.item_refs {
-                let scope = self.next.push(name_str, item.scope);
-                items.push(AssertionItemRef {
-                    expr: item.expr,
-                    scope,
-                });
+            for item in child_group.items {
+                if seen.insert((item.expr.id, item.id)) {
+                    let root = self.tracker.find(item.id);
+                    if seen_roots.insert(root) {
+                        self.tracker.prepend_scope(item.id, name);
+                    }
+                    items.push(*item);
+                }
             }
         }
         CompilerAssertions {
-            item_refs: self.arena.alloc_slice(&items),
-            raw,
+            items: self.arena.alloc_slice(&items),
         }
     }
 
     fn with_assertions(&self, assertions: Self::Assertions, x: &Self::Wire) -> Self::Wire {
-        self.next.with_assertions(&assertions.raw, x)
+        self.next.with_assertions(&assertions.items, x)
     }
 
     fn to_stringw_debug(&self, _x: &Self::Wire) -> String {

@@ -15,25 +15,22 @@
 use circuits_bitvec::{Bitvec, BitvecIO, BitvecLogic};
 use circuits_boolean::Boolean;
 use compile_algebra::p256::P256Field;
-use compile_compiler::{CompilerArena, CompilerLogic};
 
 #[test]
 fn test_compile_bitvec() {
     let f = P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &f);
-    let bv = BitvecLogic::new(&iologic);
-    let bitvec_io = BitvecIO::new(&bv);
+    let (circuit, stats, _symbols) = compile_compiler::compile(&f, |iologic| {
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let a: Bitvec<_, 8> = bitvec_io.next(&mut pos);
-    let b: Bitvec<_, 8> = bitvec_io.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let a: Bitvec<_, 8> = bitvec_io.next(&mut pos);
+        let b: Bitvec<_, 8> = bitvec_io.next(&mut pos);
 
-    let (sum, _carry) = bv.unchecked_add(&a, &b);
-    let assertion = bv.assert_false("sum_zero", &sum);
-
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, &f, assertion, 0, 0);
-    compile_compiler::top::dump_stats("bitvec_add_compile", &circuit, &stats);
+        let (sum, _carry) = bv.unchecked_add(&a, &b);
+        (bv.assert_false("sum_zero", &sum), 1, 0)
+    });
+    compile_compiler::dump_stats("bitvec_add_compile", &circuit, &stats);
 }
 
 #[test]
@@ -42,20 +39,18 @@ fn test_compile_bitvec_leq() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &fc);
-    let bv = BitvecLogic::new(&iologic);
-    let bitvec_io = BitvecIO::new(&bv);
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let a: Bitvec<_, 64> = bitvec_io.next(&mut pos);
-    let b: Bitvec<_, 64> = bitvec_io.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let a: Bitvec<_, 64> = bitvec_io.next(&mut pos);
+        let b: Bitvec<_, 64> = bitvec_io.next(&mut pos);
 
-    let boolean = Boolean::new(&iologic);
-    let leq = bv.leq(&a, &b);
-    let assertion = boolean.assert_true("leq_true", &leq);
-
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+        let boolean = Boolean::new(&iologic);
+        let leq = bv.leq(&a, &b);
+        (boolean.assert_true("leq_true", &leq), 1, 0)
+    });
 
     // Let's test a = 65, b = 119
     let mut inputs = compile_eval::initial_inputs(&fr);
@@ -73,19 +68,17 @@ fn test_compile_bitvec_is_zero() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &fc);
-    let bv = BitvecLogic::new(&iologic);
-    let bitvec_io = BitvecIO::new(&bv);
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let a: Bitvec<_, 8> = bitvec_io.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let a: Bitvec<_, 8> = bitvec_io.next(&mut pos);
 
-    let boolean = Boolean::new(&iologic);
-    let is_zero = bv.is_zero(&a);
-    let assertion = boolean.assert_true("zero_true", &is_zero);
-
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+        let boolean = Boolean::new(&iologic);
+        let is_zero = bv.is_zero(&a);
+        (boolean.assert_true("zero_true", &is_zero), 1, 0)
+    });
 
     // Test a = 0 (should pass)
     let mut inputs = compile_eval::initial_inputs(&fr);
@@ -116,19 +109,17 @@ fn test_compile_bitvec_lt() {
     use compile_eval::FieldID;
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &fc);
-    let bv = BitvecLogic::new(&iologic);
-    let bitvec_io = BitvecIO::new(&bv);
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
+        let bv = BitvecLogic::new(&iologic);
+        let bitvec_io = BitvecIO::new(&bv);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let a: Bitvec<_, 64> = bitvec_io.next(&mut pos);
-    let b: Bitvec<_, 64> = bitvec_io.next(&mut pos);
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let a: Bitvec<_, 64> = bitvec_io.next(&mut pos);
+        let b: Bitvec<_, 64> = bitvec_io.next(&mut pos);
 
-    let boolean = Boolean::new(&iologic);
-    let assertion = boolean.assert_true("lt_true", &bv.lt(&a, &b));
-
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+        let boolean = Boolean::new(&iologic);
+        (boolean.assert_true("lt_true", &bv.lt(&a, &b)), 1, 0)
+    });
 
     // Test a = 65, b = 66 (should pass since 65 < 66)
     let mut inputs = compile_eval::initial_inputs(&fr);
@@ -334,14 +325,16 @@ fn test_bitvec_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
 #[test]
 fn test_bitvec() {
     let field = new_f65537_field();
-    let l_prime = LPrime::new(&field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l_prime = LPrime::new(&field, &tracker);
     test_bitvec_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let l_bin = LBinary::new(&field_bin);
+    let tracker_bin = compile_logic::scope::AssertionScope::new();
+    let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_bitvec_for_logic(&l_bin);
 }
 
-fn test_assert_wrapping_add_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
+fn test_assert_wrapping_add_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
     let w = 4;
@@ -366,7 +359,7 @@ fn test_assert_wrapping_add_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
     }
 }
 
-fn test_assert_add_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
+fn test_assert_add_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
     let w = 4;
@@ -394,11 +387,13 @@ fn test_assert_add_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
 #[test]
 fn test_assert_add() {
     let field = new_f65537_field();
-    let l_prime = LPrime::new(&field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l_prime = LPrime::new(&field, &tracker);
     test_assert_wrapping_add_for_logic(&l_prime);
     test_assert_add_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let l_bin = LBinary::new(&field_bin);
+    let tracker_bin = compile_logic::scope::AssertionScope::new();
+    let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_assert_wrapping_add_for_logic(&l_bin);
     test_assert_add_for_logic(&l_bin);
 }
@@ -421,14 +416,16 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 #[test]
 fn test_is_zero() {
     let field = new_f65537_field();
-    let l_prime = LPrime::new(&field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l_prime = LPrime::new(&field, &tracker);
     test_is_zero_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let l_bin = LBinary::new(&field_bin);
+    let tracker_bin = compile_logic::scope::AssertionScope::new();
+    let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_is_zero_for_logic(&l_bin);
 }
 
-fn test_assert_neq_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
+fn test_assert_neq_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
 
@@ -446,14 +443,16 @@ fn test_assert_neq_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
 #[test]
 fn test_assert_neq() {
     let field = new_f65537_field();
-    let l_prime = LPrime::new(&field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l_prime = LPrime::new(&field, &tracker);
     test_assert_neq_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let l_bin = LBinary::new(&field_bin);
+    let tracker_bin = compile_logic::scope::AssertionScope::new();
+    let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_assert_neq_for_logic(&l_bin);
 }
 
-fn test_checked_add_sub_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
+fn test_checked_add_sub_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
 
@@ -484,9 +483,11 @@ fn test_checked_add_sub_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
 #[test]
 fn test_checked_add_sub() {
     let field = new_f65537_field();
-    let l_prime = LPrime::new(&field);
+    let tracker = compile_logic::scope::AssertionScope::new();
+    let l_prime = LPrime::new(&field, &tracker);
     test_checked_add_sub_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let l_bin = LBinary::new(&field_bin);
+    let tracker_bin = compile_logic::scope::AssertionScope::new();
+    let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_checked_add_sub_for_logic(&l_bin);
 }

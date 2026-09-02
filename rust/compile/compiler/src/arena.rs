@@ -51,17 +51,11 @@ impl<'a, F: CompileField> CompilerArena<'a, F> {
         self.bump.alloc_slice_clone(slice)
     }
 
-    pub fn alloc_scope_node(
-        &'a self,
-        scope: crate::ir::Scope<'a>,
-        depth: usize,
-    ) -> crate::ir::ScopeRef<'a> {
-        let id = self.next_node_id.get();
-        self.next_node_id.set(id + 1);
-        self.bump.alloc(Node::new(id, scope, depth))
-    }
-
     pub fn alloc_str(&'a self, s: &str) -> &'a str {
         self.bump.alloc_str(s)
+    }
+
+    pub fn alloc<T>(&'a self, val: T) -> &'a T {
+        self.bump.alloc(val)
     }
 }

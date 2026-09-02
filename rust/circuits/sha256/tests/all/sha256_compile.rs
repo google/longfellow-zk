@@ -15,7 +15,6 @@
 use circuits_analog_adder::FieldWrappingSum;
 use circuits_sha256::{derived, ConcreteDerived, ConcreteGiven, Sha256};
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_eval::FieldID;
 use core_algebra::SerializableField;
 use runtime_algebra::field::RuntimeField;
@@ -68,9 +67,6 @@ fn test_compile_sha256_for_field<
     field_id: FieldID,
     expected_stats: compile_eval::CircuitGeometry,
 ) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
-
     let input = [
         0, 0xdeadbeef, 0xbd5b7dde, 0x9c093ccd, 0x7ab6fbbc, 0x5964baab, 0x3812799a, 0x16c03889,
         0xf56df778, 0xd41bb667, 0xb2c97556, 0x91773445, 0x7024f334, 0x4ed2b223, 0x2d807112,
@@ -85,17 +81,21 @@ fn test_compile_sha256_for_field<
     };
     let derived_val = derived(&given);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let sha256 = Sha256::new(&iologic);
-    let bv = circuits_bitvec::BitvecLogic::new(&iologic);
-    let given_wires = circuits_sha256::allocate_given(&bv, &mut pos);
-    let derived_wires = circuits_sha256::allocate_derived(&bv, &mut pos);
+    let (circuit, stats, symbols) = compile_compiler::compile(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let sha256 = Sha256::new(&iologic);
+        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+        let given_wires = circuits_sha256::allocate_given(&bv, &mut pos);
+        let derived_wires = circuits_sha256::allocate_derived(&bv, &mut pos);
 
-    let assertion = sha256.assert_transform_block(&given_wires, &derived_wires);
+        (
+            sha256.assert_transform_block(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
 
-    let (circuit, stats, symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
-
-    compile_compiler::top::dump_stats(name, &circuit, &stats);
+    compile_compiler::dump_stats(name, &circuit, &stats);
 
     assert_eq!(stats, expected_stats);
 
@@ -117,12 +117,12 @@ fn test_compile_sha256() {
         FieldID::P256,
         compile_eval::CircuitGeometry {
             ninput: 6657,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 176,
             nlayers: 6,
             nwires: 30354,
             nterms: 118114,
-            nassertions: 6657,
+            nassertions: 6840,
         },
     );
     let gf2_c = Gf2_128Field::new();
@@ -134,12 +134,12 @@ fn test_compile_sha256() {
         FieldID::Gf2_128,
         compile_eval::CircuitGeometry {
             ninput: 6657,
-            npublic_input: 0,
+            npublic_input: 1,
             noutput: 128,
             nlayers: 12,
             nwires: 51473,
             nterms: 98993,
-            nassertions: 6716,
+            nassertions: 6840,
         },
     );
 }
@@ -148,9 +148,6 @@ fn test_compile_sha256() {
 fn test_compile_sha256_tampering() {
     let fc = P256Field::new();
     let fr = runtime_algebra::p256::P256Field::new();
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, &fc);
-
     let input = [
         0, 0xdeadbeef, 0xbd5b7dde, 0x9c093ccd, 0x7ab6fbbc, 0x5964baab, 0x3812799a, 0x16c03889,
         0xf56df778, 0xd41bb667, 0xb2c97556, 0x91773445, 0x7024f334, 0x4ed2b223, 0x2d807112,
@@ -165,14 +162,19 @@ fn test_compile_sha256_tampering() {
     };
     let derived_val = derived(&given);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let sha256 = Sha256::new(&iologic);
-    let bv = circuits_bitvec::BitvecLogic::new(&iologic);
-    let given_wires = circuits_sha256::allocate_given(&bv, &mut pos);
-    let derived_wires = circuits_sha256::allocate_derived(&bv, &mut pos);
+    let (circuit, _stats, symbols) = compile_compiler::compile(&fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let sha256 = Sha256::new(&iologic);
+        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+        let given_wires = circuits_sha256::allocate_given(&bv, &mut pos);
+        let derived_wires = circuits_sha256::allocate_derived(&bv, &mut pos);
 
-    let assertion = sha256.assert_transform_block(&given_wires, &derived_wires);
-    let (circuit, _stats, symbols) = compile_compiler::top::compile(&arena, &fc, assertion, 0, 0);
+        (
+            sha256.assert_transform_block(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
 
     let corruptors = test_support::all_sha256_corruptors();
 

@@ -27,8 +27,9 @@ fn test_mac_direct_eval_generic<F: CompileField>(fc: &F) {
 
     let concrete_given = given(test_msg, av_val, [ap0_val, ap1_val]);
 
+    let tracker = compile_logic::scope::AssertionScope::new();
     type L<'a, FC> = EvalLogic<'a, FC>;
-    let lp = L::new(fc);
+    let lp = L::new(fc, &tracker);
     let bv = BitvecLogic::new(&lp);
     let mac_circuit = MAC::new(&lp);
 
@@ -51,7 +52,13 @@ fn test_mac_direct_eval_generic<F: CompileField>(fc: &F) {
             "Corruptor '{}' failed to cause assertion error",
             c.name
         );
-        res.assert_any_failed_at(c.expected_path);
+        let failed = res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &c.expected_path),
+            "Corruptor '{}' expected exact failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
     }
 }
 

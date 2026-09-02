@@ -24,7 +24,6 @@ use crate::field::{AlgebraicField, CompileField, SupportsNatConversions};
 pub struct FpParameters<const W: usize> {
     pub length_bytes: usize,
     pub modulo: crate::CompileNat<W>,
-    pub id: usize,
 }
 
 /// Represents the mathematical field
@@ -32,11 +31,8 @@ pub struct FpParameters<const W: usize> {
 pub struct FpField<T> {
     length_bytes: usize,
     modulo: BigUint,
-    id: usize,
     basis: Vec<Elt<T>>,
     dimension: usize,
-    sample_bytes_needed: usize,
-    sample_mask: BigUint,
     _marker: PhantomData<T>,
 }
 
@@ -45,6 +41,11 @@ impl<T> FpField<T> {
     pub fn new_field<const W: usize>(params: FpParameters<W>) -> Self {
         let modulo = params.modulo.to_biguint();
         let bits = modulo.bits();
+        assert!(modulo > BigUint::one(), "field modulus must exceed one");
+        assert!(
+            params.length_bytes >= (bits as usize).div_ceil(8),
+            "serialized field size is too small for the modulus"
+        );
         let dimension = (bits - 1) as usize;
 
         let mut basis = Vec::with_capacity(dimension);
@@ -55,18 +56,11 @@ impl<T> FpField<T> {
             });
         }
 
-        let exact_bits = bits as usize;
-        let sample_bytes_needed = exact_bits.div_ceil(8);
-        let sample_mask = (BigUint::from(1u32) << exact_bits) - 1u32;
-
         Self {
             length_bytes: params.length_bytes,
             modulo,
-            id: params.id,
             basis,
             dimension,
-            sample_bytes_needed,
-            sample_mask,
             _marker: PhantomData,
         }
     }
@@ -157,7 +151,7 @@ impl<T> CompileField for FpField<T> {
 impl<const W: usize, T> SupportsNatConversions<W> for FpField<T> {
     type N = crate::CompileNat<W>;
 
-    fn nat_to_element(&self, n: &Self::N) -> Self::E {
+    fn reduce_nat(&self, n: &Self::N) -> Self::E {
         let value = &n.0 % &self.modulo;
         Elt {
             n: value,
@@ -166,7 +160,7 @@ impl<const W: usize, T> SupportsNatConversions<W> for FpField<T> {
     }
 
     fn to_nat(&self, e: &Self::E) -> Self::N {
-        crate::CompileNat(e.n.clone())
+        crate::CompileNat::from_biguint(&e.n)
     }
 }
 
@@ -208,14 +202,6 @@ impl<T> std::fmt::Debug for Elt<T> {
 impl<T> crate::field::CompilePrimeField for FpField<T> {}
 
 impl<T> core_algebra::SerializableField for FpField<T> {
-    fn name(&self) -> String {
-        format!("Fp({})", self.modulo)
-    }
-
-    fn id(&self) -> usize {
-        self.id
-    }
-
     fn is_binary(&self) -> bool {
         false
     }
@@ -277,8 +263,13 @@ impl<T> core_algebra::HasLookupPoints for FpField<T> {
 
 impl<T> core_algebra::SupportsU64Conversions for FpField<T> {
     fn u64_to_element(&self, n: u64) -> Self::E {
+        let value = BigUint::from(n);
+        assert!(
+            value < self.modulo,
+            "integer is not a canonical field element"
+        );
         Elt {
-            n: BigUint::from(n),
+            n: value,
             _marker: std::marker::PhantomData,
         }
     }
@@ -286,8 +277,13 @@ impl<T> core_algebra::SupportsU64Conversions for FpField<T> {
 
 impl<T> core_algebra::SupportsU128Conversions for FpField<T> {
     fn u128_to_element(&self, n: u128) -> Self::E {
+        let value = BigUint::from(n);
+        assert!(
+            value < self.modulo,
+            "integer is not a canonical field element"
+        );
         Elt {
-            n: BigUint::from(n),
+            n: value,
             _marker: std::marker::PhantomData,
         }
     }

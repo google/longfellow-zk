@@ -14,7 +14,6 @@
 
 use circuits_bit_plucker::BitPlucker;
 use compile_algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use compile_compiler::{CompilerArena, CompilerLogic};
 use compile_logic::LogicIO;
 use core_algebra::SerializableField;
 
@@ -26,22 +25,19 @@ fn test_compile_bit_plucker_for_field_n<
     fc: &FC,
     name: &str,
 ) {
-    let arena = CompilerArena::new();
-    let iologic = CompilerLogic::new(&arena, fc);
+    let (circuit, stats, _symbols) = compile_compiler::compile(fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let input_elt = iologic.next(&mut pos);
 
-    let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
-    let input_elt = iologic.next(&mut pos);
+        let plucker = BitPlucker::<_, LOGN>::new(&iologic);
+        let plucked = plucker.pluck(&input_elt);
 
-    let plucker = BitPlucker::<_, LOGN>::new(&iologic);
-    let plucked = plucker.pluck(&input_elt);
+        // Dummy assertion to compile the circuit
+        let boolean = circuits_boolean::Boolean::new(&iologic);
+        (boolean.assert_false("bit0_false", plucked.bit(0)), 1, 0)
+    });
 
-    // Dummy assertion to compile the circuit
-    let boolean = circuits_boolean::Boolean::new(&iologic);
-    let assertion = boolean.assert_false("bit0_false", plucked.bit(0));
-
-    let (circuit, stats, _symbols) = compile_compiler::top::compile(&arena, fc, assertion, 0, 0);
-
-    compile_compiler::top::dump_stats(&format!("{name}_{LOGN}"), &circuit, &stats);
+    compile_compiler::dump_stats(&format!("{name}_{LOGN}"), &circuit, &stats);
 }
 
 #[test]
