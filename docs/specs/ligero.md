@@ -1,5 +1,5 @@
 # Ligero ZK Proof {#ligero-zk-proof}
-This section specifies the construction and verification method for a Ligero commitment and zero-knowledge argument. The Ligero system as described by Ames, Hazay, Ishai, and Venkitasubramaniam [@ligero], consists of a commitment scheme, and a method for proving linear and quadratic constraints on the committed values in zero-knowledge. The later interface is sufficient to prove arbitrary circuits, but in the Longfellow scheme, it suffices to describe how to use such constraints to directly verify an IP transcript.
+This section specifies the construction and verification method for a Ligero commitment and zero-knowledge argument. The Ligero system as described by Ames, Hazay, Ishai, and Venkitasubramaniam [@ligero], consists of a commitment scheme, and a method for proving linear and quadratic constraints on the committed values in zero-knowledge. The latter interface is sufficient to prove arbitrary circuits, but in the Longfellow scheme, it suffices to describe how to use such constraints to directly verify an IP transcript.
 
 <reference anchor='ligero' target='https://eprint.iacr.org/2022/1608'>
     <front>
@@ -17,30 +17,45 @@ This section specifies the construction and verification method for a Ligero com
 </reference>
 
 ## Merkle trees
-This section describes how to construct a Merkle tree from a sequence of `n` strings, and how to verify that a given string `x` was placed at leaf `i` in a Merkle tree. These methods do not assume that `n` is a power of two. This construction is parameterized by a cryptographic hash function such as SHA-256 [@RFC6234].  In this application, a leaf in a tree is a message digest instead of an arbitrary string; for example, if the hash function is SHA-256, then the leaf is a 32-byte string.
+This section describes how to construct a Merkle tree from a sequence of `n` strings, and how to verify that a given string `x` was placed at leaf `i` in a Merkle tree. These methods do not assume that `n` is a power of two. This construction is parameterized by the cryptographic hash function SHA-256 [@RFC6234].  In this application, a leaf in a tree is a message digest instead of an arbitrary string; for example, when the hash function is SHA-256, then the leaf is a 32-byte string.
 
 A tree that contains `n` leaves is represented by an array of `2 * n` message digests in which the input digests are written at indicies `n..(2*n - 1)`.  The tree is constructed by iteratively hashing the concatenation of the values at indicies `2*j` and `2*j+1`, starting at `j=n-1`, and continuing until `j=1`. The root is at index 1. In this specification, the prover and verifier will already know the value of `n` when they produce or verify a Merkle tree.
 
 ### Constructing a Merkle tree from `n` digests
 
-```
-class MerkleTree:
-    def __init__(self, n: int) -> None:
-        self.n = n
-        self.a = [b''] * (2 * n)
+```rust
+pub fn sha256_bytes(data: &[u8]) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    hasher.finalize().to_vec()
+}
 
-    def set_leaf(self, pos: int, leaf: bytes) -> None:
-        assert 0 <= pos < self.n, f"{pos} is out of bounds"
-        self.a[pos + self.n] = leaf
+#[derive(Clone, Debug)]
+pub struct MerkleHeap {
+    pub num_leaves: usize,
+    pub layers: Vec<Vec<u8>>,
+    pub root: Vec<u8>,
+}
 
-    def build_tree(self) -> bytes:
-        for i in range(self.n - 1, 0, -1):
-            left = self.a[2 * i]
-            right = self.a[2 * i + 1]
-
-            self.a[i] = hash(left + right)
-
-        return self.a[1]
+impl MerkleHeap {
+    pub fn new(leaves: &[Vec<u8>]) -> Self {
+        let n = leaves.len();
+        let mut layers = vec![Vec::new(); 2 * n];
+        layers[n..(n + n)].clone_from_slice(&leaves[..n]);
+        for i in (1..n).rev() {
+            let mut data = Vec::new();
+            data.extend_from_slice(&layers[2 * i]);
+            data.extend_from_slice(&layers[2 * i + 1]);
+            layers[i] = sha256_bytes(&data);
+        }
+        let root = layers[1].clone();
+        Self {
+            num_leaves: n,
+            layers,
+            root,
+        }
+    }
+}
 ```
 
 ### Constructing a proof of inclusion
@@ -50,95 +65,120 @@ To address these inefficiencies, this section explains how to produce a batch pr
 
 It is important in this formulation to treat the input digests as a sequence, i.e. with a given order. Both the prover and verifier of this batch proof must use the same order of the `requested_leaves` array.
 
-```
-    def mark_tree(
-            self,
-            requested_leaves: list[int],
-            ) -> list[bool]:
-        marked = [False] * (2 * self.n)
+```rust
+pub fn open_merkle_heap(
+    mh: &MerkleHeap,
+    leaf_indices: &[usize],
+) -> Result<Vec<Vec<u8>>, &'static str> {
+    let n = mh.num_leaves;
+    let mut seen = vec![false; n];
+    let mut is_on_path = vec![false; 2 * n];
+    for &idx in leaf_indices {
+        if idx >= n {
+            return Err("Leaf index out of bounds in Merkle opening");
+        }
+        if seen[idx] {
+            return Err("Duplicate leaf index in Merkle opening");
+        }
+        seen[idx] = true;
+        is_on_path[n + idx] = true;
+    }
+    for i in (1..n).rev() {
+        is_on_path[i] = is_on_path[2 * i] || is_on_path[2 * i + 1];
+    }
 
-        for i in requested_leaves:
-            assert 0 <= i < self.n, f"invalid requested index {i}"
-            marked[i + self.n] = True
-
-        for i in range(self.n - 1, 0, -1):
-            marked[i] = marked[2 * i] or marked[2 * i + 1]
-
-        return marked
-
-    def compressed_proof(
-            self,
-            requested_leaves: list[int],
-            ) -> list[bytes]:
-        proof = []
-        marked = self.mark_tree(requested_leaves)
-        for i in range(self.n - 1, 0, -1):
-            if marked[i]:
-                child = 2 * i
-
-                # If the left child is marked, we need the right
-                # child (sibling).
-                if marked[child]:
-                    child += 1
-
-                # If the identified child/sibling is NOT marked,
-                # we must provide its hash in the proof so the
-                # verifier can calculate the parent.
-                if not marked[child]:
-                    proof.append(self.a[child])
-
-        return proof
+    let mut path = Vec::new();
+    for i in (1..n).rev() {
+        if is_on_path[i] {
+            if is_on_path[2 * i] && !is_on_path[2 * i + 1] {
+                path.push(mh.layers[2 * i + 1].clone());
+            } else if !is_on_path[2 * i] && is_on_path[2 * i + 1] {
+                path.push(mh.layers[2 * i].clone());
+            }
+        }
+    }
+    Ok(path)
+}
 ```
 
 ### Verifying a proof of inclusion
 This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment `root` defines an `n`-leaf Merkle tree that contains `k` digests `s[0], ..., s[k-1]` at corresponding indices `i[0], ..., i[k-1]`."  The strategy of this verification procedure is to deduce which nodes are needed along the `k` verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the `root` digest. As an optimization, the `defined[]` array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of `k=0` digests is defined to fail. It is assumed that the `indices[]` array does not contain duplicates.
 
-```
-    def verify_merkle(
-            self,
-            root: bytes,
-            n: int,
-            k: int,
-            s: list[bytes],
-            indices: list[int],
-            proof: list[bytes]) -> bool:
-        tmp: list[None | bytes] = [None] * (2 * n)
-        defined = [False] * (2 * n)
+```rust
+pub fn verify_merkle_proof<F>(
+    n: usize,
+    root: &[u8],
+    leaf_indices: &[usize],
+    path: &[Vec<u8>],
+    mut leaf_hash_fn: F,
+) -> Result<(), &'static str>
+where
+    F: FnMut(usize) -> Vec<u8>,
+{
+    let mut seen = vec![false; n];
+    let mut is_on_path = vec![false; 2 * n];
+    for &idx in leaf_indices {
+        if idx >= n {
+            return Err("Leaf index out of bounds in Merkle proof verification");
+        }
+        if seen[idx] {
+            return Err("Duplicate leaf index in Merkle proof verification");
+        }
+        seen[idx] = true;
+        is_on_path[n + idx] = true;
+    }
+    for i in (1..n).rev() {
+        is_on_path[i] = is_on_path[2 * i] || is_on_path[2 * i + 1];
+    }
 
-        proof_index = 0
+    let mut layers: Vec<Option<Vec<u8>>> = vec![None; 2 * n];
+    for &idx in leaf_indices {
+        layers[n + idx] = Some(leaf_hash_fn(idx));
+    }
 
-        if n != self.n: return False
+    let mut path_idx = 0;
+    for i in (1..n).rev() {
+        if is_on_path[i] {
+            let left_val = if is_on_path[2 * i] {
+                layers[2 * i].clone()
+            } else {
+                let val = path.get(path_idx).cloned();
+                path_idx += 1;
+                val
+            };
+            let right_val = if is_on_path[2 * i + 1] {
+                layers[2 * i + 1].clone()
+            } else {
+                let val = path.get(path_idx).cloned();
+                path_idx += 1;
+                val
+            };
 
-        marked = self.mark_tree(indices)
+            if let (Some(left_val), Some(right_val)) = (left_val, right_val) {
+                let mut data = Vec::with_capacity(left_val.len() + right_val.len());
+                data.extend_from_slice(&left_val);
+                data.extend_from_slice(&right_val);
+                layers[i] = Some(sha256_bytes(&data));
+            } else {
+                return Err("Missing path value in Merkle proof verification");
+            }
+        }
+    }
 
-        for i in range(n - 1, 0, -1):
-            if marked[i]:
-                child = 2 * i
-                if marked[child]:
-                    child += 1
+    if path_idx != path.len() {
+        return Err("Not all Merkle path elements were consumed");
+    }
 
-                if not marked[child]:
-                    if proof_index >= len(proof):
-                        return False
-                    tmp[child] = proof[proof_index]
-                    proof_index += 1
-                    defined[child] = True
-
-        for i in range(k):
-            pos = indices[i] + n
-            tmp[pos] = s[i]
-            defined[pos] = True
-
-        for i in range(n - 1, 0, -1):
-            if defined[2 * i] and defined[2 * i + 1]:
-                left = tmp[2 * i]
-                right = tmp[2 * i + 1]
-                assert left is not None
-                assert right is not None
-                tmp[i] = hash(left + right)
-                defined[i] = True
-
-        return defined[1] and (tmp[1] == root)
+    if let Some(computed_root) = &layers[1] {
+        if computed_root == root {
+            Ok(())
+        } else {
+            Err("Merkle root mismatch")
+        }
+    } else {
+        Err("Merkle root was not computed")
+    }
+}
 ```
 
 ## Common parameters
@@ -150,15 +190,14 @@ The Prover and Verifier in Ligero must agree on the following parameters. These 
 - `BLOCK`: the size of each row, in terms of number of field elements
 - `DBLOCK`: 2 * `BLOCK` - 1
 - `WR`: the number of witness values included in each row.
-- `QR`: the number of quadratic constraints written in each row
-- `IW`: Row index at which the witness values start, usually IW = 2.
+- `IW`: Row index at which the witness values start, usually IW = 3.
 - `IQ`: Row index at which the quadratic constraints begin, it is the first row after all of the witnesses have been encoded.
 - `NL`: Number of linear constraints.
 - `NQ`: Number of quadratic constraints.
 - `NWROW`: Number of rows used to encode witnesses.
 - `NQT`: Number of row triples needed to encode the quadratic constraints.
 - `NQW`: `NWROW + NQT`, rows needed to encode witnesses and quadratic constraints.
-- `NROW`: Total number of rows in the witness matrix, `NQW + 2`
+- `NROW`: Total number of rows in the witness matrix, `3 + NQW + 3*NQT`
 - `NCOL`: Total number of columns in the tableau matrix.
 
 A row of the tableau consists of
@@ -171,11 +210,9 @@ A row of the tableau consists of
 - `BLOCK < |F|` The block size must be smaller than the field size.
 - `BLOCK > NREQ` The block size must be larger than the number of columns requested.
 - `BLOCK = NREQ + WR`
-
-- `BLOCK >= 2 * (NREQ + QR) + (NREQ + WR) - 2`
-- `WR >= QR`.
+- `BLOCK >= 2 * (NREQ + WR) + (NREQ + WR) - 2`
 - `BLOCK >= 2 * (NREQ + WR) - 1`.
-- `QR >= NREQ` (and thus `WR >= NREQ`) to avoid wasting too much space.
+- `WR >= NREQ` (and thus `WR >= NREQ`) to avoid wasting too much space.
 
 ## Ligero commitment
 The first step of the proof procedure requires the Prover to commit to a witness vector `W`.  The witness vector is assumed to be padded with zeros at the end so that its length is an even multiple of `WR`. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix `T[][]`.
@@ -185,7 +222,7 @@ This tableau matrix is constructed row-by-row by applying the extend procedure t
     row ILDT = 0                         : RANDOM row for low-degree test
     row IDOT = 1                         : RANDOM row for linear test
     row IQD  = 2                         : RANDOM row for quadratic test
-    row i for IW = IDOT + 1 <= i < IQ    : witness rows
+    row i for IW = IQD + 1 <= i < IQ    : witness rows
     row i for IQ <= i < NROW             : quadratic rows
 
 1)  The first ILDT row is defined as
@@ -244,70 +281,161 @@ Output:
 
 - A digest; root of a Merkle tree formed from columns of the tableau.
 
-```
-def commit(W[], lqc[]) {
-    T[NROW][NCOL] = [0];   // 2d array initialized with 0
-
-    layout_zk_rows(T);
-    layout_witness_rows(T, W);
-    layout_quadratic_rows(T, W, lqc);
-
-    MerkleTree M;
-    FOR DBLOCK <= j < NCOL DO
-      M.set_leaf(j - BLOCK,
-          hash( T[0][j] || T[1][j] || .. || T[NROW][j]) );
-
-    return M.build_tree();
+```rust
+pub struct LigeroCommitResult<F> {
+    pub geometry: LigeroGeometry,
+    pub tableau: Vec<Vec<F>>,
+    pub merkle: MerkleHeap,
+    pub nonces: Vec<Vec<u8>>,
 }
 
-def layout_zk_rows(T) {
-    T[0][0..NCOL] = extend(random_row(BLOCK), BLOCK, NCOL);
+impl<F: Field + 'static> LigeroProver<F> {
+    pub fn commit<R: Rng>(
+        &self,
+        witness: &[F],
+        lqc: &[LqcTriple],
+        rng: &mut R,
+        subfield_boundary: usize,
+    ) -> LigeroCommitResult<F> {
+        let tableau = self.layout_tableau(witness, lqc, subfield_boundary, rng);
 
-    Z = random_row(DBLOCK)
-    s = SUM_{i = NREQ ... NREQ + WR - 2} Z_i 
-    Z[NREQ + WR - 1] = -s
-    T[1][0..NCOL] = extend(Z, DBLOCK, NCOL)
+        let geom = self.geometry;
+        let dblock = geom.dblock_len;
+        let block_enc = geom.encoded_len;
 
-    ZQ = random_row[DBLOCK]
-    ZQ[NREQ ... NREQ + WR - 1] = 0
-    T[2][0..NCOL] = extend(ZQ, DBLOCK, NCOL)
-}
-```
+        let num_committed_cols = block_enc - dblock;
+        let update_leaf_hash = |j: usize| {
+            let col_idx = j + dblock;
+            let mut data = Vec::new();
+            for row in 0..tableau.len() {
+                data.extend_from_slice(&tableau[row][col_idx].to_bytes());
+            }
+            data
+        };
 
-```
-def layout_witness_rows(T, w) {
+        let (heap, nonces) = commit_merkle_heap(num_committed_cols, update_leaf_hash, rng);
 
-  FOR IW <= i <= IQ DO
-    bool subfield = false;
-
-    IF W[i * WR .. (i+1) * WR] are all in the subfield {
-      subfield = true;
+        LigeroCommitResult {
+            geometry: geom,
+            tableau,
+            merkle: heap,
+            nonces,
+        }
     }
 
-    row[0...NREQ-1] = random_row(NREQ, subfield)
-    row[NREQ..BLOCK] = W[i * WR .. (i+1) * WR]
+    fn layout_tableau<R: Rng>(
+        &self,
+        witness: &[F],
+        lqc: &[LqcTriple],
+        subfield_boundary: usize,
+        rng: &mut R,
+    ) -> Vec<Vec<F>> {
+        let mut tableau = Vec::new();
+        tableau.push(self.layout_ildt_row(rng));
+        tableau.push(self.layout_idot_row(rng));
+        tableau.push(self.layout_iquad_row(rng));
+        tableau.extend(self.layout_witness_rows(witness, subfield_boundary, rng));
+        tableau.extend(self.layout_quadratic_constraint_rows(witness, lqc, rng));
+        tableau
+    }
 
-    T[i + IW][0..NCOL] = extend(row, BLOCK, NCOL)
-}
-```
+    fn layout_ildt_row<R: Rng>(&self, rng: &mut R) -> Vec<F> {
+        let row = (0..self.geometry.block_len)
+            .map(|_| F::sample(rng))
+            .collect::<Vec<F>>();
+        self.rs_block.encode_row()(&row)
+    }
 
-```
-def layout_quadratic_rows(T, w, lqc[]) {
-    FOR 0 <= i < NQT DO
-      qx[0..NREQ] = random_row(NREQ)
-      qy[0..NREQ] = random_row(NREQ)
-      qz[0..NREQ] = random_row(NREQ)
+    fn layout_idot_row<R: Rng>(&self, rng: &mut R) -> Vec<F> {
+        let geom = self.geometry;
+        let mut row = (0..geom.dblock_len)
+            .map(|_| F::sample(rng))
+            .collect::<Vec<F>>();
+        let sum_w1 = dot1(&row[geom.num_queries..(geom.num_queries + geom.witnesses_per_row)]);
+        row[geom.num_queries] -= sum_w1;
+        self.rs_dblock.encode_row()(&row)
+    }
 
-      FOR 0 <= j < BLOCK  DO
-        IF (j + i * Q < NQ)
-          assert( W[ lqc[j].x ] * W[ lqc[j].x ] == W[ lqc[j].z ] )
-          qx[NREQ + j] = W[ lqc[j].x ]
-          qy[NREQ + j] = W[ lqc[j].y ]
-          qz[NREQ + j] = W[ lqc[j].z ] 
+    fn layout_iquad_row<R: Rng>(&self, rng: &mut R) -> Vec<F> {
+        let geom = self.geometry;
+        let mut row = (0..geom.dblock_len)
+            .map(|_| F::sample(rng))
+            .collect::<Vec<F>>();
+        for j in 0..geom.witnesses_per_row {
+            row[geom.num_queries + j] = F::zero();
+        }
+        self.rs_dblock.encode_row()(&row)
+    }
 
-      T[IQ + i * NQT    ][0..NCOL] = extend(qx, BLOCK, NCOL)
-      T[IQ + i * NQT + 1][0..NCOL] = extend(qy, BLOCK, NCOL)
-      T[IQ + i * NQT + 2][0..NCOL] = extend(qz, BLOCK, NCOL)
+    fn layout_witness_rows<R: Rng>(
+        &self,
+        witness: &[F],
+        subfield_boundary: usize,
+        rng: &mut R,
+    ) -> Vec<Vec<F>> {
+        let geom = self.geometry;
+        let nw = witness.len();
+        let mut witness_rows = Vec::new();
+
+        for i in 0..geom.num_witness_rows {
+            let subfield_only = (i + 1) * geom.witnesses_per_row <= subfield_boundary;
+            let mut row_raw = vec![F::zero(); geom.block_len];
+            for k in 0..geom.num_queries {
+                row_raw[k] = if subfield_only {
+                    self.subfield.sample(rng)
+                } else {
+                    F::sample(rng)
+                };
+            }
+            let start = i * geom.witnesses_per_row;
+            if start < nw {
+                let max_col = std::cmp::min(geom.witnesses_per_row, nw - start);
+                row_raw[geom.num_queries..(geom.num_queries + max_col)]
+                    .copy_from_slice(&witness[start..(start + max_col)]);
+            }
+            witness_rows.push(self.rs_block.encode_row()(&row_raw));
+        }
+
+        witness_rows
+    }
+
+    fn layout_quadratic_constraint_rows<R: Rng>(
+        &self,
+        witness: &[F],
+        lqc: &[LqcTriple],
+        rng: &mut R,
+    ) -> Vec<Vec<F>> {
+        let geom = self.geometry;
+        let nq = lqc.len();
+
+        let mut tableau = Vec::new();
+        let mut x_rows = Vec::new();
+        let mut y_rows = Vec::new();
+        let mut z_rows = Vec::new();
+        for i in 0..geom.num_quad_rows {
+            let mut row_x = self.sample_random_prefix_row(rng);
+            let mut row_y = self.sample_random_prefix_row(rng);
+            let mut row_z = self.sample_random_prefix_row(rng);
+            let start = i * geom.witnesses_per_row;
+            if start < nq {
+                let max_j = std::cmp::min(geom.witnesses_per_row, nq - start);
+                for j in 0..max_j {
+                    let c = lqc[start + j];
+                    row_x[geom.num_queries + j] = witness[c.x];
+                    row_y[geom.num_queries + j] = witness[c.y];
+                    row_z[geom.num_queries + j] = witness[c.z];
+                }
+            }
+            x_rows.push(self.rs_block.encode_row()(&row_x));
+            y_rows.push(self.rs_block.encode_row()(&row_y));
+            z_rows.push(self.rs_block.encode_row()(&row_z));
+        }
+
+        tableau.extend(x_rows);
+        tableau.extend(y_rows);
+        tableau.extend(z_rows);
+        tableau
+    }
 }
 ```
 
@@ -315,271 +443,406 @@ def layout_quadratic_rows(T, w, lqc[]) {
 This section specifies how a Ligero proof for a given sequence of linear constraints and quadratic constraints on the committed witness vector `W` is constructed. The proof consists of a low-degree test on the tableau, a linearity test, and a quadratic constraint test.
 
 
-
 ### Low-degree test
-In the low-degree test, the verifier sends a challenge vector consisting of `NROW` field elements, `u[0..NROW]`.  This challenge is generated via the Fiat-Shamir transform. The prover computes the sum of `u[i]*T[i]` where `T[i]` is the i-th row of the tableau, and returns the first BLOCK elements of the result. The verifier applies the `extend` method to this response, and then verifies that the extended row is consistent with the positions of the Merkle tree that the verifier will later request from the Prover.
+In the low-degree test, the verifier sends a challenge vector consisting of `nwqrow = NROW - 3` field elements, `u_ldt[0..nwqrow]`. This challenge is generated via the Fiat-Shamir transform. The prover computes the linear combination:
 
-The Prover's task is therefore to compute a summation. For efficiency, set `u[0]=1` because this first row corresponds to a random row meant to ``pad" the witnesses for zero-knowledge.
+    y_ldt = T[ILDT][0..BLOCK] + sum_{i = 0 ... nwqrow - 1} u_ldt[i] * T[IW + i][0..BLOCK]
+
+and returns the `BLOCK` elements of `y_ldt`. Notice that the random blinding row `ILDT` (row 0) is included with implicit coefficient 1, while rows 1 (`IDOT`) and 2 (`IQD`) are excluded because their polynomial degree is `DBLOCK` ($2 \cdot \text{BLOCK} - 1$) rather than `BLOCK`. The verifier applies the `extend` method to this response, and verifies consistency with the opened columns of the tableau requested at the challenge indices.
 
 ### Linear and Quadratic constraints
-The linear test is represented by a matrix `A`, and a vector `b`, and aims to verify that `A*W = b`.  The constraint matrix `A` is given as input in a sparse form: it is an array of triples `(c,j,k)` in which `c` indicates the constraint number or row of A, `j` represents the index of the witness or column of A, and `k` represents the constant factor.  For example, if the first constraint (at index 0) is `W[2] + 2W[3] = 3`, then the linear constraints array contains the triples `(0,2,1), (0,3,2)` and the `b` vector has `b[0]=3`.
+The linear test is represented by a matrix `A`, and a vector `b`, and aims to verify that `A * W + b = 0`. The constraint matrix `A` is given as input in a sparse form: it is an array of `LigeroTerm` triples `(c,j,k)` in which `c` indicates the constraint index, `j` represents the witness index, and `k` represents the linear coefficient. For example, if the first constraint (at index 0) is `W[2] + 2*W[3] - 3 = 0`, then the linear constraints array contains the terms `(0,2,1), (0,3,2)` and the `b` vector has `b[0]=-3`.
 
-The quadratic constraints are given as input in an array `lqc[]` that contains triples `(x,y,z)`; one such triple represents the constraint that `W[x] * W[y] = W[z]`. To process quadratic constraints, tableau `T` is augmented with 3 extra rows, called `Qx`, `Qy`, and `Qz` which hold *copied* witnesses and their products. If the `i`-th quadratic constraint is `(x,y,z)`, then the prover sets `Qx[i] = W[x]`, `Qy[i] = W[y]` and `Qz[i] = W[x] * W[y]`. Next, the prover adds a linear constraint that `Qx[i] - W[x] = 0`, `Qy[i] - W[y] = 0` and `Qz[i] - W[z] = 0` to ensure that the copied witness is consistent.
+The quadratic constraints are given as input in an array `lqc[]` that contains triples `(x,y,z)`; one such triple represents the constraint that `W[x] * W[y] = W[z]`. To process quadratic constraints, tableau `T` is augmented with 3 extra rows per triple, called `Qx`, `Qy`, and `Qz` which hold *copied* witnesses and their products. If the `i`-th quadratic constraint is `(x,y,z)`, then the prover sets `Qx[i] = W[x]`, `Qy[i] = W[y]` and `Qz[i] = W[x] * W[y]`. Next, the prover adds a linear constraint that `Qx[i] - W[x] = 0`, `Qy[i] - W[y] = 0` and `Qz[i] - W[z] = 0` to ensure that the copied witness is consistent.
 
 In this sense, the quadratic constraints are reduced to linear constraints, and the additional requirement for the verifier to check that each index of the `Qz` row is the product of its counterpart in the `Qx` and `Qy` row.
 
+The prover computes the quadratic test polynomial `y_quad` across degree `DBLOCK`. The middle `WR` witness values of `y_quad` are identically zero by construction and are omitted from the proof. The proof contains only the non-zero segments: `quad_poly_low` of length `NREQ` (elements `0..NREQ`) and `quad_poly_high` of length `DBLOCK - BLOCK` (elements `BLOCK..DBLOCK`).
+
 ### Selection of challenge indicies
-The last step of the prove method is for the verifier to select a subset of unique indices (i.e., they are sampled without replacement) from the range `DBLOCK...NCOL` and request that the prover open these columns of tableau `T`. These opened columns are then used to verify consistency with the previous messages sent by the prover.
+The last step of the prove method is for the verifier to select a subset of `NREQ` unique indices (sampled without replacement) from the range `0..(NCOL - DBLOCK)` and request that the prover open these columns of tableau `T` (at column offsets `DBLOCK + idx`). These opened columns, along with their column blinding nonces and Merkle authentication paths, are then used to verify consistency with the polynomial responses sent by the prover.
 
 ### Ligero Prover procedure
-The `context` argument is application-dependent and includes information about the theorem statement that is proven.
+The `statement_hash` argument is application-dependent and commits to the circuit or statement being proven.
 
-```
-def prove(transcript, context, linear[], lqc[])  {
+```rust
+impl<F: Field + 'static> LigeroProver<F> {
+    pub fn prove(
+        &self,
+        commit: &LigeroCommitResult<F>,
+        lqc: &[LqcTriple],
+        a: &[LigeroTerm<F>],
+        b: &[F],
+        statement_hash: &[u8],
+        ts: &mut Transcript,
+    ) -> LigeroProof<F> {
+        ts.write_bytes(statement_hash);
 
-    transcript.write(context)
+        let geom = self.geometry;
+        let nwqrow = geom.total_rows - 3;
+        let nq = lqc.len();
 
-    u = transcript.generate_challenge([BLOCK]);
+        let u_ldt = gen_uldt(ts, nwqrow);
+        let alphal = gen_alphal(ts, b.len());
+        let alphaq = gen_alphaq(ts, nq);
+        let u_quad = gen_uquad(ts, geom.num_quad_rows);
 
-    ldt[0..BLOCK] = T[ILDT][0..BLOCK]
+        let y_ldt = self.prove_compute_y_ldt(commit, &u_ldt);
+        let a_full = self.prove_compute_a_full(lqc, a, &alphal, &alphaq);
+        let y_dot = self.prove_compute_y_dot(commit, &a_full);
+        let y_quad = self.prove_compute_y_quad(commit, &u_quad);
 
-    for(i=3; i < NROW; ++i) {
-      ldt[0..BLOCK] += u[i] * T[i][0..BLOCK]
+        let y_quad_0 = y_quad[0..geom.num_queries].to_vec();
+        let y_quad_2 = y_quad[geom.block_len..geom.dblock_len].to_vec();
+
+        ts.write_elt_field_slice(&y_ldt);
+        ts.write_elt_field_slice(&y_dot);
+        ts.write_elt_field_slice(&y_quad_0);
+        ts.write_elt_field_slice(&y_quad_2);
+
+        let idx = ts.choose(geom.encoded_len - geom.dblock_len, geom.num_queries);
+        let mut query_nonces = Vec::with_capacity(geom.num_queries);
+        for &col in &idx {
+            query_nonces.push(commit.nonces[col].clone());
+        }
+        let merkle_paths =
+            open_merkle_heap(&commit.merkle, &idx).expect("Failed to open Merkle heap");
+
+        let mut req = Vec::new();
+        for row in 0..commit.tableau.len() {
+            for &col in &idx {
+                let col_idx = col + geom.dblock_len;
+                req.push(commit.tableau[row][col_idx]);
+            }
+        }
+
+        LigeroProof {
+            ldt_poly: y_ldt,
+            linear_poly: y_dot,
+            quad_poly_low: y_quad_0,
+            quad_poly_high: y_quad_2,
+            column_nonces: query_nonces,
+            queried_columns: req,
+            merkle_paths,
+        }
     }
 
-    alpha_l = transcript.generate_challenge([NL])
-    alpha_q = transcript.generate_challenge([NQ,3])
-
-    A = inner_product_vector(linear, alpha_l, lqc, alpha_q)
-
-    dot = dot_proof(A);
-    uquad = transcript.generate_challenge([NQT])
-
-    qpr = quadratic_proof(lqc, uquad)
-
-    transcript.write(ldt);
-    transcript.write(dot);
-    transcript.write(qpr);
-
-    challenge_indicies = transcript.generate_nats_wo_replacement(
-        NCOL - DBLOCK,
-        NREQ,
-    );
-
-    columns = requested_columns(challenge_indicies, DBLOCK);
-
-    mt_proof = M.compressed_proof(challenge_indicies);
-
-    return (ldt, dot, qpr, columns, mt_proof)
-  }
-```
-
-```
-Input:
-- linear: array of (w,c,k) triples specifying the linear constraints
-- alpha_l: array of challenges for the linear constraints
-- lqc: array of (x,y,z) triples specifying the quadratic constraints
-- alpha_q: array of challenges for the quadratic constraints
-
-Output:
-- A: a vector of size WR x NROW that contains the combined 
-     witness constraints.
-     The first NW * W positions correspond to coefficients
-     for the linear constraints on witnesses.
-     The next 3*NQ positions correspond to coefficients
-     for the quadratic constraints.
-
-def inner_product_vector(A, linear, alpha_l, lqc, alpha_q) {
-  A = [0]
-
-  // random linear combinations of the linear constraints
-  FOR 0 <= i < NL DO
-    assert(linear[i].w < NW)
-    assert(linear[i].c < NL)
-    A[ linear[i].w ] += alpha_l[ linear[i].c ] * linear[i].k
-
-  // pointers to terms for quadratic constraints
-  a_x = NW * W
-  a_y = NW * W + (NQ * W)
-  a_z = NW * W + 2 * (NQ * W)
-
-  FOR 0 <= i < NQT DO
-    FOR 0 <= j < QR DO
-      IF (j + i * QR < NQ)
-        ilqc = j + i * QR  // index into lqc
-        ia   = j + i * WR  // index into Ax,Ay,Az sub-arrays
-        (x,y,z) = lqc[ilqc]
-
-        // add constraints that the copies are correct
-        A[a_x + ia] += alpha_q[ilqc][0]
-        A[x]        -= alpha_q[ilqc][0]
-
-        A[a_y + ia] += alpha_q[ilqc][1]
-        A[y]        -= alpha_q[ilqc][1]
-
-        A[a_z + ia] += alphaq[ilqc][2]
-        A[z]        -= alphaq[ilqc][2]
-
-  return A
-}
-
-def dot_proof(A) {
-  y = T[IDOT][0..BLOCK]
-
-  Aext[0..BLOCK] = [0]
-  FOR 0 <= i < NQW DO
-    Aext[0..NREQ]  = [0]
-    Aext[NREQ..NREQ + WR] = A[i * WR..(i+1) * WR]
-    Af = extend(Aext, BLOCK, DBLOCK)
-
-    axpy(DBLOCK, y[0..DBLOCK], Af[0..DBLOCK], T[i + IW][0...DBLOCK])
-
-  return y
-}
-
-def quadratic_proof(lqc, uquad) {
-
-    y[0..DBLOCK] = T[IQD][0..DBLOCK]
-
-    iqx = IQ;
-    iqy = iqx + NQT
-    iqz = iqy + NQT
-
-    FOR 0 <= i < NQT 
-      // y += uquad[i] * (z[i] - x[i] * y[i])
-
-      tmp = T[iqz + i][0..DBLOCK]
-
-      // tmp -= x[i] \otimes y[i]
-      sub(DBLOCK, tmp[0...DBLOCK],
-                  mul(DBLOCK, T[iqx][0..DBLOCK],
-                              T[iqy][0..DBLOCK]))
-
-      // y += u_quad[i] * tmp
-      axpy(DBLOCK, y[0..DBLOCK], uquad[i], tmp[0..DBLOCK])
+    fn prove_compute_y_ldt(&self, commit: &LigeroCommitResult<F>, u_ldt: &[F]) -> Vec<F> {
+        let geom = self.geometry;
+        let nwqrow = geom.total_rows - 3;
+        let mut y_ldt = commit.tableau[geom.ldt_row_idx()][0..geom.block_len].to_vec();
+        for i in 0..nwqrow {
+            axpy(
+                &mut y_ldt,
+                &commit.tableau[geom.witness_row_start() + i][0..geom.block_len],
+                u_ldt[i],
+            );
+        }
+        y_ldt
     }
 
-    // sanity check: the Witness part of Y is zero
-    assert(y[NREQ...BLOCK] == 0)
+    fn prove_compute_a_full(
+        &self,
+        lqc: &[LqcTriple],
+        a: &[LigeroTerm<F>],
+        alphal: &[F],
+        alphaq: &[Vec<F>],
+    ) -> Vec<F> {
+        let geom = self.geometry;
+        let nwqrow = geom.total_rows - 3;
+        let nq = lqc.len();
 
-    // extract the non-zero parts of y
-    return y[0..NREQ], y[BLOCK..DBLOCK]
+        let mut a_full = vec![F::zero(); nwqrow * geom.witnesses_per_row];
+        for term in a {
+            a_full[term.witness_idx] += term.coeff * alphal[term.constraint_idx];
+        }
+
+        let nqtriples_w = geom.num_quad_rows * geom.witnesses_per_row;
+        let ax_offset = (nwqrow - 3 * geom.num_quad_rows) * geom.witnesses_per_row;
+        let ay_offset = ax_offset + nqtriples_w;
+        let az_offset = ay_offset + nqtriples_w;
+
+        for i in 0..geom.num_quad_rows {
+            let mut j = 0;
+            while j < geom.witnesses_per_row && j + i * geom.witnesses_per_row < nq {
+                let idx = j + i * geom.witnesses_per_row;
+                let l = lqc[idx];
+                a_full[ax_offset + idx] += alphaq[idx][0];
+                a_full[l.x] -= alphaq[idx][0];
+                a_full[ay_offset + idx] += alphaq[idx][1];
+                a_full[l.y] -= alphaq[idx][1];
+                a_full[az_offset + idx] += alphaq[idx][2];
+                a_full[l.z] -= alphaq[idx][2];
+                j += 1;
+            }
+        }
+        a_full
+    }
+
+    fn prove_compute_y_dot(&self, commit: &LigeroCommitResult<F>, a_full: &[F]) -> Vec<F> {
+        let geom = self.geometry;
+        let nwqrow = geom.total_rows - 3;
+        let mut y_dot = commit.tableau[geom.linear_row_idx()][0..geom.dblock_len].to_vec();
+        for i in 0..nwqrow {
+            let mut a_ext = vec![F::zero(); geom.block_len];
+            let start = i * geom.witnesses_per_row;
+            a_ext[geom.num_queries..(geom.num_queries + geom.witnesses_per_row)]
+                .copy_from_slice(&a_full[start..(start + geom.witnesses_per_row)]);
+            let a_evals = self.rs_block.encode_row()(&a_ext);
+            vaxpy(
+                &mut y_dot,
+                &commit.tableau[geom.witness_row_start() + i][0..geom.dblock_len],
+                &a_evals[0..geom.dblock_len],
+            );
+        }
+        y_dot
+    }
+
+    fn prove_compute_y_quad(&self, commit: &LigeroCommitResult<F>, u_quad: &[F]) -> Vec<F> {
+        let geom = self.geometry;
+        let mut y_quad = commit.tableau[geom.quad_row_idx()][0..geom.dblock_len].to_vec();
+        for i in 0..geom.num_quad_rows {
+            let mut tmp = commit.tableau[geom.quad_z_row_start() + i][0..geom.dblock_len].to_vec();
+            for j in 0..geom.dblock_len {
+                tmp[j] -= commit.tableau[geom.quad_x_row_start() + i][j]
+                    * commit.tableau[geom.quad_y_row_start() + i][j];
+            }
+            axpy(&mut y_quad, &tmp, u_quad[i]);
+        }
+        y_quad
+    }
 }
-
-def requested_columns(challenge_indicies, offset) {
-  cols = []   // array of columns of T
-  FOR (index i : challenge_indicies) {
-    cols.append( [ T[0..NROW][i + offset] ] )
-  }
-  return cols
-}
-
-
 ```
 
 ## Ligero verification procedure
-This section specifies how to verify a Ligero proof with respect to a common set of linear and quadratic constraints.
+This section specifies how to verify a Ligero proof with respect to a commitment root, statement hash, linear constraints $A \cdot W + b = 0$, and quadratic constraints $lqc[]$.
 
-```
-Input:
-- commitment: the first Prover message that commits to the witness
-- proof: Prover's proof
-- transcript: Fiat-Shamir
-- linear: array of (w,c,k) triples specifying the linear constraints
-- b: the vector b in the constraint equation A*w = b.
-- lqc: array of (x,y,z) triples specifying the quadratic constraints
+The verification procedure checks:
+1. **Merkle Proof Consistency (`verify_merkle`)**: Verifies the authentication paths for the opened columns against the committed Merkle root.
+2. **Low-Degree Test (`verify_ldt`)**: Verifies that the linear combination of queried column entries equals the Reed-Solomon encoding of `ldt_poly` evaluated at the query column indices.
+3. **Linear Constraint Test (`verify_dot`)**: Verifies that the inner product combination matches `linear_poly` evaluations at the query columns, and that $\sum \text{linear\_poly}[j] + \langle b, \alpha_l \rangle = 0$.
+4. **Quadratic Constraint Test (`verify_quad`)**: Verifies that $z[i] - x[i] \cdot y[i]$ across the quadratic triple rows matches `y_quad` (reconstructed from `quad_poly_low` and `quad_poly_high`) at the query column indices.
 
-Output:
-- a boolean
+```rust
+impl<F: Field + 'static> LigeroVerifier<F> {
+    pub fn verify(
+        &self,
+        nw: usize,
+        b: &[F],
+        root: &[u8; 32],
+        proof: &LigeroProof<F>,
+        a: &[LigeroTerm<F>],
+        statement_hash: &[u8],
+        lqc: &[LqcTriple],
+        ts: &mut Transcript,
+    ) -> Result<(), VerificationError> {
+        ts.write_bytes(statement_hash);
 
-def verify(commitment, proof, transcript,
-           linear[], digest, b[], lqc[]) {
+        let geom = LigeroGeometry::new(&self.config, nw, lqc.len());
+        let expected_req_len = geom.total_rows * geom.num_queries;
+        if proof.queried_columns.len() != expected_req_len {
+            return Err(VerificationError::InvalidQueriedColumnsLength {
+                expected: expected_req_len,
+                actual: proof.queried_columns.len(),
+            });
+        }
+        if proof.ldt_poly.len() != geom.block_len
+            || proof.linear_poly.len() != geom.dblock_len
+            || proof.quad_poly_low.len() != geom.num_queries
+            || proof.quad_poly_high.len() != geom.dblock_len - geom.block_len
+            || proof.column_nonces.len() != geom.num_queries
+        {
+            return Err(VerificationError::InvalidProofPolynomialsLength);
+        }
+        let nwqrow = geom.total_rows - 3;
 
-  u = transcript.generate_challenge([BLOCK]);
-  transcript.write(digest)
-  alpha_l = transcript.generate_challenge([NL]);
-  alpha_q = transcript.generate_challenge([NQ,3]);
-  transcript.write(proof.ldt);
-  transcript.write(proof.dot);
-  challenge_indicies = transcript.generate_challenge([NREQ]);
+        let u_ldt = gen_uldt(ts, nwqrow);
+        let alphal = gen_alphal(ts, b.len());
+        let alphaq = gen_alphaq(ts, lqc.len());
+        let u_quad = gen_uquad(ts, geom.num_quad_rows);
 
-  A = inner_product_vector(linear, alpha_l, lqc, alpha_q);
+        ts.write_elt_field_slice(&proof.ldt_poly);
+        ts.write_elt_field_slice(&proof.linear_poly);
+        ts.write_elt_field_slice(&proof.quad_poly_low);
+        ts.write_elt_field_slice(&proof.quad_poly_high);
 
-  // check the putative value of the inner product
-  want_dot  = dot(NL, b, alpha_l);
-  proof_dot = sum(proof.dot);
+        let idx = ts.choose(geom.encoded_len - geom.dblock_len, geom.num_queries);
 
-  return
-    verify_merkle(commitment.root, BLOCK*RATE, NREQ,
-          proof.columns, challenge_indicies, mt_proof.mt)
-    AND quadratic_check(proof)
-    AND low_degree_check(proof, challenge_indicies, u)
-    AND dot_check(proof, challenge_indicies, A)
-    AND want_dot == proof_dot
-}
-```
+        self.verify_merkle(&geom, root, proof, &idx)?;
+        self.verify_ldt(&geom, proof, &u_ldt, &idx)?;
+        self.verify_dot(&geom, b, proof, a, lqc, &alphal, &alphaq, &idx)?;
+        self.verify_quad(&geom, proof, &u_quad, &idx)?;
 
-```
-def quadratic_check(proof, challenge_indices) {
+        Ok(())
+    }
 
-  iqx = IQ;
-  iqy = iqx + NQT
-  iqz = iqy + NQT
-  yc = proof.iquad
+    fn verify_merkle(
+        &self,
+        geom: &LigeroGeometry,
+        root: &[u8; 32],
+        proof: &LigeroProof<F>,
+        idx: &[usize],
+    ) -> Result<(), VerificationError> {
+        let leaf_hash_fn = |col: usize| {
+            let mut r_idx = 0;
+            for i in 0..idx.len() {
+                if idx[i] == col {
+                    r_idx = i;
+                    break;
+                }
+            }
+            let mut data = Vec::new();
+            data.extend_from_slice(&proof.column_nonces[r_idx]);
+            for row in 0..geom.total_rows {
+                data.extend_from_slice(
+                    &proof.queried_columns[row * geom.num_queries + r_idx].to_bytes(),
+                );
+            }
+            sha256_bytes(&data)
+        };
 
-  FOR 0 <= i < NQT {
-    // yc += u_quad[i] * (z[i] - x[i] * y[i])
-    tmp = proof.z[iqz + i][0..DBLOCK]
+        verify_merkle_proof(
+            geom.encoded_len - geom.dblock_len,
+            root,
+            idx,
+            &proof.merkle_paths,
+            leaf_hash_fn,
+        )
+        .map_err(|_| VerificationError::MerkleProofInvalid)
+    }
 
-      // tmp -= x[i] \otimes y[i]
-    sub(DBLOCK, tmp[0...DBLOCK],
-                mul(DBLOCK, T[iqx][0..DBLOCK],
-                            T[iqy][0..DBLOCK]))
+    fn verify_ldt(
+        &self,
+        geom: &LigeroGeometry,
+        proof: &LigeroProof<F>,
+        u_ldt: &[F],
+        idx: &[usize],
+    ) -> Result<(), VerificationError> {
+        let nwqrow = geom.total_rows - 3;
+        let ildt = geom.ldt_row_idx();
+        let iw = geom.witness_row_start();
 
-    // y += u_quad[i] * tmp
-    axpy(DBLOCK, yc[0..DBLOCK], u_quad[0..DBLOCK], tmp[0..DBLOCK])
-  }
+        let mut yc_ldt =
+            proof.queried_columns[ildt * geom.num_queries..(ildt + 1) * geom.num_queries].to_vec();
+        for i in 0..nwqrow {
+            let row_req = &proof.queried_columns
+                [(iw + i) * geom.num_queries..(iw + i + 1) * geom.num_queries];
+            axpy(&mut yc_ldt, row_req, u_ldt[i]);
+        }
+        let yp_ldt = self.interpolate_req_columns(geom, geom.block_len, &proof.ldt_poly, idx);
+        if yc_ldt == yp_ldt {
+            Ok(())
+        } else {
+            Err(VerificationError::LowDegreeTestFailed)
+        }
+    }
 
-  yquad = proof.qpr[0..NREQ] || 0 || proof.qpr[BLOCK...DBLOCK]
-  yp = extend(yquad, DBLOCK, NCOL)
+    fn verify_dot(
+        &self,
+        geom: &LigeroGeometry,
+        b: &[F],
+        proof: &LigeroProof<F>,
+        a: &[LigeroTerm<F>],
+        lqc: &[LqcTriple],
+        alphal: &[F],
+        alphaq: &[Vec<F>],
+        idx: &[usize],
+    ) -> Result<(), VerificationError> {
+        let nwqrow = geom.total_rows - 3;
+        let idot = geom.linear_row_idx();
+        let iw = geom.witness_row_start();
 
-  // Verify that yp and yc agree at the challenge indices.
-  want = gather(NREQ, yp, challenge_indices)
-  return equal(NREQ, want, yc[{idx}])
-}
+        let mut a_full = vec![F::zero(); nwqrow * geom.witnesses_per_row];
+        for term in a {
+            a_full[term.witness_idx] += term.coeff * alphal[term.constraint_idx];
+        }
+        let nqtriples_w = geom.num_quad_rows * geom.witnesses_per_row;
+        let ax_offset = (nwqrow - 3 * geom.num_quad_rows) * geom.witnesses_per_row;
+        let ay_offset = ax_offset + nqtriples_w;
+        let az_offset = ay_offset + nqtriples_w;
 
-def low_degree_check(proof, u, challenge_indicies) {
+        for i in 0..geom.num_quad_rows {
+            let mut j = 0;
+            while j < geom.witnesses_per_row && j + i * geom.witnesses_per_row < lqc.len() {
+                let idx_lqc = j + i * geom.witnesses_per_row;
+                let l = lqc[idx_lqc];
+                a_full[ax_offset + idx_lqc] += alphaq[idx_lqc][0];
+                a_full[l.x] -= alphaq[idx_lqc][0];
+                a_full[ay_offset + idx_lqc] += alphaq[idx_lqc][1];
+                a_full[l.y] -= alphaq[idx_lqc][1];
+                a_full[az_offset + idx_lqc] += alphaq[idx_lqc][2];
+                a_full[l.z] -= alphaq[idx_lqc][2];
+                j += 1;
+            }
+        }
 
-  got = proof.columns[ILDT][0..NREQ]
+        let mut yc_dot =
+            proof.queried_columns[idot * geom.num_queries..(idot + 1) * geom.num_queries].to_vec();
+        let a_interp = ReedSolomonCode::new(geom.block_len, geom.encoded_len, &self.subfield);
+        for i in 0..nwqrow {
+            let mut a_ext = vec![F::zero(); geom.block_len];
+            let start = i * geom.witnesses_per_row;
+            a_ext[geom.num_queries..geom.block_len]
+                .copy_from_slice(&a_full[start..(start + geom.witnesses_per_row)]);
+            let a_evals = a_interp.encode_row()(&a_ext);
+            let mut a_queried = Vec::with_capacity(geom.num_queries);
+            for &col in idx {
+                a_queried.push(a_evals[geom.dblock_len + col]);
+            }
+            let row_req = &proof.queried_columns
+                [(iw + i) * geom.num_queries..(iw + i + 1) * geom.num_queries];
+            vaxpy(&mut yc_dot, row_req, &a_queried);
+        }
+        let yp_dot = self.interpolate_req_columns(geom, geom.dblock_len, &proof.linear_poly, idx);
+        if yc_dot != yp_dot {
+            return Err(VerificationError::LinearConstraintFailed);
+        }
 
-  FOR 1 <= i < NROW DO {
-    axpy(NREQ, got, u[i], proof.columns[i][...])
-  }
+        let want_dot = dot(b, alphal);
+        let proof_dot =
+            dot1(&proof.linear_poly[geom.num_queries..(geom.num_queries + geom.witnesses_per_row)]);
+        if proof_dot + want_dot != F::zero() {
+            return Err(VerificationError::LinearConstraintSumMismatch);
+        }
 
-  row = extend(proof.ldt, BLOCK, NCOL)
-  want = gather(NREQ, row, challenge_indicies)
+        Ok(())
+    }
 
-  return equal(NREQ, got, want)
-}
+    fn verify_quad(
+        &self,
+        geom: &LigeroGeometry,
+        proof: &LigeroProof<F>,
+        u_quad: &[F],
+        idx: &[usize],
+    ) -> Result<(), VerificationError> {
+        let iquad = geom.quad_row_idx();
+        let iqx = geom.quad_x_row_start();
+        let iqy = geom.quad_y_row_start();
+        let iqz = geom.quad_z_row_start();
 
-def dot_check(proof, challenge_indicies, A) {
-  yc = proof.columns[IDOT][0..NREQ]
+        let mut yc_quad = proof.queried_columns
+            [iquad * geom.num_queries..(iquad + 1) * geom.num_queries]
+            .to_vec();
+        for i in 0..geom.num_quad_rows {
+            let u = u_quad[i];
+            let mut tmp = vec![F::zero(); geom.num_queries];
+            for j in 0..geom.num_queries {
+                let x_val = proof.queried_columns[(iqx + i) * geom.num_queries + j];
+                let y_val = proof.queried_columns[(iqy + i) * geom.num_queries + j];
+                let z_val = proof.queried_columns[(iqz + i) * geom.num_queries + j];
+                tmp[j] = z_val - x_val * y_val;
+            }
+            axpy(&mut yc_quad, &tmp, u);
+        }
+        let mut y_quad = proof.quad_poly_low.clone();
+        y_quad.resize(geom.block_len, F::zero());
+        y_quad.extend_from_slice(&proof.quad_poly_high);
+        let yp_quad = self.interpolate_req_columns(geom, geom.dblock_len, &y_quad, idx);
+        if yc_quad != yp_quad {
+            return Err(VerificationError::QuadraticConstraintFailed);
+        }
 
-  Aext[0..BLOCK] = [0]
-  FOR 0 <= i < NQW DO
-    Aext[0..R]  = [0]
-    Aext[R..R + WR] = A[i * WR..(i+1) * WR]
-    Af = extend(Aext, R + WR, BLOCK)
-
-    Areq = gather(NREQ, Af, challenge_indicies);
-
-    // Accumulate z += A[j] \otimes W[j].
-    sum( yc, prod(NCOL, Areq[0..NREQ], 
-                        proof.columns[i][0..NREQ]))
-
-  row = extend(proof.dot, BLOCK, NCOL)
-  yp  = gather(NREQ, row, challenge_indicies)
-
-  return equal(NREQ, yp, yc)
+        Ok(())
+    }
 }
 ```

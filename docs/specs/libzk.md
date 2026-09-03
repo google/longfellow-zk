@@ -5,11 +5,11 @@ workgroup = "Network Working Group"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-google-cfrg-libzk-01"
+value = "draft-google-cfrg-libzk-03"
 stream = "IETF"
 status = "informational"
 
-date = 2025-07-24T00:00:00Z
+date = 2026-08-26T00:00:00Z
 
 [[author]]
 initials="M."
@@ -43,8 +43,9 @@ There are several models and efficiency goals that different ZK schemes aim to a
 
 ## The Longfellow system
 This document specifies the Longfellow ZK scheme described in the paper [@longfellow].  The scheme is constructed from two components: the first is the Ligero scheme, which provides a cryptographic commitment scheme that supports an efficient ZK argument system that enables proving linear and quadratic constraints on the committed witness, and the second is a public-coin interactive protocol (IP) for producing an argument that `C(x,w)=0` where `C` is such a circuit, `x` is a public input, and `w` is a private witness. The overall scheme works by having the Prover commit to the witness `w` as well as a `pad` used to commit the transcript of the IP, then to run the IP with the verifier in a way that produces a commitment to the transcript of the IP, and finally, by running the Ligero proof system to prove that the transcript in the commitment induces the IP verifier to accept.
- 
 
+A companion document specifies how the circuit `C` is specified.
+ 
 <reference anchor='longfellow' target='https://eprint.iacr.org/2024/2010'>
     <front>
         <title>Anonymous credentials from ECDSA</title>
@@ -58,11 +59,7 @@ This document specifies the Longfellow ZK scheme described in the paper [@longfe
 
 # Basic Operations and Notation
 
-The key words "**MUST**", "**MUST NOT**", "**REQUIRED**", "**SHALL**", "**SHALL NOT**", "**SHOULD**", "**SHOULD NOT**", "**RECOMMENDED**", "**MAY**", and "**OPTIONAL**" in this document are to be interpreted as described in RFC 2119 [@!RFC2119].
-
-Additionally, the key words "**MIGHT**", "**COULD**", "**MAY WISH TO**", "**WOULD
-PROBABLY**", "**SHOULD CONSIDER**", and "**MUST (BUT WE KNOW YOU WON'T)**" in
-this document are to interpreted as described in RFC 6919 [@!RFC6919].
+The key words "**MUST**", "**MUST NOT**", "**REQUIRED**", "**SHALL**", "**SHALL NOT**", "**SHOULD**", "**SHOULD NOT**", "**RECOMMENDED**", "**MAY**", and "**OPTIONAL**" in this document are to be interpreted as described in RFC 6919 [@!RFC6919].
 
 Except if said otherwise, random choices in this specification refer to drawing with uniform distribution from a given set (i.e., "random" is short for "uniformly random").  Random choices can be replaced with fresh outputs from a cryptographically strong pseudorandom generator, according to the requirements in [@!RFC4086], or pseudorandom function.
 
@@ -133,197 +130,14 @@ erasure codes</title>
     </front>
 </reference>
 
-# Fiat-Shamir primitives
-A ZK protocol may in general be interactive whereby the Prover and Verifier engage in multiple rounds of communication.  However, in practice, it is often more convenient to deploy a so-called non-interactive or single-message protocol that only requires a single message from Prover to Verifier.  It is possible to apply the Fiat-Shamir heuristic to transform a special class of interactive protocols into single-message protocols.
+# Fiat-Shamir primitives {#fiat-shamir}
+A ZK protocol may in general instruct the Prover and Verifier to engage in multiple rounds of communication. However, it is often more convenient to deploy a non-interactive or single-message protocol that only requires a single message from Prover to Verifier. It is possible to apply the Fiat-Shamir heuristic to transform an Interactive Oracle Protocol (IOP) into a single-message protocol. In this variant of the protocol, the Verifier does not explicitly send challenges to the Prover; instead, the Verifier computes the challenges by hashing the transcript of the conversation so far.
 
-The Fiat-Shamir transform is a method for generating a verifier's public coin challenges by processing the concatenation of all of the Prover's messages.   The transform can be proven to be sound when applied to an interactive protocol that is round-by-round sound and when the oracle is implemented with a hash function that satisfies a correlation-intractability property with respect to the state function implied by the round-by-round soundness.  See Theorem 5.8 of [@rbr] for details.
+While the base Fiat-Shamir framework is described in [@I-D.irtf-cfrg-fiat-shamir#03], Interactive Oracle Proofs require more structured multi-round transcripts and multi-challenge extractions (such as combinations without replacement for column queries). The subsections below define a complete, self-contained specification of the *Hash-and-Expand* transcript instantiation and *Universal ZK TLV Codec* aligning with the IOP extensions proposed for the CFRG Fiat-Shamir draft.
 
-In practice, whether an implementation of the random oracle satisfies this correlation-intractability property becomes an implicit assumption.  Towards that, this document adapts best practices in selecting the oracle implementation. First, the random oracle should have higher circuit depth and require more gates to compute than the circuit C that the protocol is applied to.  Furthermore, the size of the messages which are used as input to the oracle to generate the Verifier's challenges should be larger than C.  These choices are easy to implement and add very little processing time to the protocol. On the other hand, they seemingly avoid attacks against correlation-intractability in which the random oracle is computed within the ZK protocol thereby allowing the output of the circuit to be related to the verifier's challenge.
-
-As an additional property, each query to the random oracle should be able to be uniquely mapped into a protocol transcript. To facilitate this property, the type and length of each message is incorporated into the query string.
-
-<reference anchor='rbr' target='https://eprint.iacr.org/2018/1004'>
-    <front>
-        <title>Fiat-Shamir From Simpler Assumptions</title>
-        <author initials='R.' surname='Canetti' fullname='Ran Canetti'>
-        </author>
-        <author initials='Y.' surname='Chen' fullname='Yilei Chen'>
-        </author>
-        <author initials='J.' surname='Holmgren' fullname='Justin Holmgren'>
-        </author>
-        <author initials='A.' surname='Lombardi' fullname='Alex Lombardi'>
-        </author>
-        <author initials='G.' surname='Rothblum' fullname='Guy N. Rothblum'>
-        </author>
-        <author initials='R.' surname='Rothblum' fullname='Ron D. Rothblum'>
-        </author>
-        <date year='2018'/>
-    </front>
-</reference>
-
-## Implementation of a random oracle
-The Fiat-Shamir transform makes use of an ideal random oracle that maps an arbitrarily long string to a random element sampled from a specific domain. 
-A protocol consists of multiple rounds in which a Prover sends a message, and a verifier responds with a public-coin or random challenge. The Fiat-Shamir transform for such a protocol is implemented by maintaining a `transcript` object. The `transcript` object is parameterized by a collision-resistant hash function `H` that is specified externally. For example, the SHA-256 function is a suitable choice.
-
-The `transcript` object maintains an internal string `tr` that begins as the empty string.
-
-### Initialization
-At the beginning of the protocol, the transcript object must be initialized.
-
-*  `transcript.init(session_id)`: The initialization begins by
-   selecting an oracle, which concretely consists of selecting a fresh
-   session identifier nonce. This process is handled by the encapsulating
-   protocol---for example, the transcript that is used for key
-   exchange for a session can be used as the session identifier as it
-   is guaranteed to be unique.
-   The `session_id` byte string is appended to the end of `tr` following the append conventions.
-   This method must be called exactly once before any other method on the `transcript` object is invoked.
-   
-### Writing to the transcript
-The transcript object supports a `write` method that is used to record
-the Prover's messages.
-
-*  `transcript.write(msg)`: appends the Prover's next message to
-the end of the `tr` string that is maintained by the transcript.
-
-There are three types of messages that can be appended to the transcript: a field element, an array of bytes, or an array of field elements.
-
-* To append a field element, first the byte designator `0x1` is appended to `tr`, and then the canonical byte serialization of the field element is appended to `tr`.  
-
-* To append an array of bytes, first the byte designator `0x2` is
-appended, an 8-byte little-endian encoding of the number of bytes in
-the array is appended, and then the bytes of the array are appended to `tr`.
-
-* To append an array of field elements, the byte designator `0x3` is
-appended, an 8-byte little-endian encoding of the number of field
-elements is appended, and finally, all of the field elements in array
-order are serialized and appended to `tr`.
-
-### Special rules for the first message
-When used in the Longfellow system, the `write` method for the first prover message incorporates
-additional steps that enhance the correlation-intractability property of the oracle.  To process the Prover's first message:
-
-1.  The Prover message is appended to `tr`. Specifically, the length of the message, as per the above convention, is appended, and then the bytes of the message are appended.
-2.  Next, an encoding of the statement to be proven, which consists of
-    the circuit identifier, and a serialization of the input and
-    output of the statement is appended. Each of these three message are added as
-    byte sequences, with their length appended first as per convention.
-3.  Finally, the transcript is augmented by the byte-array 0^|C|^,
-    which consists of |C| bytes of zeroes. 
-
-One might think of performing steps 2 and 3 first so as to
-simplify the description of the protocol, and moreover step 3 may
-appear to be unnecessary.  Performing the steps in the indicated order
-protects against the attack described in [@krs], under the assumption
-that it is infeasible for a circuit `C` that contains `|C|` arithmetic
-gates to compute the hash of a string (with a random prefix) of length 
-greater than `|C|`.
-
-Subsequent calls to the `write` method are used to record the Prover's
-response messages `msg`. In this case, the message is appended
-following the conventions described above.
-
-## The FSPRF object
-To produce the verifier's challenge message, the transcript object internally maintains a Fiat-Shamir Pseudo-random Function (FSPRF) object that generates a stream of pseudo-random bytes.
-
-Each invocation of `write` defines an FSPRF object `fs` as follows.
-First, the append operations described above for each type of `write` are performed, resulting in a new `tr` string.
-Next, a seed is generated by applying the function `H` to the (entire) string `tr`. This seed is then used to define the FSPRF object.
-
-The FSPRF object is defined to produce an infinite stream of bytes that can be used to sample all of the verifier's challenges in this round. The stream is organized in blocks of 16 bytes each,
-numbered consecutively starting at 0.  Block `i` contains
-```
-    AES256(SEED, ID(i))
-```
-where `SEED` is the seed of the FSPRF object, and `ID(i)` is the
-16-byte little-endian representation of integer `i`.
-
-The FSPRF object supports a `bytes` method:
-
-* `b = fs.bytes(n)` returns the next `n` bytes in the stream.
-
-Thus, `fs` implicitly maintains an index into the next position in
-the stream.  Calls to `bytes` without an intervening `write` read
-pseudo-random bytes from the same stream.
-
-## Generating challenges
-
-When the prover has finished sending messages for a round in the interactive
-protocol, it can make a sequence of calls to `transcript.generate_{nat,nats_wo_replacement,field_element,challenge}` to obtain the Verifier's random challenges.   
-
-The `bytes` method of the FSPRF is used by the transcript object to sample pseudo-random field elements and
-pseudo-random integers via rejection sampling as follows:
-
-* `transcript.generate_nat(m)` generates a random natural between `0` and
-  `m-1` inclusive, as follows. This method is defined when `m > 1`.
-  
-	Let `l` be minimal such that `2^l > m`.  Let `nbytes = ceil(l / 8)`.
-	Let `b = fs.bytes(nbytes)`.  Interpret bytes `b` as a little-endian integer `k`.  
-  Pick `mask` to be the minimal bitmask such that `(n & mask) == n` and set `r = k & mask`.
-  If `r < m` return `r`, otherwise start over.
-
-```
-    def generate_nat(self, m: int) -> int:
-        assert m > 0, "m must be > 0"
-
-        l = m.bit_length()
-        nbytes = math.ceil(l / 8)        
-        mask = (1 << l) - 1
-        fs = self._get_fs()
-        while True:
-            b = fs.bytes(nbytes)            
-            k = int.from_bytes(b, 'little')            
-            r = k & mask            
-            if r < m:
-                return r
-```
-
-* `transcript.generate_nats_wo_replacement(m, n)` generates a list of `n` different, random natural numbers between `0` and `m - 1` inclusive.  There are many equivalent algorithms to perform this step.  The following approach requires only `n` calls to the `generate_nat` method.
-
-```
-def generate_nats_wo_replacement(m: int, n: int) -> list[int]:
-    # assert(m > n)
-    A = list(range(0, m))
-    for i in range(0, n):
-        j = i + generate_nat(m - i)
-        A[i], A[j] = A[j], A[i]
-    return A[:n]
-``` 
-    
-* `transcript.generate_field_element(F)` generates a field element.
-
-	If the field `F` is `Z / (p)`, return `generate_nat(fs, p)` interpreted as a field element.
-
-	If the field is `GF(2)[X] / (X^128 + X^7 + X^2 + X + 1)`, obtain `b = fs.bytes(16)` and interpret the 128 bits of `b` as a little-endian polynomial.  If the field is the sub-field of the above generated by the element `g=x^{(2^{128}-1) / (2^{16}-1)}`, then obtain `b = fs.bytes(2)`. Let `b_i` represent the `i`th bit of `b` in little-endian and return the element `\sum_i b_i * \beta_i` where `\beta_i = g^i` as defined above in (#gf2k).
-
-  This document does not specify the generation of a field element for other binary fields, but extensions SHOULD follow a similar pattern.
-
-* `a = transcript.generate_challenge(F, n)` generates an array of `n`
-  field elements in the straightforward way: for `0 <= i < n`
-  in ascending order, set `a[i] = transcript.generate_field_element(F)`.
-
-<reference anchor='krs' target='https://eprint.iacr.org/2025/118'>
-    <front>
-        <title>How to Prove False Statements: Practical Attacks on 
-            Fiat-Shamir</title>
-        <author initials='D.' surname='Khovratovich'
-                fullname='Dmitry Khovratovich'>
-        </author>
-        <author initials='R. D.' surname='Rothblum'
-                fullname='Ron D. Rothblum'>
-        </author>
-        <author initials='L.' surname='Soukhanov'
-                fullname='Lev Soukhanov'>
-        </author>
-        <date year='2025'/>
-    </front>
-</reference>
-
-### Optimizations
-As described, the hash function `H` is applied to progressively longer and longer `tr` strings as the protocol evolves from round to round. In practice, most implementations of cryptographic hash functions provide a data-structure which allows incremental update of the state of the hash function while also allowing a digest to be computed at any intermediate point.
+{{fs.md}}
 
 {{ligero.md}}
-
 
 # Overview of the Longfellow protocol {#overview}
 
@@ -335,6 +149,8 @@ sumcheck verifier directly, a commitment scheme is used to hide the
 one-time pad, and the sumcheck verifier is translated into a sequence of linear and
 quadratic constraints on the inputs and the one-time pad.  A secondary proof system
 is then used to produce a proof with respect to the commitment that the constraints are satisfied.
+
+The protocol requires both parties to agree on a circuit as part of the theorem statement.  The wire format of a circuit is defined in a separate document.
 
 Some of the wires of the circuit are *inputs*, i.e., set outside the circuit and not computed by the circuit itself.  Some of the inputs are *public*, i.e., known to both parties, and some are *private*, i.e., known only to the prover.  Sumcheck does not use the distinction between public and private inputs. This document distinguishes private inputs from the one-time pad.  The commitment scheme does not use public inputs at all, but it does treat private inputs and the one-time pad elements
 equally.  These constraints motivate the following terminology.
@@ -362,12 +178,24 @@ Thus, at a high level, the sequence of operations in the ZK protocol is the foll
 
 Steps 2 and 3 are referred to as "sumcheck", and the rest as "commitment scheme".  While the classification of step 3 as "sumcheck" is  arbitrary, there are situations where one might want to use a commitment scheme other than the Ligero protocol specified in this document.  In this case, the "commitment scheme" can change while the "sumcheck" remains unaffected.
 
-
 ## Parameters needed to define Longfellow
 Longfellow is parameterized by a sumcheck protocol, a commitment protocol, and a Fiat-Shamir instantiation.
 A selection of all three defines a `Longfellow profile`. This document introduces one opinionated profile that
 uses (a) The longfellow sumcheck described below, (b) the Ligero commitment described above, (c) the Fiat-Shamir instantiation defined
-above and using SHA-256 as the function `H`.
+above and using SHA-256 as the function `H`.  
+
+In addition to the component profile, the following security parameters described in the [Ligero Zero-Knowledge Proof Section](#ligero-zk-proof) must also be selected:
+
+- `NREQ`: The number of columns of the commitment matrix in the Ligero commitment scheme that the Verifier requests to be revealed by the Prover.
+- `rate`: The inverse rate of the error correcting code used by Ligero. 
+
+These two parameters are chosen to balance the size of the proof against the soundness of the protocol.  In principle, these parameters can differ based on the Field size. Based on the latest analysis, we support the following profiles which have been analyzed to provide at least 115 bits of security.
+
+- (p256, 132, 7)
+- (GF(2^128^), 132, 7)
+
+
+
 
 {{sumcheck.md}}
 
@@ -506,45 +334,6 @@ struct {
 ```
 
 
-## Serializing a Circuit
-A circuit structure consists of size metadata, a table of constants, and an array of structures that represent the layers of the circuit as follows.
-
-```
-struct {
-  Version version;     // 1-byte identifier, 0x1.
-  FieldID field;       // identifies the field
-  FieldID subfield;    // identifies the subfield
-  size num_outputs;    // number of outputs
-  size pub_in;         // number of public inputs
-  size ninputs;        // number of inputs, including witnesses
-  size num_layers;     // number of layers
-  Elt const_table[];   // array of constants used by the quads
-  CircuitLayer layers[]; 	// array of layers of size num_layers
-} Circuit;
-```
-
-The `const_table` structure contains an array of `Elt` constants that can be referred by any of the CircuitLayer structures. This feature saves space because a typical circuit uses only a handful of constants, which can be referred by a small index value into this table.
-
-```
-struct {
-  size log_num_input_wires;  // log of number of wires
-  size num_input_wires;      // number of wires
-  Quads quads[];             // array of Quads
-} CircuitLayer;
-```
-
-The `quads` array stores the main portion of the circuit. Each `Quad` structure contains a g, h0, h1 and a constant `v` which is represented as an index into the `const_table` array in the `Circuit`.  Each `g`,`h0`, and `h1` is stored as a difference from the corresponding item in the *previous* quad. In other words, these three values are delta-encoded in order to improve the compressibility of the circuit representation. The Delta spec uses LSB as a sign bit to indicate negative numbers.
-
-```
-struct {
-  Delta g;     // delta-encoded gate number
-  Delta h0;    // delta-encoded left wire index
-  Delta h1;    // delta-encoded right wire index
-  size v;      // index into the const_table to specify const v
-} Quad;
-
-typedef Delta uint;
-```
 
 <reference anchor='GMR' target=''>
     <front>
@@ -564,7 +353,10 @@ typedef Delta uint;
 
 Both the Ligero and Longfellow systems satisfy the standard properties of a zero-knowledge argument system: completeness, soundness, and zero-knowledge.
 
-Frigo and shelat [@longfellow] provide an analysis of the soundness of the system, as it derives from the Soundness of the Ligero proof system and the sumcheck protocol.  Similarly, the zero-knowledge property derives almost entirely from the analysis of Ligero [@ligero]. It is a goal to provide a mechanically verifiable proof for a high-level statement of the soundness.
+Frigo and shelat [@longfellow] provide an analysis of the soundness of the system, as it derives from the Soundness of the Ligero proof system and the sumcheck protocol.  Similarly, the zero-knowledge property derives almost entirely from the analysis of Ligero [@ligero].  A mechanically verifiable proof for the soundness
+and zero-knowledge properties of the joint scheme is in preparation.
+
+
 
 # IANA Considerations
 
