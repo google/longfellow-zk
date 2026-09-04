@@ -1402,9 +1402,8 @@ lemma ecdsa_reconstruct_to_infinity (pk : AffinePoint F) (e_nat r_nat s_nat : Na
   have h_e_G_on : e_G.IsOnCurve params := bsmul_on_curve _ G_proj params h_G_on
   have h_r_PK_on : r_PK.IsOnCurve params := bsmul_on_curve _ PK_proj params h_PK_on
   rcases h_std with ⟨h_on_pk, h_pk_order, h_r_pos, h_r_lt, h_s_pos, h_s_lt, h_verify⟩
-  have h_PK_order : ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) PK_proj params) infinityPoint := by
-    have h_std_pk_order := h_pk_order
-    exact h_std_pk_order ▸ ProjectiveEquiv.refl _
+  have h_PK_order : ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) PK_proj params) infinityPoint :=
+    h_pk_order
   have h_G_order_proj : ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) G_proj params) infinityPoint := h_G_order
   have h_order_pos : 0 < order := by omega
   have h_exp1 : (s_nat * ((e_nat % order * s_inv) % order)) % order = (order - (e_nat % order)) % order := by
